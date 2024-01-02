@@ -1,6 +1,52 @@
 #pragma once
 
+#include "bitboard.h"
+#include "moveset.h"
+#include "player.h"
+
 class Board {
 public:
-  Board();
+  Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn);
+
+  // Starting board of a chess game.
+  static Board initial();
+
+  // Returns a new board that is the result of applying the given move.
+  Board apply_move(Piece piece, u64 from, u64 to) const;
+
+  // Returns a new board that is the result of applying the given promotion to the given piece.
+  Board apply_promotion(u64 from, u64 to, Piece piece) const;
+
+  // Returns a reference to the current player whose turn it is.
+  const Player& cur_player() const;
+  Player& cur_player();
+
+  // Generate a MoveSet representation of all legal moves.
+  MoveSet generate_moves() const;
+
+  // Check if the given square is under attack by the opponent.
+  bool is_under_attack(u64 square) const;
+
+  // Returns a reference to the opponent of the current player.
+  const Player& opp_player() const;
+  Player& opp_player();
+
+private:
+  Player white;
+  Player black;
+  u64 en_passant_bit;  // The pawn that is currently capturable by en passant (if any).
+  bool is_white_turn;
+
+  // Generate legal bishop moves and add to move_set.
+  void generate_bishop_moves(MoveSet& move_set) const;
+  // Generate legal king moves and add to move_set.
+  void generate_king_moves(MoveSet& move_set) const;
+  // Generate legal knight moves and add to move_set.
+  void generate_knight_moves(MoveSet& move_set) const;
+  // Generate legal pawn moves and add to move_set.
+  void generate_pawn_moves(MoveSet& move_set) const;
+  // Generate legal queen moves and add to move_set.
+  void generate_queen_moves(MoveSet& move_set) const;
+  // Generate legal rook moves and add to move_set.
+  void generate_rook_moves(MoveSet& move_set) const;
 };
