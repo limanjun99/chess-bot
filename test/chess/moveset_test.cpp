@@ -62,3 +62,21 @@ TEST_CASE("moveset generation test - en passant") {
   REQUIRE(found_c5_en_passant);
   REQUIRE(found_e5_en_passant);
 }
+
+TEST_CASE("moveset generation test - generic 1") {
+  Board board = Board::from_epd("rnbqkbnr/pppppppp/8/8/8/PPPP4/4PPPP/RNBQKBNR w KQkq -");
+  MoveSet move_set = board.generate_moves();
+  int move_counts[6] = {0};
+
+  while (auto result = move_set.apply_next()) {
+    auto &[move, _] = *result;
+    move_counts[static_cast<int>(move.get_piece())]++;
+  }
+
+  REQUIRE(move_counts[static_cast<int>(Piece::Bishop)] == 6);
+  REQUIRE(move_counts[static_cast<int>(Piece::King)] == 1);
+  REQUIRE(move_counts[static_cast<int>(Piece::Knight)] == 3);
+  REQUIRE(move_counts[static_cast<int>(Piece::Pawn)] == 12);
+  REQUIRE(move_counts[static_cast<int>(Piece::Queen)] == 2);
+  REQUIRE(move_counts[static_cast<int>(Piece::Rook)] == 1);
+}
