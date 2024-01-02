@@ -5,6 +5,73 @@ Board::Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn)
 
 Board Board::initial() { return Board(Player::white_initial(), Player::black_initial(), 0, true); }
 
+Board Board::from_epd(std::string_view epd) {
+  Player white{0, 0, 0, 0, 0, 0, false, false};
+  Player black{0, 0, 0, 0, 0, 0, false, false};
+  size_t index = 0;
+
+  // Pieces.
+  for (int y = 7; y >= 0; y--) {
+    int x = 0;
+    while (epd[index] != '/' && epd[index] != ' ') {
+      char ch = epd[index];
+      index++;
+      if (ch >= '0' && ch <= '9') {
+        x += static_cast<int>(ch - '0');
+        continue;
+      }
+      bool is_white_piece = ch >= 'A' && ch <= 'Z';
+      if (is_white_piece) ch += 'a' - 'A';
+      Piece piece;
+      if (ch == 'b')
+        piece = Piece::Bishop;
+      else if (ch == 'k')
+        piece = Piece::King;
+      else if (ch == 'n')
+        piece = Piece::Knight;
+      else if (ch == 'p')
+        piece = Piece::Pawn;
+      else if (ch == 'q')
+        piece = Piece::Queen;
+      else if (ch == 'r')
+        piece = Piece::Rook;
+      Player& player = is_white_piece ? white : black;
+      player.mut_bitboard(piece) |= u64(1) << (y * 8 + x);
+      x++;
+    }
+    index++;
+  }
+
+  // Side to move.
+  bool is_white_turn = epd[index] == 'w';
+  index += 2;
+
+  // Castling rights.
+  while (epd[index] != '-' && epd[index] != ' ') {
+    bool is_white = epd[index] >= 'A' && epd[index] <= 'Z';
+    Player& player = is_white ? white : black;
+    if (epd[index] == 'K' || epd[index] == 'k')
+      player.enable_kingside_castling();
+    else
+      player.enable_queenside_castling();
+    index++;
+  }
+  index += 2;
+
+  // En passant target square.
+  u64 en_passant_bit = 0;
+  if (epd[index] != '-') {
+    en_passant_bit = bit::from_algebraic(epd.substr(index, 2));
+    // EPD stores the attacked square, while we need the pawn itself.
+    if (en_passant_bit & bitboard::RANK_2)
+      en_passant_bit >>= 8;
+    else
+      en_passant_bit <<= 8;
+  }
+
+  return Board{white, black, en_passant_bit, is_white_turn};
+}
+
 Board Board::apply_move(Piece piece, u64 from, u64 to) const {
   Board board = *this;
   Player& cur = board.cur_player();

@@ -112,6 +112,9 @@ std::string to_string(u64 bitboard);
 }  // namespace bitboard
 
 namespace bit {
+// Given a square in algebraic notation (e.g. 'a1'), return a bitboard with that bit set.
+u64 from_algebraic(std::string_view algebraic);
+
 // Returns the index of a single set bit.
 int to_index(u64 bit);
 

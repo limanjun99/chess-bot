@@ -25,6 +25,15 @@ void Player::disable_kingside_castling() { can_castle_kingside_ = false; }
 
 void Player::disable_queenside_castling() { can_castle_queenside_ = false; }
 
+void Player::enable_castling() {
+  can_castle_kingside_ = true;
+  can_castle_queenside_ = true;
+}
+
+void Player::enable_kingside_castling() { can_castle_kingside_ = true; }
+
+void Player::enable_queenside_castling() { can_castle_queenside_ = true; }
+
 u64 Player::can_castle_kingside() const { return can_castle_kingside_; }
 
 u64 Player::can_castle_queenside() const { return can_castle_queenside_; }

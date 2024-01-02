@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 #include "bitboard.h"
 #include "moveset.h"
 #include "player.h"
@@ -10,6 +12,10 @@ public:
 
   // Starting board of a chess game.
   static Board initial();
+
+  // Construct a board from Extended Position Description.
+  // https://www.chessprogramming.org/Extended_Position_Description
+  static Board from_epd(std::string_view epd);
 
   // Returns a new board that is the result of applying the given move.
   Board apply_move(Piece piece, u64 from, u64 to) const;

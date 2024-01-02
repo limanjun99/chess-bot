@@ -128,9 +128,15 @@ std::string bitboard::to_string(u64 bitboard) {
     for (int x = 0; x < 8; x++) {
       s += (bitboard & (u64(1) << (y * 8 + x))) ? '1' : '0';
     }
-    s += '\n';
+    if (y > 0) s += '\n';
   }
   return s;
+}
+
+u64 bit::from_algebraic(std::string_view algebraic) {
+  int x = static_cast<int>(algebraic[0] - 'a');
+  int y = static_cast<int>(algebraic[1] - '1');
+  return u64(1) << (y * 8 + x);
 }
 
 int bit::to_index(u64 bit) { return __builtin_ctzll(bit); }

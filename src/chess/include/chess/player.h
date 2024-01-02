@@ -23,6 +23,15 @@ public:
   // Not allowed to castle queenside anymore due to rook move.
   void disable_queenside_castling();
 
+  // Enable both kingside and queenside castling.
+  void enable_castling();
+
+  // Enable kingside castling.
+  void enable_kingside_castling();
+
+  // Enable queenside castling.
+  void enable_queenside_castling();
+
   // Returns true if the player is still allowed to castle kingside.
   u64 can_castle_kingside() const;
 
