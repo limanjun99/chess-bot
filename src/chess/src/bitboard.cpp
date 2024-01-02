@@ -121,6 +121,18 @@ u64 bitboard::queen_attacks(u64 queen, u64 occupancy) {
   return bishop_magic.attacks(queen, occupancy) | rook_magic.attacks(queen, occupancy);
 }
 
+std::string bitboard::to_string(u64 bitboard) {
+  std::string s;
+  s.reserve(8 * 8 + 7);
+  for (int y = 7; y >= 0; y--) {
+    for (int x = 0; x < 8; x++) {
+      s += (bitboard & (u64(1) << (y * 8 + x))) ? '1' : '0';
+    }
+    s += '\n';
+  }
+  return s;
+}
+
 int bit::to_index(u64 bit) { return __builtin_ctzll(bit); }
 
 u64 bit::lsb(u64 bitboard) { return bitboard & -bitboard; }
