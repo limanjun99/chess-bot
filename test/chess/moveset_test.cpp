@@ -44,3 +44,21 @@ TEST_CASE("moveset generation test - black castling") {
   REQUIRE(found_kingside_castling == false);
   REQUIRE(found_queenside_castling == true);
 }
+
+TEST_CASE("moveset generation test - en passant") {
+  Board board = Board::from_epd("rnbqkbnr/1pp1ppp1/p7/2PpP2p/8/8/PP1P1PPP/RNBQKBNR w KQkq d6");
+  MoveSet move_set = board.generate_moves();
+  bool found_c5_en_passant = false;
+  bool found_e5_en_passant = false;
+
+  while (auto result = move_set.apply_next()) {
+    auto &[move, _] = *result;
+    if (move.get_piece() == Piece::Pawn) {
+      found_c5_en_passant |= move.get_from() == bitboard::C5 && move.get_to() == bitboard::D6;
+      found_e5_en_passant |= move.get_from() == bitboard::E5 && move.get_to() == bitboard::D6;
+    }
+  }
+
+  REQUIRE(found_c5_en_passant);
+  REQUIRE(found_e5_en_passant);
+}

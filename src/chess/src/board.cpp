@@ -56,7 +56,7 @@ Board Board::from_epd(std::string_view epd) {
       player.enable_queenside_castling();
     index++;
   }
-  index += 2;
+  index++;
 
   // En passant target square.
   u64 en_passant_bit = 0;
@@ -64,9 +64,9 @@ Board Board::from_epd(std::string_view epd) {
     en_passant_bit = bit::from_algebraic(epd.substr(index, 2));
     // EPD stores the attacked square, while we need the pawn itself.
     if (en_passant_bit & bitboard::RANK_2)
-      en_passant_bit >>= 8;
-    else
       en_passant_bit <<= 8;
+    else
+      en_passant_bit >>= 8;
   }
 
   return Board{white, black, en_passant_bit, is_white_turn};
