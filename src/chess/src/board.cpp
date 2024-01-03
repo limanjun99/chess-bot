@@ -126,6 +126,8 @@ MoveSet Board::generate_moves() const {
   return move_set;
 }
 
+bool Board::is_in_check() const { return is_under_attack(cur_player().get_bitboard(Piece::King)); }
+
 bool Board::is_under_attack(u64 square) const {
   const Player& opp = opp_player();
   u64 cur_occupied = cur_player().occupied();

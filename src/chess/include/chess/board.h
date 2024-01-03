@@ -30,6 +30,9 @@ public:
   // Generate a MoveSet representation of all legal moves.
   MoveSet generate_moves() const;
 
+  // Returns true if the current player is in check.
+  bool is_in_check() const;
+
   // Check if the given square is under attack by the opponent.
   bool is_under_attack(u64 square) const;
 

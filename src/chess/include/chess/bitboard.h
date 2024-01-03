@@ -107,6 +107,9 @@ u64 queen_attacks(u64 queen, u64 occupancy);
 // Returns a bitboard of all attacked squares by the rook.
 u64 rook_attacks(u64 rook, u64 occupancy);
 
+// Counts the number of set bits in the given bitboard.
+int count(u64 bitboard);
+
 // A utility function to convert bitboards into a 8x8 binary string for visualization.
 std::string to_string(u64 bitboard);
 }  // namespace bitboard

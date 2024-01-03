@@ -117,6 +117,8 @@ MagicBitboard<52> rook_magic{
 
 u64 bitboard::rook_attacks(u64 rook, u64 occupancy) { return rook_magic.attacks(rook, occupancy); }
 
+int bitboard::count(u64 bitboard) { return __builtin_popcountll(bitboard); }
+
 u64 bitboard::queen_attacks(u64 queen, u64 occupancy) {
   return bishop_magic.attacks(queen, occupancy) | rook_magic.attacks(queen, occupancy);
 }
