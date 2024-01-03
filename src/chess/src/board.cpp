@@ -79,6 +79,15 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
   cur.mut_bitboard(piece) ^= from | to;
   opp &= ~to;
 
+  // Handle castling.
+  if (piece == Piece::King) {
+    if (to == from << 2) {  // Kingside castling.
+      cur.mut_bitboard(Piece::Rook) ^= from << 1 | from << 3;
+    } else if (to == from >> 2) {  // Queenside castling.
+      cur.mut_bitboard(Piece::Rook) ^= from >> 1 | from >> 4;
+    }
+  }
+
   // Handle en passant's capture.
   if (piece == Piece::Pawn && to == (is_white_turn ? en_passant_bit >> 8 : en_passant_bit << 8)) {
     opp.mut_bitboard(Piece::Pawn) ^= en_passant_bit;
@@ -93,6 +102,8 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
     if (from == is_white_turn ? bitboard::H1 : bitboard::H8) cur.disable_kingside_castling();
     if (from == is_white_turn ? bitboard::A1 : bitboard::A8) cur.disable_queenside_castling();
   }
+
+  board.is_white_turn = !board.is_white_turn;
 
   return board;
 }
@@ -109,6 +120,34 @@ Board Board::apply_promotion(u64 from, u64 to, Piece piece) const {
   board.en_passant_bit = 0;
 
   return board;
+}
+
+Board Board::apply_uci_move(std::string_view uci_move) {
+  u64 from = bit::from_algebraic(uci_move.substr(0, 2));
+  u64 to = bit::from_algebraic(uci_move.substr(2, 2));
+  if (uci_move.size() == 5) {
+    Piece promotion_piece = Piece::Bishop;
+    switch (uci_move[4]) {
+      case 'b':
+        promotion_piece = Piece::Bishop;
+        break;
+      case 'n':
+        promotion_piece = Piece::Knight;
+        break;
+      case 'q':
+        promotion_piece = Piece::Queen;
+        break;
+      case 'r':
+        promotion_piece = Piece::Rook;
+        break;
+      default:
+        throw "Unreachable - Board::apply_uci_move";
+    }
+    return apply_promotion(from, to, promotion_piece);
+  } else {
+    Piece piece = cur_player().piece_at(from);
+    return apply_move(piece, from, to);
+  }
 }
 
 const Player& Board::cur_player() const { return is_white_turn ? white : black; }
@@ -146,6 +185,8 @@ bool Board::is_under_attack(u64 square) const {
   }
   return false;
 }
+
+bool Board::is_white_to_move() const { return is_white_turn; }
 
 const Player& Board::opp_player() const { return is_white_turn ? black : white; }
 

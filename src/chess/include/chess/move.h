@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <string>
 
 #include "bitboard.h"
 #include "piece.h"
@@ -21,6 +22,9 @@ public:
   Piece get_piece();
   // Getter for promotion piece.
   std::optional<Piece> get_promotion_piece();
+
+  // Returns this move in UCI format.
+  std::string to_uci() const;
 
 private:
   Piece piece;

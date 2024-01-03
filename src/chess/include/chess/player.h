@@ -44,6 +44,9 @@ public:
   // Returns a mutable reference to a piece's bitboard.
   u64& mut_bitboard(Piece piece);
 
+  // Returns the piece at the given bit (which MUST be set).
+  Piece piece_at(u64 bit) const;
+
   // Returns the bitwise OR of all pieces.
   u64 occupied() const;
 

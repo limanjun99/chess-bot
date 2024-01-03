@@ -23,6 +23,9 @@ public:
   // Returns a new board that is the result of applying the given promotion to the given piece.
   Board apply_promotion(u64 from, u64 to, Piece piece) const;
 
+  // Returns a new board that is the result of applying the given move in UCI notation (assumed to be valid).
+  Board apply_uci_move(std::string_view uci_move);
+
   // Returns a reference to the current player whose turn it is.
   const Player& cur_player() const;
   Player& cur_player();
@@ -35,6 +38,9 @@ public:
 
   // Check if the given square is under attack by the opponent.
   bool is_under_attack(u64 square) const;
+
+  // Return whether it is white to move.
+  bool is_white_to_move() const;
 
   // Returns a reference to the opponent of the current player.
   const Player& opp_player() const;

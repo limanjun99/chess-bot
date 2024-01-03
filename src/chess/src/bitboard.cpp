@@ -141,6 +141,16 @@ u64 bit::from_algebraic(std::string_view algebraic) {
   return u64(1) << (y * 8 + x);
 }
 
+std::string bit::to_algebraic(u64 bit) {
+  std::string algebraic;
+  int index = bit::to_index(bit);
+  int rank = index / 8;
+  int file = index % 8;
+  algebraic += static_cast<char>(file + 'a');
+  algebraic += static_cast<char>(rank + '1');
+  return algebraic;
+}
+
 int bit::to_index(u64 bit) { return __builtin_ctzll(bit); }
 
 u64 bit::lsb(u64 bitboard) { return bitboard & -bitboard; }
