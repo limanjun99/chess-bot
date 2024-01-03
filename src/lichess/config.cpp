@@ -4,9 +4,9 @@
 
 #include "logger.h"
 
-const std::string& Config::get_lichess_token() { return lichess_token; }
+const std::string& Config::get_lichess_token() const { return lichess_token; }
 
-const std::string& Config::get_lichess_bot_name() { return lichess_bot_name; }
+const std::string& Config::get_lichess_bot_name() const { return lichess_bot_name; }
 
 Config::Config() {
   std::ifstream env_file{".env"};
