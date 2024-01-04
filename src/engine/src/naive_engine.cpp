@@ -87,18 +87,15 @@ int NaiveEngine::quiescence_search(const Board& board) {
   }
 
   MoveSet move_set = board.generate_moves();
-  int board_evaluation = evaluation::LOSING;
-  bool has_captures = false;
+  int board_evaluation = evaluate_board(board);
   int num_pieces = bitboard::count(board.cur_player().occupied() | board.opp_player().occupied());
   while (auto result = move_set.apply_next()) {
     auto& [move, new_board] = *result;
     int new_num_pieces = bitboard::count(new_board.cur_player().occupied() | new_board.opp_player().occupied());
     if (num_pieces == new_num_pieces) continue;  // Not a capture, ignore it.
-    has_captures = true;
     int new_board_evaluation = quiescence_search(new_board);
     board_evaluation = std::max(board_evaluation, -new_board_evaluation);
   }
 
-  if (has_captures) return board_evaluation;
-  return evaluate_board(board);
+  return board_evaluation;
 }
