@@ -83,7 +83,7 @@ void GameHandler::listen() {
 }
 
 Move GameHandler::find_move(const Board& board) {
-  NaiveEngine engine{4};
+  NaiveEngine engine{0};
   return engine.make_move(board);
 }
 
