@@ -42,9 +42,15 @@ public:
   // Return whether it is white to move.
   bool is_white_to_move() const;
 
+  // Returns true if the other player is in check.
+  bool moved_into_check() const;
+
   // Returns a reference to the opponent of the current player.
   const Player& opp_player() const;
   Player& opp_player();
+
+  // Returns a 8x8 newline delimited string represenation of the board.
+  std::string to_string() const;
 
 private:
   Player white;

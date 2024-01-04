@@ -57,7 +57,7 @@ int NaiveEngine::search(const Board& board, int current_depth) {
 
   // TODO: This is an extremely inefficient way to check if the game has ended. Ideally chess library should provide a
   // fast method for this.
-  bool game_ended = board.generate_moves().apply_next().has_value();
+  bool game_ended = !board.generate_moves().apply_next().has_value();
   if (game_ended) {
     if (board.is_in_check())
       return evaluation::LOSING;  // Checkmate.
@@ -66,11 +66,11 @@ int NaiveEngine::search(const Board& board, int current_depth) {
   }
 
   MoveSet move_set = board.generate_moves();
-  int board_evaluation = evaluation::WINNING;
+  int board_evaluation = evaluation::LOSING;
   while (auto result = move_set.apply_next()) {
     auto& [move, new_board] = *result;
     int new_board_evaluation = search(new_board, current_depth + 1);
-    board_evaluation = std::min(board_evaluation, -new_board_evaluation);
+    board_evaluation = std::max(board_evaluation, -new_board_evaluation);
   }
   return board_evaluation;
 }
@@ -78,7 +78,7 @@ int NaiveEngine::search(const Board& board, int current_depth) {
 int NaiveEngine::quiescence_search(const Board& board) {
   // TODO: This is an extremely inefficient way to check if the game has ended. Ideally chess library should provide a
   // fast method for this.
-  bool game_ended = board.generate_moves().apply_next().has_value();
+  bool game_ended = !board.generate_moves().apply_next().has_value();
   if (game_ended) {
     if (board.is_in_check())
       return evaluation::LOSING;  // Checkmate.
@@ -87,7 +87,7 @@ int NaiveEngine::quiescence_search(const Board& board) {
   }
 
   MoveSet move_set = board.generate_moves();
-  int board_evaluation = evaluation::WINNING;
+  int board_evaluation = evaluation::LOSING;
   bool has_captures = false;
   int num_pieces = bitboard::count(board.cur_player().occupied() | board.opp_player().occupied());
   while (auto result = move_set.apply_next()) {
@@ -96,7 +96,7 @@ int NaiveEngine::quiescence_search(const Board& board) {
     if (num_pieces == new_num_pieces) continue;  // Not a capture, ignore it.
     has_captures = true;
     int new_board_evaluation = quiescence_search(new_board);
-    board_evaluation = std::min(board_evaluation, -new_board_evaluation);
+    board_evaluation = std::max(board_evaluation, -new_board_evaluation);
   }
 
   if (has_captures) return board_evaluation;

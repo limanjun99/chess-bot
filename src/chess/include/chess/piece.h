@@ -5,6 +5,6 @@ enum class Piece {
   King = 1,
   Knight = 2,
   Pawn = 3,
-  Rook = 4,
-  Queen = 5,
+  Queen = 4,
+  Rook = 5,
 };

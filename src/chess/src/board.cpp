@@ -77,6 +77,15 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
   Player& cur = board.cur_player();
   Player& opp = board.opp_player();
   cur.mut_bitboard(piece) ^= from | to;
+
+  if (opp.get_bitboard(Piece::Rook) & to) {
+    if (opp.can_castle_kingside() && to == is_white_turn ? bitboard::H1 : bitboard::H8) {
+      opp.disable_kingside_castling();
+    }
+    if (opp.can_castle_queenside() && to == is_white_turn ? bitboard::A1 : bitboard::A8) {
+      opp.disable_queenside_castling();
+    }
+  }
   opp &= ~to;
 
   // Handle castling.
@@ -188,9 +197,48 @@ bool Board::is_under_attack(u64 square) const {
 
 bool Board::is_white_to_move() const { return is_white_turn; }
 
+bool Board::moved_into_check() const {
+  const Player& cur = cur_player();
+  const Player& opp = opp_player();
+  u64 king = opp.get_bitboard(Piece::King);
+  u64 cur_occupied = cur_player().occupied();
+  u64 opp_occupied = opp_player().occupied();
+  u64 total_occupied = cur_occupied | opp_occupied;
+  if (bitboard::bishop_attacks(king, total_occupied) &
+      (cur.get_bitboard(Piece::Bishop) | cur.get_bitboard(Piece::Queen))) {
+    return true;
+  }
+  if (bitboard::king_attacks(king) & cur.get_bitboard(Piece::King)) return true;
+  if (bitboard::knight_attacks(king) & cur.get_bitboard(Piece::Knight)) return true;
+  if (bitboard::pawn_attacks(king, !is_white_turn) & cur.get_bitboard(Piece::Pawn)) return true;
+  if (bitboard::rook_attacks(king, total_occupied) & (cur.get_bitboard(Piece::Rook) | cur.get_bitboard(Piece::Queen))) {
+    return true;
+  }
+  return false;
+}
+
 const Player& Board::opp_player() const { return is_white_turn ? black : white; }
 
 Player& Board::opp_player() { return is_white_turn ? black : white; }
+
+std::string Board::to_string() const {
+  std::string s;
+  for (int y = 7; y >= 0; y--) {
+    for (int x = 0; x < 8; x++) {
+      u64 bit = u64(1) << (y * 8 + x);
+      constexpr char piece_char[6] = {'b', 'k', 'n', 'p', 'q', 'r'};
+      if (white.occupied() & bit) {
+        s += piece_char[static_cast<int>(white.piece_at(bit))] - 32;
+      } else if (black.occupied() & bit) {
+        s += piece_char[static_cast<int>(black.piece_at(bit))];
+      } else {
+        s += '.';
+      }
+    }
+    if (y) s += '\n';
+  }
+  return s;
+}
 
 void Board::generate_bishop_moves(MoveSet& move_set) const {
   u64 bishops = cur_player().get_bitboard(Piece::Bishop);
