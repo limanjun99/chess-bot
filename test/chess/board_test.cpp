@@ -40,3 +40,12 @@ TEST_CASE("move generation from initial state is correct") {
   REQUIRE(move_count[static_cast<int>(Piece::Queen)] == 0);
   REQUIRE(move_count[static_cast<int>(Piece::Rook)] == 0);
 }
+
+TEST_CASE("pawn push does not wrongly capture en passant") {
+  Board board = Board::initial();
+  board = board.apply_uci_move("d2d4");
+  board = board.apply_uci_move("e7e5");
+  // Before fixing, en passant was handled wrongly and caused e2e4 to capture the pawn on e5.
+  board = board.apply_uci_move("e2e4");
+  REQUIRE((board.cur_player().get_bitboard(Piece::Pawn) & bitboard::E5) == bitboard::E5);
+}

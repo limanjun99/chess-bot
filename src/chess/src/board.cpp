@@ -98,7 +98,7 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
   }
 
   // Handle en passant's capture.
-  if (piece == Piece::Pawn && to == (is_white_turn ? en_passant_bit >> 8 : en_passant_bit << 8)) {
+  if (piece == Piece::Pawn && to == (is_white_turn ? en_passant_bit << 8 : en_passant_bit >> 8)) {
     opp.mut_bitboard(Piece::Pawn) ^= en_passant_bit;
   }
 
