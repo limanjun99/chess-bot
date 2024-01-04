@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <string_view>
+
 #include "chess/board.h"
 #include "config.h"
 
@@ -40,7 +43,7 @@ private:
   Move find_move(const Board& board);
 
   // Handle a game event from an ongoing game. Returns false if the game has ended.
-  bool handle_game_event(const std::string& game_id, std::string data);
+  bool handle_game_event(const std::string& game_id, std::string_view data);
 
   // Initialise a board after applying all the moves to a starting position.
   // Moves are in UCI format.

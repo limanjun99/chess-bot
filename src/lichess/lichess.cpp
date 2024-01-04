@@ -75,7 +75,20 @@ GameHandler::GameHandler(const Config& config, const std::string& game_id) : con
 
 void GameHandler::listen() {
   Logger::info() << "Handling game " << game_id << "\n";
-  auto callback = [this](std::string data, intptr_t) { return handle_game_event(game_id, std::move(data)); };
+  auto callback = [this](std::string data, intptr_t) {
+    bool ongoing = true;
+    size_t start = 0;
+    size_t end = 0;
+    while (end != std::string::npos) {
+      while (start < data.size() && data[start] == '\n') start++;
+      if (start >= data.size()) break;
+      end = data.find("\n", start + 1);
+      if (end == std::string::npos) end = data.size();
+      ongoing &= handle_game_event(game_id, std::string_view{data}.substr(start, end - start));
+      start = end + 1;
+    }
+    return ongoing;
+  };
   cpr::Get(cpr::Url{api::stream_game(game_id)}, cpr::Bearer{config.get_lichess_token()}, cpr::WriteCallback{callback});
 }
 
@@ -84,8 +97,7 @@ Move GameHandler::find_move(const Board& board) {
   return engine.make_move(board);
 }
 
-bool GameHandler::handle_game_event(const std::string& game_id, std::string data) {
-  while (!data.empty() && data.back() == '\n') data.pop_back();
+bool GameHandler::handle_game_event(const std::string& game_id, std::string_view data) {
   if (data.empty()) return true;
   json event = json::parse(data);
 
