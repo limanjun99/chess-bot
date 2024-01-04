@@ -123,10 +123,21 @@ Board Board::apply_promotion(u64 from, u64 to, Piece piece) const {
   Player& opp = board.opp_player();
   cur.mut_bitboard(Piece::Pawn) ^= from;
   cur.mut_bitboard(piece) ^= to;
+
+  if (opp.get_bitboard(Piece::Rook) & to) {
+    if (opp.can_castle_kingside() && to == is_white_turn ? bitboard::H1 : bitboard::H8) {
+      opp.disable_kingside_castling();
+    }
+    if (opp.can_castle_queenside() && to == is_white_turn ? bitboard::A1 : bitboard::A8) {
+      opp.disable_queenside_castling();
+    }
+  }
   opp &= ~to;
 
   // Update en passant flag.
   board.en_passant_bit = 0;
+
+  board.is_white_turn = !board.is_white_turn;
 
   return board;
 }
