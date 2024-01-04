@@ -22,7 +22,7 @@ Board Board::from_epd(std::string_view epd) {
       }
       bool is_white_piece = ch >= 'A' && ch <= 'Z';
       if (is_white_piece) ch += 'a' - 'A';
-      Piece piece;
+      Piece piece = Piece::Bishop;
       if (ch == 'b')
         piece = Piece::Bishop;
       else if (ch == 'k')

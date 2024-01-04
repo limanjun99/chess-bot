@@ -22,7 +22,7 @@ std::optional<std::pair<Move, Board>> MoveSet::apply_next() {
     Piece piece = piece_moves[index].piece;
     piece_moves[index].to_bitboard ^= to;
 
-    if (promotion_flag != 3 || piece == Piece::Pawn && (to & (bitboard::RANK_1 | bitboard::RANK_8))) {
+    if (promotion_flag != 3 || (piece == Piece::Pawn && (to & (bitboard::RANK_1 | bitboard::RANK_8)))) {
       // Promotion.
       constexpr Piece promotion_pieces[4] = {Piece::Bishop, Piece::Knight, Piece::Queen, Piece::Rook};
       Piece promotion_piece = promotion_pieces[promotion_flag];
