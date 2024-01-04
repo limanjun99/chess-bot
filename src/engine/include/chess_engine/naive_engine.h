@@ -21,5 +21,5 @@ private:
 
   // Traverse the search tree until a position with no captures. Returns the evaluation of the current board for the
   // current player.
-  int quiescence_search(const Board& board);
+  int quiescence_search(const Board& board, int current_depth);
 };
