@@ -6,5 +6,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(doctest)
 set(DOCTEST_INCLUDE_DIR ${doctest_SOURCE_DIR})
 
+add_subdirectory(benchmark)
 add_subdirectory(chess)
 add_subdirectory(engine)
