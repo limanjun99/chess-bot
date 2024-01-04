@@ -39,8 +39,8 @@ private:
   // Find the move to make in the given position.
   Move find_move(const Board& board);
 
-  // Handle a game event from an ongoing game.
-  void handle_game_event(const std::string& game_id, std::string data);
+  // Handle a game event from an ongoing game. Returns false if the game has ended.
+  bool handle_game_event(const std::string& game_id, std::string data);
 
   // Initialise a board after applying all the moves to a starting position.
   // Moves are in UCI format.

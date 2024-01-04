@@ -75,10 +75,7 @@ GameHandler::GameHandler(const Config& config, const std::string& game_id) : con
 
 void GameHandler::listen() {
   Logger::info() << "Handling game " << game_id << "\n";
-  auto callback = [this](std::string data, intptr_t) {
-    handle_game_event(game_id, std::move(data));
-    return true;
-  };
+  auto callback = [this](std::string data, intptr_t) { return handle_game_event(game_id, std::move(data)); };
   cpr::Get(cpr::Url{api::stream_game(game_id)}, cpr::Bearer{config.get_lichess_token()}, cpr::WriteCallback{callback});
 }
 
@@ -87,9 +84,9 @@ Move GameHandler::find_move(const Board& board) {
   return engine.make_move(board);
 }
 
-void GameHandler::handle_game_event(const std::string& game_id, std::string data) {
+bool GameHandler::handle_game_event(const std::string& game_id, std::string data) {
   while (!data.empty() && data.back() == '\n') data.pop_back();
-  if (data.empty()) return;
+  if (data.empty()) return true;
   json event = json::parse(data);
 
   std::optional<Board> board_opt = std::nullopt;
@@ -98,15 +95,19 @@ void GameHandler::handle_game_event(const std::string& game_id, std::string data
     is_white = event["white"]["id"] == config.get_lichess_bot_name();
     board_opt = std::optional(initialise_board(event["state"]["moves"]));
   } else if (event["type"] == "gameState") {
+    if (event["status"] != "started") {
+      return false;  // Game ended.
+    }
     board_opt = std::optional(initialise_board(event["moves"]));
   }
-  if (!board_opt.has_value()) return;  // Not an event caused by a move.
+  if (!board_opt.has_value()) return true;  // Not an event caused by a move.
   auto board = *board_opt;
-  if (board.is_white_to_move() != is_white) return;  // Not my turn.
+  if (board.is_white_to_move() != is_white) return true;  // Not my turn.
 
   Move move = find_move(board);
   Logger::info() << "Making move " << move.to_uci() << " for game " << game_id << "\n";
   send_move(move);
+  return true;
 }
 
 Board GameHandler::initialise_board(const std::string& moves) {
