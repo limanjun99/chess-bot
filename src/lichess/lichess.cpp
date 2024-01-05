@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-#include "chess_engine/naive_engine.h"
+#include "chess_engine/ab_engine.h"
 #include "logger.h"
 
 using json = nlohmann::json;
@@ -93,7 +93,7 @@ void GameHandler::listen() {
 }
 
 Move GameHandler::find_move(const Board& board) {
-  NaiveEngine engine{2};
+  AlphaBetaEngine engine{5};
   return engine.make_move(board);
 }
 

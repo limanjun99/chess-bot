@@ -1,4 +1,4 @@
-add_library(chess_engine src/naive_engine.cpp)
+add_library(chess_engine src/ab_engine.cpp src/naive_engine.cpp)
 
 target_compile_features(chess_engine PRIVATE cxx_std_20)
 target_include_directories(chess_engine PRIVATE include/chess_engine)
