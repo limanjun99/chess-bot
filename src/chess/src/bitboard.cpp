@@ -80,11 +80,22 @@ constexpr std::array<u64, 64> knight_lookup = generate_knight_lookup();
 
 u64 bitboard::knight_attacks(u64 knight) { return knight_lookup[bit::to_index(knight)]; }
 
-u64 bitboard::pawn_attacks(u64 pawn, bool is_white) {
-  u64 left = is_white ? pawn << 7 : pawn >> 9;
-  u64 right = is_white ? pawn << 9 : pawn >> 7;
-  return (left & ~FILE_H) | (right & ~FILE_A);
+consteval std::array<std::array<u64, 64>, 2> generate_pawn_lookup() {
+  using namespace bitboard;
+  std::array<std::array<u64, 64>, 2> pawn_lookup;
+  for (int is_white = 0; is_white < 2; is_white++) {
+    for (int index = 0; index < 64; index++) {
+      u64 pawn = u64(1) << index;
+      u64 left = is_white ? pawn << 7 : pawn >> 9;
+      u64 right = is_white ? pawn << 9 : pawn >> 7;
+      pawn_lookup[is_white][index] = (left & ~FILE_H) | (right & ~FILE_A);
+    }
+  }
+  return pawn_lookup;
 }
+constexpr std::array<std::array<u64, 64>, 2> pawn_lookup = generate_pawn_lookup();
+
+u64 bitboard::pawn_attacks(u64 pawn, bool is_white) { return pawn_lookup[is_white][bit::to_index(pawn)]; }
 
 MagicBitboard<52> rook_magic{
     {{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}},
@@ -117,8 +128,6 @@ MagicBitboard<52> rook_magic{
 
 u64 bitboard::rook_attacks(u64 rook, u64 occupancy) { return rook_magic.attacks(rook, occupancy); }
 
-int bitboard::count(u64 bitboard) { return __builtin_popcountll(bitboard); }
-
 u64 bitboard::queen_attacks(u64 queen, u64 occupancy) {
   return bishop_magic.attacks(queen, occupancy) | rook_magic.attacks(queen, occupancy);
 }
@@ -150,7 +159,3 @@ std::string bit::to_algebraic(u64 bit) {
   algebraic += static_cast<char>(rank + '1');
   return algebraic;
 }
-
-int bit::to_index(u64 bit) { return __builtin_ctzll(bit); }
-
-u64 bit::lsb(u64 bitboard) { return bitboard & -bitboard; }

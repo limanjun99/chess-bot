@@ -108,7 +108,7 @@ u64 queen_attacks(u64 queen, u64 occupancy);
 u64 rook_attacks(u64 rook, u64 occupancy);
 
 // Counts the number of set bits in the given bitboard.
-int count(u64 bitboard);
+inline int count(u64 bitboard) { return __builtin_popcountll(bitboard); }
 
 // A utility function to convert bitboards into a 8x8 binary string for visualization.
 std::string to_string(u64 bitboard);
@@ -122,8 +122,8 @@ u64 from_algebraic(std::string_view algebraic);
 std::string to_algebraic(u64 bit);
 
 // Returns the index of a single set bit.
-int to_index(u64 bit);
+inline int to_index(u64 bit) { return __builtin_ctzll(bit); }
 
 // Returns the least significant bit.
-u64 lsb(u64 bitboard);
+inline u64 lsb(u64 bitboard) { return bitboard & -bitboard; }
 }  // namespace bit

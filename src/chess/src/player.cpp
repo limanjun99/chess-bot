@@ -16,40 +16,12 @@ Player Player::black_initial() {
                 bitboard::A8 | bitboard::H8, true, true);
 }
 
-void Player::disable_castling() {
-  can_castle_kingside_ = false;
-  can_castle_queenside_ = false;
-}
-
-void Player::disable_kingside_castling() { can_castle_kingside_ = false; }
-
-void Player::disable_queenside_castling() { can_castle_queenside_ = false; }
-
-void Player::enable_castling() {
-  can_castle_kingside_ = true;
-  can_castle_queenside_ = true;
-}
-
-void Player::enable_kingside_castling() { can_castle_kingside_ = true; }
-
-void Player::enable_queenside_castling() { can_castle_queenside_ = true; }
-
-u64 Player::can_castle_kingside() const { return can_castle_kingside_; }
-
-u64 Player::can_castle_queenside() const { return can_castle_queenside_; }
-
-u64 Player::get_bitboard(Piece piece) const { return pieces[static_cast<int>(piece)]; }
-
-u64& Player::mut_bitboard(Piece piece) { return pieces[static_cast<int>(piece)]; }
-
 Piece Player::piece_at(u64 bit) const {
   for (Piece piece : {Piece::Bishop, Piece::King, Piece::Knight, Piece::Pawn, Piece::Queen, Piece::Rook}) {
     if (pieces[static_cast<int>(piece)] & bit) return piece;
   }
   throw "Unreachable - Player::piece_at";
 }
-
-u64 Player::occupied() const { return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5]; }
 
 Player& Player::operator&=(u64 mask) {
   pieces[static_cast<int>(Piece::Bishop)] &= mask;

@@ -78,14 +78,18 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
   Player& opp = board.opp_player();
   cur.mut_bitboard(piece) ^= from | to;
 
+  // Update castling flag.
   if (opp.get_bitboard(Piece::Rook) & to) {
-    if (opp.can_castle_kingside() && to == is_white_turn ? bitboard::H1 : bitboard::H8) {
-      opp.disable_kingside_castling();
-    }
-    if (opp.can_castle_queenside() && to == is_white_turn ? bitboard::A1 : bitboard::A8) {
-      opp.disable_queenside_castling();
-    }
+    if (to == (is_white_turn ? bitboard::H8 : bitboard::H1)) opp.disable_kingside_castling();
+    if (to == (is_white_turn ? bitboard::A8 : bitboard::A1)) opp.disable_queenside_castling();
   }
+  if (piece == Piece::King) {
+    cur.disable_castling();
+  } else if (piece == Piece::Rook) {
+    if (from == (is_white_turn ? bitboard::H1 : bitboard::H8)) cur.disable_kingside_castling();
+    if (from == (is_white_turn ? bitboard::A1 : bitboard::A8)) cur.disable_queenside_castling();
+  }
+
   opp &= ~to;
 
   // Handle castling.
@@ -105,39 +109,14 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
   // Update en passant flag.
   board.en_passant_bit = piece == Piece::Pawn && (to == from << 16 || to == from >> 16) ? to : 0;
 
-  // Update castling flag.
-  if (piece == Piece::King) cur.disable_castling();
-  if (piece == Piece::Rook) {
-    if (from == is_white_turn ? bitboard::H1 : bitboard::H8) cur.disable_kingside_castling();
-    if (from == is_white_turn ? bitboard::A1 : bitboard::A8) cur.disable_queenside_castling();
-  }
-
   board.is_white_turn = !board.is_white_turn;
 
   return board;
 }
 
 Board Board::apply_promotion(u64 from, u64 to, Piece piece) const {
-  Board board = *this;
-  Player& cur = board.cur_player();
-  Player& opp = board.opp_player();
-  cur.mut_bitboard(Piece::Pawn) ^= from;
-  cur.mut_bitboard(piece) ^= to;
-
-  if (opp.get_bitboard(Piece::Rook) & to) {
-    if (opp.can_castle_kingside() && to == is_white_turn ? bitboard::H1 : bitboard::H8) {
-      opp.disable_kingside_castling();
-    }
-    if (opp.can_castle_queenside() && to == is_white_turn ? bitboard::A1 : bitboard::A8) {
-      opp.disable_queenside_castling();
-    }
-  }
-  opp &= ~to;
-
-  // Update en passant flag.
-  board.en_passant_bit = 0;
-
-  board.is_white_turn = !board.is_white_turn;
+  Board board = apply_move(Piece::Pawn, from, to);
+  board.opp_player().mut_bitboard(piece) ^= to;
 
   return board;
 }
@@ -190,7 +169,7 @@ bool Board::is_in_check() const { return is_under_attack(cur_player().get_bitboa
 bool Board::is_under_attack(u64 square) const {
   const Player& opp = opp_player();
   u64 cur_occupied = cur_player().occupied();
-  u64 opp_occupied = opp_player().occupied();
+  u64 opp_occupied = opp.occupied();
   u64 total_occupied = cur_occupied | opp_occupied;
   if (bitboard::bishop_attacks(square, total_occupied) &
       (opp.get_bitboard(Piece::Bishop) | opp.get_bitboard(Piece::Queen))) {
@@ -212,8 +191,8 @@ bool Board::moved_into_check() const {
   const Player& cur = cur_player();
   const Player& opp = opp_player();
   u64 king = opp.get_bitboard(Piece::King);
-  u64 cur_occupied = cur_player().occupied();
-  u64 opp_occupied = opp_player().occupied();
+  u64 cur_occupied = cur.occupied();
+  u64 opp_occupied = opp.occupied();
   u64 total_occupied = cur_occupied | opp_occupied;
   if (bitboard::bishop_attacks(king, total_occupied) &
       (cur.get_bitboard(Piece::Bishop) | cur.get_bitboard(Piece::Queen))) {
@@ -293,8 +272,9 @@ void Board::generate_knight_moves(MoveSet& move_set) const {
 }
 
 void Board::generate_pawn_moves(MoveSet& move_set) const {
-  u64 pawns = cur_player().get_bitboard(Piece::Pawn);
-  u64 cur_occupied = cur_player().occupied();
+  const Player& cur = cur_player();
+  u64 pawns = cur.get_bitboard(Piece::Pawn);
+  u64 cur_occupied = cur.occupied();
   u64 opp_occupied = opp_player().occupied() | (is_white_turn ? en_passant_bit << 8 : en_passant_bit >> 8);
   u64 total_occupied = cur_occupied | opp_occupied;
   while (pawns) {

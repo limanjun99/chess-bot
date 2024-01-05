@@ -15,40 +15,40 @@ public:
   static Player black_initial();
 
   // Not allowed to castle anymore due to king move.
-  void disable_castling();
+  inline void disable_castling() { can_castle_kingside_ = can_castle_queenside_ = false; }
 
   // Not allowed to castle kingside anymore due to rook move.
-  void disable_kingside_castling();
+  inline void disable_kingside_castling() { can_castle_kingside_ = false; }
 
   // Not allowed to castle queenside anymore due to rook move.
-  void disable_queenside_castling();
+  inline void disable_queenside_castling() { can_castle_queenside_ = false; }
 
   // Enable both kingside and queenside castling.
-  void enable_castling();
+  inline void enable_castling() { can_castle_kingside_ = can_castle_queenside_ = true; }
 
   // Enable kingside castling.
-  void enable_kingside_castling();
+  inline void enable_kingside_castling() { can_castle_kingside_ = true; }
 
   // Enable queenside castling.
-  void enable_queenside_castling();
+  inline void enable_queenside_castling() { can_castle_queenside_ = true; }
 
   // Returns true if the player is still allowed to castle kingside.
-  u64 can_castle_kingside() const;
+  inline u64 can_castle_kingside() const { return can_castle_kingside_; }
 
   // Returns true if the player is still allowed to castle queenside.
-  u64 can_castle_queenside() const;
+  inline u64 can_castle_queenside() const { return can_castle_queenside_; }
 
   // Returns the bitboard of the given piece.
-  u64 get_bitboard(Piece piece) const;
+  inline u64 get_bitboard(Piece piece) const { return pieces[static_cast<int>(piece)]; }
 
   // Returns a mutable reference to a piece's bitboard.
-  u64& mut_bitboard(Piece piece);
+  inline u64& mut_bitboard(Piece piece) { return pieces[static_cast<int>(piece)]; }
 
   // Returns the piece at the given bit (which MUST be set).
   Piece piece_at(u64 bit) const;
 
   // Returns the bitwise OR of all pieces.
-  u64 occupied() const;
+  inline u64 occupied() const { return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5]; }
 
   // Applies bitwise AND of the given mask to all pieces except the king.
   Player& operator&=(u64 mask);

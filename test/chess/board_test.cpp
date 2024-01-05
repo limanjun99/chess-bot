@@ -49,3 +49,15 @@ TEST_CASE("pawn push does not wrongly capture en passant") {
   board = board.apply_uci_move("e2e4");
   REQUIRE((board.cur_player().get_bitboard(Piece::Pawn) & bitboard::E5) == bitboard::E5);
 }
+
+TEST_CASE("moving one rook only disables castling for that side") {
+  Board board = Board::initial();
+  board = board.apply_uci_move("h2h3");
+  board = board.apply_uci_move("h7h6");
+  board = board.apply_uci_move("h1h2");
+  REQUIRE(!board.opp_player().can_castle_kingside());
+  REQUIRE(board.opp_player().can_castle_queenside());
+  board = board.apply_uci_move("h8h7");
+  REQUIRE(!board.opp_player().can_castle_kingside());
+  REQUIRE(board.opp_player().can_castle_queenside());
+}
