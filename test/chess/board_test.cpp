@@ -61,3 +61,9 @@ TEST_CASE("moving one rook only disables castling for that side") {
   REQUIRE(!board.opp_player().can_castle_kingside());
   REQUIRE(board.opp_player().can_castle_queenside());
 }
+
+TEST_CASE("promoting a pawn should remove the pawn from the board") {
+  Board board = Board::from_epd("rnbqkbnr/1pppppPp/8/8/8/p7/PPPPPPP1/RNBQKBNR w KQkq -");
+  board = board.apply_uci_move("g7g8q");
+  REQUIRE((board.opp_player().get_bitboard(Piece::Pawn) & bitboard::G8) == 0);
+}

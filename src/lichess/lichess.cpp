@@ -93,7 +93,7 @@ void GameHandler::listen() {
 }
 
 Move GameHandler::find_move(const Board& board) {
-  AlphaBetaEngine engine{5};
+  AlphaBetaEngine engine{7};
   return engine.make_move(board);
 }
 

@@ -117,7 +117,7 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
 Board Board::apply_promotion(u64 from, u64 to, Piece piece) const {
   Board board = apply_move(Piece::Pawn, from, to);
   board.opp_player().mut_bitboard(piece) ^= to;
-
+  board.opp_player().mut_bitboard(Piece::Pawn) ^= to;
   return board;
 }
 

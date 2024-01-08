@@ -2,12 +2,16 @@
 
 #include <limits.h>
 
+#include <algorithm>
+#include <vector>
+
 #include "chess/moveset.h"
 
 namespace evaluation {
 constexpr int LOSING = -1000000000;
 constexpr int WINNING = 1000000000;
 constexpr int DRAW = 0;
+constexpr int piece[6] = {3, 100, 3, 1, 9, 5};
 constexpr int bishop = 3;
 constexpr int knight = 3;
 constexpr int pawn = 1;
@@ -25,8 +29,8 @@ Move AlphaBetaEngine::make_move(const Board& board) {
   int alpha = evaluation::LOSING;
   while (auto result = move_set.apply_next()) {
     auto& [move, new_board] = *result;
-    int new_board_evaluation = search(new_board, alpha, evaluation::WINNING, 0);
-    if (-new_board_evaluation >= alpha) {
+    int new_board_evaluation = search(new_board, -evaluation::WINNING, -alpha, 0);
+    if (-new_board_evaluation > alpha || alpha == evaluation::LOSING) {
       alpha = -new_board_evaluation;
       best_move = std::optional(move);
     }
@@ -54,22 +58,42 @@ int AlphaBetaEngine::evaluate_board(const Board& board) {
 int AlphaBetaEngine::search(const Board& board, int alpha, int beta, int current_depth) {
   if (current_depth == depth) {
     // Switch to quiescence search
-    return quiescence_search(board, alpha, beta, 0);
+    return quiescence_search(board, alpha, beta, current_depth);
   }
 
-  // TODO: This is an extremely inefficient way to check if the game has ended. Ideally chess library should provide a
-  // fast method for this.
-  bool game_ended = !board.generate_moves().apply_next().has_value();
+  MoveSet move_set = board.generate_moves();
+  auto result = move_set.apply_next();
+  bool game_ended = !result.has_value();
   if (game_ended) {
     if (board.is_in_check())
-      return evaluation::LOSING;  // Checkmate.
+      return evaluation::LOSING + current_depth;  // Checkmate.
     else
       return evaluation::DRAW;  // Stalemate.
   }
 
-  MoveSet move_set = board.generate_moves();
-  while (auto result = move_set.apply_next()) {
+  std::vector<std::pair<int, std::pair<Move, Board>>> move_results;
+  u64 opp_occupied = board.opp_player().occupied();
+  while (result.has_value()) {
     auto& [move, new_board] = *result;
+    if (opp_occupied & move.get_to()) {
+      // Is capture.
+      Piece capturer = board.cur_player().piece_at(move.get_from());
+      Piece capturee = board.opp_player().piece_at(move.get_to());
+      int move_score = evaluation::piece[static_cast<int>(capturee)] - evaluation::piece[static_cast<int>(capturer)];
+      move_results.emplace_back(move_score, *result);
+    } else if (move.is_promotion() || new_board.is_in_check()) {
+      // Is check / promotion.
+      int move_score = INT_MIN;
+      move_results.emplace_back(move_score, *result);
+    } else {
+      move_results.emplace_back(INT_MIN, *result);
+    }
+    result = move_set.apply_next();
+  }
+  std::sort(move_results.begin(), move_results.end(), [](auto& a, auto& b) { return a.first > b.first; });
+
+  for (auto& [_, result] : move_results) {
+    auto& [move, new_board] = result;
     int new_board_evaluation = -search(new_board, -beta, -alpha, current_depth + 1);
     if (new_board_evaluation >= beta) return beta;
     alpha = std::max(alpha, new_board_evaluation);
@@ -78,27 +102,41 @@ int AlphaBetaEngine::search(const Board& board, int alpha, int beta, int current
 }
 
 int AlphaBetaEngine::quiescence_search(const Board& board, int alpha, int beta, int current_depth) {
-  // TODO: This is an extremely inefficient way to check if the game has ended. Ideally chess library should provide a
-  // fast method for this.
-  bool game_ended = !board.generate_moves().apply_next().has_value();
+  MoveSet move_set = board.generate_moves();
+  auto result = move_set.apply_next();
+  bool game_ended = !result.has_value();
   if (game_ended) {
     if (board.is_in_check())
-      return evaluation::LOSING;  // Checkmate.
+      return evaluation::LOSING + current_depth;  // Checkmate.
     else
       return evaluation::DRAW;  // Stalemate.
   }
 
-  if (current_depth == QUIESCENCE_SEARCH_DEPTH) return evaluate_board(board);
+  if (current_depth == QUIESCENCE_SEARCH_DEPTH + depth) return evaluate_board(board);
 
-  MoveSet move_set = board.generate_moves();
   int board_evaluation = evaluate_board(board);
   if (board_evaluation >= beta) return beta;
   alpha = std::max(alpha, board_evaluation);
-  int num_pieces = bitboard::count(board.cur_player().occupied() | board.opp_player().occupied());
-  while (auto result = move_set.apply_next()) {
+  u64 opp_occupied = board.opp_player().occupied();
+  std::vector<std::pair<int, std::pair<Move, Board>>> move_results;
+  while (result.has_value()) {
     auto& [move, new_board] = *result;
-    int new_num_pieces = bitboard::count(new_board.cur_player().occupied() | new_board.opp_player().occupied());
-    if (num_pieces == new_num_pieces) continue;  // Not a capture, ignore it.
+    if (opp_occupied & move.get_to()) {
+      // Is capture.
+      Piece capturer = board.cur_player().piece_at(move.get_from());
+      Piece capturee = board.opp_player().piece_at(move.get_to());
+      int move_score = evaluation::piece[static_cast<int>(capturee)] - evaluation::piece[static_cast<int>(capturer)];
+      move_results.emplace_back(move_score, *result);
+    } else if (move.is_promotion() || new_board.is_in_check()) {
+      // Is check / promotion.
+      int move_score = INT_MIN;
+      move_results.emplace_back(move_score, *result);
+    }
+    result = move_set.apply_next();
+  }
+  std::sort(move_results.begin(), move_results.end(), [](auto& a, auto& b) { return a.first > b.first; });
+  for (auto& [_, result] : move_results) {
+    auto& [move, new_board] = result;
     int new_board_evaluation = -quiescence_search(new_board, -beta, -alpha, current_depth + 1);
     if (new_board_evaluation >= beta) return beta;
     alpha = std::max(alpha, new_board_evaluation);

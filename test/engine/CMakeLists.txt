@@ -1,4 +1,5 @@
-add_executable(chess_engine_tests main.cpp naive_engine_test.cpp)
+add_executable(chess_engine_tests main.cpp ab_engine_test.cpp
+                                  naive_engine_test.cpp)
 
 target_link_libraries(chess_engine_tests PRIVATE chess)
 target_link_libraries(chess_engine_tests PRIVATE chess_engine)
