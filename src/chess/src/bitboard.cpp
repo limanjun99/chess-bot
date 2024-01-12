@@ -97,6 +97,11 @@ constexpr std::array<std::array<u64, 64>, 2> pawn_lookup = generate_pawn_lookup(
 
 u64 bitboard::pawn_attacks(u64 pawn, bool is_white) { return pawn_lookup[is_white][bit::to_index(pawn)]; }
 
+u64 bitboard::pawn_pushes(u64 pawn, u64 occupancy, bool is_white) {
+  if (is_white) return ((((pawn & bitboard::RANK_2) << 8 & ~occupancy) | pawn) << 8) & ~occupancy;
+  return ((((pawn & bitboard::RANK_7) >> 8 & ~occupancy) | pawn) >> 8) & ~occupancy;
+}
+
 MagicBitboard<52> rook_magic{
     {{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}},
     {282578800148862U,     565157600297596U,     1130315200595066U,    2260630401190006U,    4521260802379886U,
@@ -127,6 +132,49 @@ MagicBitboard<52> rook_magic{
      1787511964162U,       2305922451143393537U,  17595440842756U,      108090868587578114U}};
 
 u64 bitboard::rook_attacks(u64 rook, u64 occupancy) { return rook_magic.attacks(rook, occupancy); }
+
+// Generate bitboards of squares that block an attacker from checking the king.
+consteval std::array<std::array<u64, 64>, 64> generate_block_checks(
+    const std::initializer_list<std::pair<int, int>> directions) {
+  std::array<std::array<u64, 64>, 64> block_checks;
+  for (int king_index = 0; king_index < 64; king_index++) {
+    const int king_y = king_index / 8;
+    const int king_x = king_index % 8;
+    for (int attacker_index = 0; attacker_index < 64; attacker_index++) {
+      block_checks[king_index][attacker_index] = 0;
+      for (const auto& [delta_y, delta_x] : directions) {
+        bool is_correct_direction = false;
+        int y = attacker_index / 8 + delta_y;
+        int x = attacker_index % 8 + delta_x;
+        while (0 <= y && y < 8 && 0 <= x && x < 8) {
+          if (y == king_y && x == king_x) {
+            is_correct_direction = true;
+            break;
+          }
+          block_checks[king_index][attacker_index] |= u64(1) << (y * 8 + x);
+          y += delta_y;
+          x += delta_x;
+        }
+        if (!is_correct_direction) {
+          block_checks[king_index][attacker_index] = 0;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+  return block_checks;
+}
+constexpr std::array<std::array<u64, 64>, 64> block_bishop_checks =
+    generate_block_checks({{-1, -1}, {-1, 1}, {1, -1}, {1, 1}});
+constexpr std::array<std::array<u64, 64>, 64> block_rook_checks =
+    generate_block_checks({{-1, 0}, {1, 0}, {0, -1}, {0, 1}});
+
+u64 bitboard::block_slider_check(u64 king, u64 slider) {
+  size_t king_index = bit::to_index(king);
+  size_t slider_index = bit::to_index(slider);
+  return block_bishop_checks[king_index][slider_index] | block_rook_checks[king_index][slider_index];
+}
 
 u64 bitboard::queen_attacks(u64 queen, u64 occupancy) {
   return bishop_magic.attacks(queen, occupancy) | rook_magic.attacks(queen, occupancy);

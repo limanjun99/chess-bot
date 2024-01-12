@@ -17,6 +17,9 @@ private:
   // Evaluate the current board state, without searching any further.
   int evaluate_board(const Board& board);
 
+  // Evaluate the priority of the given move. Higher priority moves should be searched first.
+  int evaluate_move_priority(const Move& move, const Board& board);
+
   // Continue traversing the search tree. Returns the evaluation of the current board for the current player.
   int search(const Board& board, int alpha, int beta, int current_depth);
 

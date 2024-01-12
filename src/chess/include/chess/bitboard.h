@@ -89,6 +89,8 @@ constexpr u64 FILE_F = FILE_A << 5;
 constexpr u64 FILE_G = FILE_A << 6;
 constexpr u64 FILE_H = FILE_A << 7;
 
+constexpr u64 ALL = ~u64(0);
+
 // Returns a bitboard of all attacked squares by the bishop.
 u64 bishop_attacks(u64 bishop, u64 occupancy);
 
@@ -101,14 +103,24 @@ u64 knight_attacks(u64 knight);
 // Returns a bitboard of all attacked squares by the pawn.
 u64 pawn_attacks(u64 pawn, bool is_white);
 
+// Returns a bitboard of squares the pawn can be pushed to.
+u64 pawn_pushes(u64 pawn, u64 occupancy, bool is_white);
+
 // Returns a bitboard of all attacked squares by the queen.
 u64 queen_attacks(u64 queen, u64 occupancy);
 
 // Returns a bitboard of all attacked squares by the rook.
 u64 rook_attacks(u64 rook, u64 occupancy);
 
+// Returns a bitboard of squares between the slider and king that can block this check if it were occupied.
+u64 block_slider_check(u64 king, u64 slider);
+
 // Counts the number of set bits in the given bitboard.
 inline int count(u64 bitboard) { return __builtin_popcountll(bitboard); }
+
+// Iterate through the bits of a bitboard and apply function to each one of them.
+template <typename Function>
+inline void iterate(u64 bitboard, Function function);
 
 // A utility function to convert bitboards into a 8x8 binary string for visualization.
 std::string to_string(u64 bitboard);
@@ -127,3 +139,12 @@ inline int to_index(u64 bit) { return __builtin_ctzll(bit); }
 // Returns the least significant bit.
 inline u64 lsb(u64 bitboard) { return bitboard & -bitboard; }
 }  // namespace bit
+
+template <typename Function>
+void bitboard::iterate(u64 bitboard, Function function) {
+  while (bitboard) {
+    u64 bit = bitboard & -bitboard;
+    bitboard ^= bit;
+    function(bit);
+  }
+}

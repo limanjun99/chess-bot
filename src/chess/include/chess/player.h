@@ -38,17 +38,15 @@ public:
   // Returns true if the player is still allowed to castle queenside.
   inline u64 can_castle_queenside() const { return can_castle_queenside_; }
 
-  // Returns the bitboard of the given piece.
-  inline u64 get_bitboard(Piece piece) const { return pieces[static_cast<int>(piece)]; }
-
-  // Returns a mutable reference to a piece's bitboard.
-  inline u64& mut_bitboard(Piece piece) { return pieces[static_cast<int>(piece)]; }
+  // Returns a reference to the bitboard of the given piece.
+  inline u64& operator[](Piece piece) { return pieces[static_cast<int>(piece)]; }
+  inline const u64& operator[](Piece piece) const { return pieces[static_cast<int>(piece)]; }
 
   // Returns the piece at the given bit (which MUST be set).
   Piece piece_at(u64 bit) const;
 
   // Returns the bitwise OR of all pieces.
-  inline u64 occupied() const { return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5]; }
+  u64 occupied() const;
 
   // Applies bitwise AND of the given mask to all pieces except the king.
   Player& operator&=(u64 mask);

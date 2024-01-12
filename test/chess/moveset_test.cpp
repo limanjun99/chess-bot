@@ -10,7 +10,7 @@
 TEST_CASE("moveset generation test - white castling") {
   // White cannot castle queenside due to the knight blocking it.
   Board board = Board::from_epd("r3k2r/pbpqppbp/np1p2p1/8/8/NPnP1NP1/PBPQPPBP/R3K2R w KQq -");
-  MoveSet move_set = board.generate_moves();
+  MoveSet move_set = board.generate_moveset();
   bool found_kingside_castling = false;
   bool found_queenside_castling = false;
 
@@ -29,7 +29,7 @@ TEST_CASE("moveset generation test - white castling") {
 TEST_CASE("moveset generation test - black castling") {
   // Black cannot castle kingside as the rook already moved.
   Board board = Board::from_epd("r3k2r/pbpqppbp/np1p2p1/8/8/NPnP1NP1/PBPQPPBP/R3K2R b KQq -");
-  MoveSet move_set = board.generate_moves();
+  MoveSet move_set = board.generate_moveset();
   bool found_kingside_castling = false;
   bool found_queenside_castling = false;
 
@@ -47,7 +47,7 @@ TEST_CASE("moveset generation test - black castling") {
 
 TEST_CASE("moveset generation test - en passant") {
   Board board = Board::from_epd("rnbqkbnr/1pp1ppp1/p7/2PpP2p/8/8/PP1P1PPP/RNBQKBNR w KQkq d6");
-  MoveSet move_set = board.generate_moves();
+  MoveSet move_set = board.generate_moveset();
   bool found_c5_en_passant = false;
   bool found_e5_en_passant = false;
 
@@ -65,7 +65,7 @@ TEST_CASE("moveset generation test - en passant") {
 
 TEST_CASE("moveset generation test - generic 1") {
   Board board = Board::from_epd("rnbqkbnr/pppppppp/8/8/8/PPPP4/4PPPP/RNBQKBNR w KQkq -");
-  MoveSet move_set = board.generate_moves();
+  MoveSet move_set = board.generate_moveset();
   int move_counts[6] = {0};
 
   while (auto result = move_set.apply_next()) {

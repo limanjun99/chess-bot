@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <vector>
 
 #include "bitboard.h"
 #include "moveset.h"
@@ -18,6 +19,9 @@ public:
   static Board from_epd(std::string_view epd);
 
   // Returns a new board that is the result of applying the given move.
+  Board apply_move(const Move& move) const;
+
+  // Returns a new board that is the result of applying the given move.
   Board apply_move(Piece piece, u64 from, u64 to) const;
 
   // Returns a new board that is the result of applying the given promotion to the given piece.
@@ -30,8 +34,24 @@ public:
   const Player& cur_player() const;
   Player& cur_player();
 
-  // Generate a MoveSet representation of all legal moves.
-  MoveSet generate_moves() const;
+  // Generate a list of all legal captures and promotions.
+  std::vector<Move> generate_quiescence_moves() const;
+
+  // Generate a list of all legal captures, checks and promotions.
+  std::vector<Move> generate_quiescence_moves_and_checks() const;
+
+  // Generate a list of all legal moves.
+  std::vector<Move> generate_moves() const;
+
+  // Generate a MoveSet representation of all legal moves. This is faster than `generate_moves` as it only computes move
+  // legality on the fly when iterating through the MoveSet.
+  MoveSet generate_moveset() const;
+
+  // Check if the given move is a capture.
+  bool is_a_capture(const Move& move) const;
+
+  // Check if the given move is a check. Note that this function is not optimized.
+  bool is_a_check(const Move& move) const;
 
   // Returns true if the current player is in check.
   bool is_in_check() const;
@@ -55,8 +75,40 @@ public:
 private:
   Player white;
   Player black;
-  u64 en_passant_bit;  // The pawn that is currently capturable by en passant (if any).
+  u64 en_passant_bit;  // The square that is currently capturable by en passant (if any).
+  u64 cur_occupied;
+  u64 opp_occupied;
   bool is_white_turn;
+
+  // Either add the pawn move, or add all 4 possible promotions if it is a promotion.
+  void add_pawn_moves(std::vector<Move>& moves, u64 from, u64 to) const;
+  // Returns a bitboard of opponent pieces that attack the king.
+  u64 get_king_attackers() const;
+  // Returns a bitboard of my pieces that are pinned (i.e. removing them will open up the king to an attacker).
+  u64 get_pinned_pieces() const;
+
+  enum class MoveType { All, CapturesAndPromotionsOnly, CapturesChecksAndPromotionsOnly };
+  // Generate legal bishop moves (and queen moves with bishop movement) given that the king is not in check.
+  template <MoveType MT>
+  void generate_unchecked_bishoplike_moves(std::vector<Move>& moves, u64 pinned_pieces) const;
+  // Generate legal king moves given that the king is not in check.
+  template <MoveType MT>
+  void generate_unchecked_king_moves(std::vector<Move>& moves) const;
+  // Generate legal knight moves given that the king is not in check.
+  template <MoveType MT>
+  void generate_unchecked_knight_moves(std::vector<Move>& moves, u64 pinned_pieces) const;
+  // Generate legal pawn moves given that the king is not in check.
+  template <MoveType MT>
+  void generate_unchecked_pawn_moves(std::vector<Move>& moves, u64 pinned_pieces) const;
+  // Generate legal rook moves (and queen moves with rook movement) given that the king is not in check.
+  template <MoveType MT>
+  void generate_unchecked_rooklike_moves(std::vector<Move>& moves, u64 pinned_pieces) const;
+
+  // Generate legal king moves that escape the single-check.
+  void generate_king_single_check_evasions(std::vector<Move>& moves, u64 attacker) const;
+  // Generate legal king moves that escape the double-check.
+  template <MoveType MT>
+  void generate_king_double_check_evasions(std::vector<Move>& moves) const;
 
   // Generate legal bishop moves and add to move_set.
   void generate_bishop_moves(MoveSet& move_set) const;
