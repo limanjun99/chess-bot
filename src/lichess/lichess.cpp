@@ -92,7 +92,7 @@ void GameHandler::listen() {
   cpr::Get(cpr::Url{api::stream_game(game_id)}, cpr::Bearer{config.get_lichess_token()}, cpr::WriteCallback{callback});
 }
 
-Move GameHandler::find_move(const Board& board) {
+Engine::MoveInfo GameHandler::find_move(const Board& board) {
   AlphaBetaEngine engine{7};
   return engine.make_move(board);
 }
@@ -116,9 +116,11 @@ bool GameHandler::handle_game_event(const std::string& game_id, std::string_view
   auto board = *board_opt;
   if (board.is_white_to_move() != is_white) return true;  // Not my turn.
 
-  Move move = find_move(board);
-  Logger::info() << "Making move " << move.to_uci() << " for game " << game_id << "\n";
-  send_move(move);
+  Engine::MoveInfo move_info = find_move(board);
+  send_move(move_info.move);
+  Logger::info() << "Found move " << move_info.move.to_uci() << " for game " << game_id << " in " << move_info.time_ms
+                 << "ms (" << move_info.normal_node_count / 1000 << "k nodes, "
+                 << move_info.quiescence_node_count / 1000 << "k quiescent nodes)\n";
   return true;
 }
 

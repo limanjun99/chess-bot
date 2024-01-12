@@ -1,5 +1,4 @@
-add_library(chess src/bitboard.cpp src/board.cpp src/move.cpp src/moveset.cpp
-                  src/piece.cpp src/player.cpp)
+add_library(chess src/bitboard.cpp src/board.cpp src/move.cpp src/piece.cpp src/player.cpp)
 
 target_compile_features(chess PRIVATE cxx_std_20)
 target_include_directories(chess PRIVATE include/chess)

@@ -8,6 +8,8 @@
 
 class Move {
 public:
+  inline Move() {}
+
   // Construct a move of the given piece.
   inline Move(Piece piece, u64 from, u64 to) : from{from}, to{to}, piece{piece}, promotion_piece{Piece::None} {}
 

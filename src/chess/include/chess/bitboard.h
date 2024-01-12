@@ -5,6 +5,12 @@
 
 using u64 = uint64_t;
 
+// Iterate through all the bits of `bitboard` as `bit`.
+// The only(?) alternative to using a macro (besides repeating this code) is a function that takes in a lambda,
+// which is both uglier and slower than this.
+#define BITBOARD_ITERATE(bitboard, bit) \
+  for (u64 bit = bitboard & -bitboard; (bit = bitboard & -bitboard) != 0; bitboard ^= bit)
+
 namespace bitboard {
 constexpr u64 A1 = u64(1) << 0;
 constexpr u64 B1 = u64(1) << 1;

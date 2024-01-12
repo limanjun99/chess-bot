@@ -4,15 +4,17 @@
 // An engine that uses Alpha Beta pruning to speedup its search.
 class AlphaBetaEngine : public Engine {
 public:
-  AlphaBetaEngine(int depth = 5);
+  AlphaBetaEngine(int max_depth);
 
   // Choose a move to make for the current player of the given board.
-  Move make_move(const Board& board) override;
+  Engine::MoveInfo make_move(const Board& board) override;
 
   ~AlphaBetaEngine() override = default;
 
 private:
-  int depth;
+  int max_depth;
+  int normal_node_count;
+  int quiescence_node_count;
 
   // Evaluate the current board state, without searching any further.
   int evaluate_board(const Board& board);

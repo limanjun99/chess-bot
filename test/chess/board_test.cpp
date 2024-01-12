@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include "chess/moveset.h"
 #include "doctest.h"
 
 TEST_CASE("kingside castling is applied to board properly") {
@@ -25,28 +24,12 @@ TEST_CASE("queenside castling is applied to board properly") {
   REQUIRE(board.opp_player()[Piece::Rook] == (bitboard::D8 | bitboard::H8));
 }
 
-TEST_CASE("move generation for moveset from initial state is correct") {
-  Board board = Board::initial();
-  MoveSet move_set = board.generate_moveset();
-  int move_count[6] = {0};
-  while (auto result = move_set.apply_next()) {
-    auto& [move, _] = *result;
-    move_count[static_cast<int>(move.get_piece())]++;
-  }
-  REQUIRE(move_count[static_cast<int>(Piece::Bishop)] == 0);
-  REQUIRE(move_count[static_cast<int>(Piece::King)] == 0);
-  REQUIRE(move_count[static_cast<int>(Piece::Knight)] == 4);
-  REQUIRE(move_count[static_cast<int>(Piece::Pawn)] == 16);
-  REQUIRE(move_count[static_cast<int>(Piece::Queen)] == 0);
-  REQUIRE(move_count[static_cast<int>(Piece::Rook)] == 0);
-}
-
 TEST_CASE("move generation from initial state is correct") {
   Board board = Board::initial();
-  std::vector<Move> moves = board.generate_moves();
+  MoveContainer moves = board.generate_moves();
   int move_count[6] = {0};
-  for (auto& move : moves) {
-    move_count[static_cast<int>(move.get_piece())]++;
+  for (size_t i = 0; i < moves.size(); i++) {
+    move_count[static_cast<int>(moves[i].get_piece())]++;
   }
   REQUIRE(move_count[static_cast<int>(Piece::Bishop)] == 0);
   REQUIRE(move_count[static_cast<int>(Piece::King)] == 0);

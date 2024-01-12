@@ -11,8 +11,10 @@
 void search(std::vector<int>& node_count, const Board& board, size_t depth) {
   node_count[depth]++;
   if (depth + 1 >= node_count.size()) return;
-  for (auto& move : board.generate_moves()) {
-    search(node_count, board.apply_move(move), depth + 1);
+  auto moves = board.generate_moves();
+  REQUIRE(board.has_moves() == !moves.empty());
+  for (size_t i = 0; i < moves.size(); i++) {
+    search(node_count, board.apply_move(moves[i]), depth + 1);
   }
 }
 
@@ -74,7 +76,8 @@ void search_quiescence(const Board& board, size_t depth, size_t max_depth) {
     // Verify that correct number of quiescence moves are generated.
     unsigned int captures_and_promotions_cnt = 0;
     unsigned int captures_checks_and_promotions_cnt = 0;
-    for (auto& move : moves) {
+    for (size_t i = 0; i < moves.size(); i++) {
+      auto& move = moves[i];
       if (board.is_a_capture(move) || move.is_promotion()) {
         captures_and_promotions_cnt++;
         captures_checks_and_promotions_cnt++;
@@ -86,8 +89,8 @@ void search_quiescence(const Board& board, size_t depth, size_t max_depth) {
     REQUIRE(captures_checks_and_promotions_cnt == captures_checks_and_promotions.size());
   }
 
-  for (auto& move : moves) {
-    search_quiescence(board.apply_move(move), depth + 1, max_depth);
+  for (size_t i = 0; i < moves.size(); i++) {
+    search_quiescence(board.apply_move(moves[i]), depth + 1, max_depth);
   }
 }
 

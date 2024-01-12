@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "bitboard.h"
-#include "moveset.h"
+#include "move_container.h"
 #include "player.h"
 
 class Board {
@@ -35,17 +35,16 @@ public:
   Player& cur_player();
 
   // Generate a list of all legal captures and promotions.
-  std::vector<Move> generate_quiescence_moves() const;
+  MoveContainer generate_quiescence_moves() const;
 
   // Generate a list of all legal captures, checks and promotions.
-  std::vector<Move> generate_quiescence_moves_and_checks() const;
+  MoveContainer generate_quiescence_moves_and_checks() const;
 
   // Generate a list of all legal moves.
-  std::vector<Move> generate_moves() const;
+  MoveContainer generate_moves() const;
 
-  // Generate a MoveSet representation of all legal moves. This is faster than `generate_moves` as it only computes move
-  // legality on the fly when iterating through the MoveSet.
-  MoveSet generate_moveset() const;
+  // Returns true if the current player still has any move to make.
+  bool has_moves() const;
 
   // Check if the given move is a capture.
   bool is_a_capture(const Move& move) const;
@@ -60,7 +59,7 @@ public:
   bool is_under_attack(u64 square) const;
 
   // Return whether it is white to move.
-  bool is_white_to_move() const;
+  inline bool is_white_to_move() const { return is_white_turn; }
 
   // Returns true if the other player is in check.
   bool moved_into_check() const;
@@ -81,7 +80,7 @@ private:
   bool is_white_turn;
 
   // Either add the pawn move, or add all 4 possible promotions if it is a promotion.
-  void add_pawn_moves(std::vector<Move>& moves, u64 from, u64 to) const;
+  void add_pawn_moves(MoveContainer& moves, u64 from, u64 to) const;
   // Returns a bitboard of opponent pieces that attack the king.
   u64 get_king_attackers() const;
   // Returns a bitboard of my pieces that are pinned (i.e. removing them will open up the king to an attacker).
@@ -90,36 +89,43 @@ private:
   enum class MoveType { All, CapturesAndPromotionsOnly, CapturesChecksAndPromotionsOnly };
   // Generate legal bishop moves (and queen moves with bishop movement) given that the king is not in check.
   template <MoveType MT>
-  void generate_unchecked_bishoplike_moves(std::vector<Move>& moves, u64 pinned_pieces) const;
+  void generate_unchecked_bishoplike_moves(MoveContainer& moves, u64 pinned_pieces) const;
   // Generate legal king moves given that the king is not in check.
   template <MoveType MT>
-  void generate_unchecked_king_moves(std::vector<Move>& moves) const;
+  void generate_unchecked_king_moves(MoveContainer& moves) const;
   // Generate legal knight moves given that the king is not in check.
   template <MoveType MT>
-  void generate_unchecked_knight_moves(std::vector<Move>& moves, u64 pinned_pieces) const;
+  void generate_unchecked_knight_moves(MoveContainer& moves, u64 pinned_pieces) const;
   // Generate legal pawn moves given that the king is not in check.
   template <MoveType MT>
-  void generate_unchecked_pawn_moves(std::vector<Move>& moves, u64 pinned_pieces) const;
+  void generate_unchecked_pawn_moves(MoveContainer& moves, u64 pinned_pieces) const;
   // Generate legal rook moves (and queen moves with rook movement) given that the king is not in check.
   template <MoveType MT>
-  void generate_unchecked_rooklike_moves(std::vector<Move>& moves, u64 pinned_pieces) const;
+  void generate_unchecked_rooklike_moves(MoveContainer& moves, u64 pinned_pieces) const;
 
   // Generate legal king moves that escape the single-check.
-  void generate_king_single_check_evasions(std::vector<Move>& moves, u64 attacker) const;
+  void generate_king_single_check_evasions(MoveContainer& moves, u64 attacker) const;
   // Generate legal king moves that escape the double-check.
   template <MoveType MT>
-  void generate_king_double_check_evasions(std::vector<Move>& moves) const;
+  void generate_king_double_check_evasions(MoveContainer& moves) const;
 
-  // Generate legal bishop moves and add to move_set.
-  void generate_bishop_moves(MoveSet& move_set) const;
-  // Generate legal king moves and add to move_set.
-  void generate_king_moves(MoveSet& move_set) const;
-  // Generate legal knight moves and add to move_set.
-  void generate_knight_moves(MoveSet& move_set) const;
-  // Generate legal pawn moves and add to move_set.
-  void generate_pawn_moves(MoveSet& move_set) const;
-  // Generate legal queen moves and add to move_set.
-  void generate_queen_moves(MoveSet& move_set) const;
-  // Generate legal rook moves and add to move_set.
-  void generate_rook_moves(MoveSet& move_set) const;
+  // TODO: The below methods `has_..._moves` are created solely for quickly checking if there are any more moves in a
+  // position (without generating all moves). This is extremely ugly, and there is significant overlap with
+  // `generate_..._moves`. Find a better way to do it.
+
+  // Check if there are legal bishop moves (and queen moves with bishop movement) given that the king is not in check.
+  bool has_unchecked_bishoplike_moves(u64 pinned_pieces) const;
+  // Check if there are legal king moves given that the king is not in check.
+  bool has_unchecked_king_moves() const;
+  // Check if there are legal knight moves given that the king is not in check.
+  bool has_unchecked_knight_moves(u64 pinned_pieces) const;
+  // Check if there are legal pawn moves given that the king is not in check.
+  bool has_unchecked_pawn_moves(u64 pinned_pieces) const;
+  // Check if there are legal rook moves (and queen moves with rook movement) given that the king is not in check.
+  bool has_unchecked_rooklike_moves(u64 pinned_pieces) const;
+
+  // Check if there are legal king moves that escape the single-check.
+  bool has_king_single_check_evasions(u64 attacker) const;
+  // Check if there are legal king moves that escape the double-check.
+  bool has_king_double_check_evasions() const;
 };
