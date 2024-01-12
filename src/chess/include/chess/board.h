@@ -68,6 +68,9 @@ public:
   const Player& opp_player() const;
   Player& opp_player();
 
+  // Return a new board, where the current player skipped their turn.
+  Board skip_turn() const;
+
   // Returns a 8x8 newline delimited string represenation of the board.
   std::string to_string() const;
 

@@ -333,6 +333,13 @@ const Player& Board::opp_player() const { return is_white_turn ? black : white; 
 
 Player& Board::opp_player() { return is_white_turn ? black : white; }
 
+Board Board::skip_turn() const {
+  Board new_board = *this;
+  new_board.is_white_turn = !new_board.is_white_turn;
+  std::swap(new_board.cur_occupied, new_board.opp_occupied);
+  return new_board;
+}
+
 std::string Board::to_string() const {
   std::string s;
   for (int y = 7; y >= 0; y--) {

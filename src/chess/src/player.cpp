@@ -20,7 +20,7 @@ Piece Player::piece_at(u64 bit) const {
   for (Piece piece : {Piece::Bishop, Piece::King, Piece::Knight, Piece::Pawn, Piece::Queen, Piece::Rook}) {
     if (pieces[static_cast<int>(piece)] & bit) return piece;
   }
-  throw "Unreachable - Player::piece_at";
+  return Piece::None;
 }
 
 u64 Player::occupied() const { return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5]; }

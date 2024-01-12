@@ -42,7 +42,7 @@ public:
   inline u64& operator[](Piece piece) { return pieces[static_cast<int>(piece)]; }
   inline const u64& operator[](Piece piece) const { return pieces[static_cast<int>(piece)]; }
 
-  // Returns the piece at the given bit (which MUST be set).
+  // Returns the piece at the given bit (or Piece::None if no piece is there).
   Piece piece_at(u64 bit) const;
 
   // Returns the bitwise OR of all pieces.

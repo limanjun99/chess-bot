@@ -66,6 +66,7 @@ int AlphaBetaEngine::evaluate_move_priority(const Move& move, const Board& board
   if (board.is_a_capture(move)) {
     // Captures are given +1000000 priority, as they should be considered first.
     Piece captured_piece = board.opp_player().piece_at(move.get_to());
+    if (captured_piece == Piece::None) captured_piece = Piece::Pawn;  // En-passant.
     priority += 1000000;
     priority +=
         evaluation::piece[static_cast<int>(captured_piece)] - evaluation::piece[static_cast<int>(move.get_piece())];
@@ -83,18 +84,26 @@ int AlphaBetaEngine::evaluate_move_priority(const Move& move, const Board& board
 }
 
 int AlphaBetaEngine::search(const Board& board, int alpha, int beta, int current_depth) {
-  if (current_depth == max_depth) {
+  if (current_depth >= max_depth) {
     // Switch to quiescence search
-    return quiescence_search(board, alpha, beta, current_depth);
+    return quiescence_search(board, alpha, beta, max_depth);
   }
   normal_node_count++;
 
   MoveContainer moves = board.generate_moves();
+  bool is_in_check = board.is_in_check();
   if (moves.empty()) {
-    if (board.is_in_check())
+    if (is_in_check)
       return evaluation::LOSING + current_depth;  // Checkmate, add current_depth so that shorter mates are preferred.
     else
       return evaluation::DRAW;  // Stalemate.
+  }
+
+  // Null move heuristic (https://www.chessprogramming.org/Null_Move_Pruning).
+  if (!is_in_check && current_depth + 3 <= max_depth && beta < evaluation::WINNING) {
+    Board new_board = board.skip_turn();
+    int null_move_evaluation = -search(new_board, -beta, -alpha, current_depth + 3);
+    if (null_move_evaluation >= beta) return beta;
   }
 
   std::vector<int> move_priorities;
