@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-#include "chess_engine/ab_engine.h"
+#include "chess_engine/engine.h"
 #include "logger.h"
 
 using json = nlohmann::json;
@@ -92,9 +92,8 @@ void GameHandler::listen() {
   cpr::Get(cpr::Url{api::stream_game(game_id)}, cpr::Bearer{config.get_lichess_token()}, cpr::WriteCallback{callback});
 }
 
-Engine::MoveInfo GameHandler::find_move(const Board& board) {
-  AlphaBetaEngine engine{8};
-  return engine.make_move(board);
+Engine::MoveInfo GameHandler::choose_move(const Board& board) {
+  return engine.choose_move(board, std::chrono::seconds(2));
 }
 
 bool GameHandler::handle_game_event(const std::string& game_id, std::string_view data) {
@@ -116,11 +115,12 @@ bool GameHandler::handle_game_event(const std::string& game_id, std::string_view
   auto board = *board_opt;
   if (board.is_white_to_move() != is_white) return true;  // Not my turn.
 
-  Engine::MoveInfo move_info = find_move(board);
+  Engine::MoveInfo move_info = choose_move(board);
   send_move(move_info.move);
-  Logger::info() << "Found move " << move_info.move.to_uci() << " for game " << game_id << " in " << move_info.time_ms
-                 << "ms (" << move_info.normal_node_count / 1000 << "k nodes, "
-                 << move_info.quiescence_node_count / 1000 << "k quiescent nodes)\n";
+  Logger::info() << "Found move " << move_info.move.to_uci() << " for game " << game_id << " in "
+                 << move_info.time_spent.count() << "ms (depth " << move_info.search_depth << " reached, "
+                 << move_info.normal_node_count / 1000 << "k nodes, " << move_info.quiescence_node_count / 1000
+                 << "k quiescent nodes)\n";
   return true;
 }
 

@@ -1,4 +1,4 @@
-#include "ab_engine.h"
+#include "engine.h"
 
 #include <limits.h>
 
@@ -6,46 +6,54 @@
 #include <chrono>
 #include <vector>
 
+#include "config.h"
 #include "evaluation.h"
 
-// Evaluation is in centipawns
-namespace evaluation {
-constexpr int LOSING = -1000000000;
-constexpr int WINNING = 1000000000;
-constexpr int DRAW = 0;
-constexpr int piece[6] = {300, 10000, 300, 100, 900, 500};
-}  // namespace evaluation
+Engine::Engine() {}
 
-constexpr int QUIESCENCE_SEARCH_DEPTH = 4;
-constexpr int QUIESCENCE_CHECK_SEARCH_DEPTH = 2;
-
-AlphaBetaEngine::AlphaBetaEngine(int max_depth) : max_depth{max_depth} {}
-
-Engine::MoveInfo AlphaBetaEngine::make_move(const Board& board) {
-  auto time_start = std::chrono::high_resolution_clock::now();
+Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::milliseconds search_time) {
+  auto start_time = std::chrono::high_resolution_clock::now();
   normal_node_count = 0;
   quiescence_node_count = 0;
-
+  int search_depth = 0;
   MoveContainer moves = board.generate_moves();
-  Move best_move{};
-  int alpha = evaluation::LOSING;
-  for (size_t i = 0; i < moves.size(); i++) {
-    Move& move = moves[i];
-    Board new_board = board.apply_move(move);
-    int new_board_evaluation = search(new_board, -evaluation::WINNING, -alpha, 0);
-    if (-new_board_evaluation > alpha || alpha == evaluation::LOSING) {
-      alpha = -new_board_evaluation;
-      best_move = move;
+  Move chosen_move{};
+  auto is_out_of_time = [&]() {
+    auto current_time = std::chrono::high_resolution_clock::now();
+    auto current_time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time);
+    return current_time_spent >= search_time * config::search_time_lowerbound;
+  };
+
+  // Iterative deepening.
+  while (true) {
+    int alpha = evaluation::LOSING;
+    Move best_move{};
+    bool finished_evaluation = true;
+    for (size_t i = 0; i < moves.size(); i++) {
+      Board new_board = board.apply_move(moves[i]);
+      int new_board_evaluation = search(new_board, -evaluation::WINNING, -alpha, search_depth);
+      if (-new_board_evaluation > alpha || alpha == evaluation::LOSING) {
+        alpha = -new_board_evaluation;
+        best_move = moves[i];
+      }
+      if (is_out_of_time()) {
+        finished_evaluation = false;
+        break;
+      }
     }
+
+    if (finished_evaluation) chosen_move = best_move;
+    if (is_out_of_time()) break;
+    search_depth++;
   }
 
-  auto time_end = std::chrono::high_resolution_clock::now();
-  int duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-  return {best_move, duration, normal_node_count, quiescence_node_count};
+  return {chosen_move, time_spent, search_depth, normal_node_count, quiescence_node_count};
 }
 
-int AlphaBetaEngine::evaluate_board(const Board& board) {
+int Engine::evaluate_board(const Board& board) {
   int score = 0;
   const Player& cur_player = board.cur_player();
   const Player& opp_player = board.opp_player();
@@ -61,7 +69,7 @@ int AlphaBetaEngine::evaluate_board(const Board& board) {
   return score;
 }
 
-int AlphaBetaEngine::evaluate_move_priority(const Move& move, const Board& board) {
+int Engine::evaluate_move_priority(const Move& move, const Board& board) {
   int priority = 0;
   if (board.is_a_capture(move)) {
     // Captures are given +1000000 priority, as they should be considered first.
@@ -83,10 +91,10 @@ int AlphaBetaEngine::evaluate_move_priority(const Move& move, const Board& board
   return priority;
 }
 
-int AlphaBetaEngine::search(const Board& board, int alpha, int beta, int current_depth) {
-  if (current_depth >= max_depth) {
+int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
+  if (depth_left <= 0) {
     // Switch to quiescence search
-    return quiescence_search(board, alpha, beta, max_depth);
+    return quiescence_search(board, alpha, beta, 0);
   }
   normal_node_count++;
 
@@ -94,15 +102,15 @@ int AlphaBetaEngine::search(const Board& board, int alpha, int beta, int current
   bool is_in_check = board.is_in_check();
   if (moves.empty()) {
     if (is_in_check)
-      return evaluation::LOSING + current_depth;  // Checkmate, add current_depth so that shorter mates are preferred.
+      return evaluation::LOSING - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
     else
       return evaluation::DRAW;  // Stalemate.
   }
 
   // Null move heuristic (https://www.chessprogramming.org/Null_Move_Pruning).
-  if (!is_in_check && current_depth + 3 <= max_depth && beta < evaluation::WINNING) {
+  if (!is_in_check && depth_left >= config::null_move_heuristic_R + 1 && beta < evaluation::WINNING) {
     Board new_board = board.skip_turn();
-    int null_move_evaluation = -search(new_board, -beta, -alpha, current_depth + 3);
+    int null_move_evaluation = -search(new_board, -beta, -alpha, depth_left - 1 - config::null_move_heuristic_R);
     if (null_move_evaluation >= beta) return beta;
   }
 
@@ -124,7 +132,7 @@ int AlphaBetaEngine::search(const Board& board, int alpha, int beta, int current
     std::swap(moves[i], moves[best_index]);
     std::swap(move_priorities[i], move_priorities[best_index]);
     Board new_board = board.apply_move(moves[i]);
-    int new_board_evaluation = -search(new_board, -beta, -alpha, current_depth + 1);
+    int new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1);
     if (new_board_evaluation >= beta) return beta;
     alpha = std::max(alpha, new_board_evaluation);
   }
@@ -132,17 +140,17 @@ int AlphaBetaEngine::search(const Board& board, int alpha, int beta, int current
   return alpha;
 }
 
-int AlphaBetaEngine::quiescence_search(const Board& board, int alpha, int beta, int current_depth) {
+int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth_left) {
   quiescence_node_count++;
   if (!board.has_moves()) {
     if (board.is_in_check())
-      return evaluation::LOSING + current_depth;  // Checkmate.
+      return evaluation::LOSING - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
     else
       return evaluation::DRAW;  // Stalemate.
   }
 
   bool is_in_check = board.is_in_check();
-  if (!is_in_check && current_depth >= QUIESCENCE_SEARCH_DEPTH + max_depth) return evaluate_board(board);
+  if (!is_in_check && depth_left <= -config::quiescence_search_depth) return evaluate_board(board);
 
   if (!is_in_check) {
     int board_evaluation = evaluate_board(board);
@@ -152,7 +160,7 @@ int AlphaBetaEngine::quiescence_search(const Board& board, int alpha, int beta, 
 
   auto generate_moves = [&]() {
     if (is_in_check) return board.generate_moves();
-    if (current_depth <= max_depth + QUIESCENCE_CHECK_SEARCH_DEPTH) return board.generate_quiescence_moves_and_checks();
+    if (depth_left > -config::quiescence_search_check_depth) return board.generate_quiescence_moves_and_checks();
     return board.generate_quiescence_moves();
   };
   MoveContainer moves = generate_moves();
@@ -175,7 +183,7 @@ int AlphaBetaEngine::quiescence_search(const Board& board, int alpha, int beta, 
     std::swap(moves[i], moves[best_index]);
     std::swap(move_priorities[i], move_priorities[best_index]);
     Board new_board = board.apply_move(moves[i]);
-    int new_board_evaluation = -quiescence_search(new_board, -beta, -alpha, current_depth + 1);
+    int new_board_evaluation = -quiescence_search(new_board, -beta, -alpha, depth_left - 1);
     if (new_board_evaluation >= beta) return beta;
     alpha = std::max(alpha, new_board_evaluation);
   }

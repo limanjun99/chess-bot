@@ -39,9 +39,10 @@ private:
   const Config& config;
   const std::string& game_id;
   bool is_white;  // Whether the bot is playing as white.
+  Engine engine{};
 
   // Find the move to make in the given position.
-  Engine::MoveInfo find_move(const Board& board);
+  Engine::MoveInfo choose_move(const Board& board);
 
   // Handle a game event from an ongoing game. Returns false if the game has ended.
   bool handle_game_event(const std::string& game_id, std::string_view data);
