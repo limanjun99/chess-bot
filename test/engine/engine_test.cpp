@@ -20,6 +20,6 @@ TEST_CASE("engine finds mate in one") {
   Board board = Board::from_epd("k7/pp4Qp/2R2p2/4B3/7P/N3p3/PP3P2/3K2NR w - -");
   Engine engine;
   Move move = engine.choose_move(board, ENGINE_SEARCH_TIME).move;
-  board = board.apply_move(move.get_piece(), move.get_from(), move.get_to());
+  board = board.apply_move(move);
   REQUIRE(board.is_in_check());  // Any check here is a checkmate
 }

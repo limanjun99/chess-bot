@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-enum class Piece : int32_t {
+enum class Piece : int8_t {
   Bishop = 0,
   King = 1,
   Knight = 2,

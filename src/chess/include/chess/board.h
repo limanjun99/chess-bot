@@ -21,12 +21,6 @@ public:
   // Returns a new board that is the result of applying the given move.
   Board apply_move(const Move& move) const;
 
-  // Returns a new board that is the result of applying the given move.
-  Board apply_move(Piece piece, u64 from, u64 to) const;
-
-  // Returns a new board that is the result of applying the given promotion to the given piece.
-  Board apply_promotion(u64 from, u64 to, Piece piece) const;
-
   // Returns a new board that is the result of applying the given move in UCI notation (assumed to be valid).
   Board apply_uci_move(std::string_view uci_move);
 
@@ -45,9 +39,6 @@ public:
 
   // Returns true if the current player still has any move to make.
   bool has_moves() const;
-
-  // Check if the given move is a capture.
-  bool is_a_capture(const Move& move) const;
 
   // Check if the given move is a check. Note that this function is not optimized.
   bool is_a_check(const Move& move) const;

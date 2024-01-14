@@ -1,4 +1,4 @@
-add_library(chess_engine src/engine.cpp src/evaluation.cpp)
+add_library(chess_engine src/engine.cpp src/evaluation.cpp src/killer_moves.cpp)
 
 target_compile_features(chess_engine PRIVATE cxx_std_20)
 target_include_directories(chess_engine PRIVATE include/chess_engine)

@@ -61,19 +61,18 @@ Board Board::from_epd(std::string_view epd) {
 }
 
 Board Board::apply_move(const Move& move) const {
-  if (move.is_promotion()) return apply_promotion(move.get_from(), move.get_to(), move.get_promotion_piece());
-  return apply_move(move.get_piece(), move.get_from(), move.get_to());
-}
-
-Board Board::apply_move(Piece piece, u64 from, u64 to) const {
   Board board = *this;
   Player& cur = board.cur_player();
   Player& opp = board.opp_player();
+  const Piece piece = move.get_piece();
+  const u64 from = move.get_from();
+  const u64 to = move.get_to();
+
   cur[piece] ^= from | to;
   board.cur_occupied ^= from | to;
 
   // Update castling flag.
-  if (opp[Piece::Rook] & to) {
+  if (move.get_captured_piece() == Piece::Rook) {
     if (to == (is_white_turn ? bitboard::H8 : bitboard::H1)) opp.disable_kingside_castling();
     if (to == (is_white_turn ? bitboard::A8 : bitboard::A1)) opp.disable_queenside_castling();
   }
@@ -84,8 +83,10 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
     if (from == (is_white_turn ? bitboard::A1 : bitboard::A8)) cur.disable_queenside_castling();
   }
 
-  opp &= ~to;
-  board.opp_occupied &= ~to;
+  if (move.is_capture()) {
+    opp[move.get_captured_piece()] &= ~to;
+    board.opp_occupied &= ~to;
+  }
 
   // Handle castling.
   if (piece == Piece::King) {
@@ -114,16 +115,15 @@ Board Board::apply_move(Piece piece, u64 from, u64 to) const {
     }
   }
 
+  // Handle promotions.
+  if (move.is_promotion()) {
+    cur[move.get_promotion_piece()] ^= to;
+    cur[Piece::Pawn] ^= to;
+  }
+
   board.is_white_turn = !board.is_white_turn;
   std::swap(board.cur_occupied, board.opp_occupied);
 
-  return board;
-}
-
-Board Board::apply_promotion(u64 from, u64 to, Piece piece) const {
-  Board board = apply_move(Piece::Pawn, from, to);
-  board.opp_player()[piece] ^= to;
-  board.opp_player()[Piece::Pawn] ^= to;
   return board;
 }
 
@@ -132,10 +132,10 @@ Board Board::apply_uci_move(std::string_view uci_move) {
   u64 to = bit::from_algebraic(uci_move.substr(2, 2));
   if (uci_move.size() == 5) {
     Piece promotion_piece = piece::from_char(uci_move[4]);
-    return apply_promotion(from, to, promotion_piece);
+    return apply_move(Move{from, to, promotion_piece, opp_player().piece_at(to)});
   } else {
     Piece piece = cur_player().piece_at(from);
-    return apply_move(piece, from, to);
+    return apply_move(Move{piece, from, to, opp_player().piece_at(to)});
   }
 }
 
@@ -215,10 +215,10 @@ MoveContainer Board::generate_quiescence_moves_and_checks() const {
         if (bitboard::pawn_attacks(to, is_white_turn) & opp_player()[Piece::Pawn]) continue;
         if (bitboard::rook_attacks(to, total_occupied) & (opp_player()[Piece::Rook] | opp_player()[Piece::Queen]))
           continue;
-        moves.emplace_back(piece, from, to);
+        moves.emplace_back(piece, from, to, opp_player().piece_at(to));
       }
     } else {
-      BITBOARD_ITERATE(to_mask, to) { moves.emplace_back(piece, from, to); }
+      BITBOARD_ITERATE(to_mask, to) { moves.emplace_back(piece, from, to, opp_player().piece_at(to)); }
     }
   };
 
@@ -284,10 +284,6 @@ bool Board::has_moves() const {
     // King is in double-check.
     return has_king_double_check_evasions();
   }
-}
-
-bool Board::is_a_capture(const Move& move) const {
-  return (move.get_to() & opp_occupied) || (move.get_piece() == Piece::Pawn && move.get_to() == en_passant_bit);
 }
 
 bool Board::is_a_check(const Move& move) const {
@@ -360,13 +356,14 @@ std::string Board::to_string() const {
 }
 
 void Board::add_pawn_moves(MoveContainer& moves, u64 from, u64 to) const {
+  Piece captured = en_passant_bit == to ? Piece::Pawn : opp_player().piece_at(to);
   if (to & (bitboard::RANK_1 | bitboard::RANK_8)) {
-    moves.emplace_back(from, to, Piece::Bishop);
-    moves.emplace_back(from, to, Piece::Knight);
-    moves.emplace_back(from, to, Piece::Queen);
-    moves.emplace_back(from, to, Piece::Rook);
+    moves.emplace_back(from, to, Piece::Bishop, captured);
+    moves.emplace_back(from, to, Piece::Knight, captured);
+    moves.emplace_back(from, to, Piece::Queen, captured);
+    moves.emplace_back(from, to, Piece::Rook, captured);
   } else {
-    moves.emplace_back(Piece::Pawn, from, to);
+    moves.emplace_back(Piece::Pawn, from, to, captured);
   }
 }
 
@@ -433,7 +430,7 @@ void Board::generate_unchecked_bishoplike_moves(MoveContainer& moves, u64 pinned
     u64 unpinned_pieces = cur_player()[from_piece] & ~pinned_pieces;
     BITBOARD_ITERATE(unpinned_pieces, from) {
       u64 to_bitboard = bitboard::bishop_attacks(from, total_occupied) & ~cur_occupied & to_mask;
-      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to); }
+      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, opp_player().piece_at(to)); }
     }
 
     u64 pinned_from_pieces = king_bishop_rays & pinned_pieces & cur_player()[from_piece];
@@ -442,7 +439,7 @@ void Board::generate_unchecked_bishoplike_moves(MoveContainer& moves, u64 pinned
                             (opp_player()[Piece::Bishop] | opp_player()[Piece::Queen]) & ~opp_blockers;
       u64 to_bitboard =
           (bitboard::block_slider_check(cur_player()[Piece::King], pinned_by) | pinned_by) & ~from & to_mask;
-      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to); }
+      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, opp_player().piece_at(to)); }
     }
   }
 }
@@ -481,7 +478,7 @@ void Board::generate_unchecked_knight_moves(MoveContainer& moves, u64 pinned_pie
   }
   BITBOARD_ITERATE(knights, from) {
     u64 to_bitboard = bitboard::knight_attacks(from) & ~cur_occupied & to_mask;
-    BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(Piece::Knight, from, to); }
+    BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(Piece::Knight, from, to, opp_player().piece_at(to)); }
   }
 }
 
@@ -575,7 +572,7 @@ void Board::generate_unchecked_rooklike_moves(MoveContainer& moves, u64 pinned_p
     u64 unpinned_pieces = cur_player()[from_piece] & ~pinned_pieces;
     BITBOARD_ITERATE(unpinned_pieces, from) {
       u64 to_bitboard = bitboard::rook_attacks(from, total_occupied) & ~cur_occupied & to_mask;
-      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to); }
+      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, opp_player().piece_at(to)); }
     }
 
     u64 pinned_from_pieces = king_rook_rays & pinned_pieces & cur_player()[from_piece];
@@ -584,7 +581,7 @@ void Board::generate_unchecked_rooklike_moves(MoveContainer& moves, u64 pinned_p
                             (opp_player()[Piece::Rook] | opp_player()[Piece::Queen]) & ~opp_blockers;
       u64 to_bitboard =
           (bitboard::block_slider_check(cur_player()[Piece::King], pinned_by) | pinned_by) & ~from & to_mask;
-      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to); }
+      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, opp_player().piece_at(to)); }
     }
   }
 }
@@ -603,12 +600,13 @@ void Board::generate_king_single_check_evasions(MoveContainer& moves, u64 attack
   // 1. Capture the attacker with a piece that is not pinned.
   const u64 attacker_bishop_rays = bitboard::bishop_attacks(attacker, total_occupied);
   const u64 attacker_rook_rays = bitboard::rook_attacks(attacker, total_occupied);
+  const Piece attacker_piece = opp.piece_at(attacker);
   // Capture the attacker with a bishop that is not pinned.
   u64 bishop_capturers = attacker_bishop_rays & cur[Piece::Bishop] & ~pinned_pieces;
-  BITBOARD_ITERATE(bishop_capturers, from) { moves.emplace_back(Piece::Bishop, from, attacker); }
+  BITBOARD_ITERATE(bishop_capturers, from) { moves.emplace_back(Piece::Bishop, from, attacker, attacker_piece); }
   // Capture the attacker with a knight that is not pinned.
   u64 knight_capturers = bitboard::knight_attacks(attacker) & cur[Piece::Knight] & ~pinned_pieces;
-  BITBOARD_ITERATE(knight_capturers, from) { moves.emplace_back(Piece::Knight, from, attacker); }
+  BITBOARD_ITERATE(knight_capturers, from) { moves.emplace_back(Piece::Knight, from, attacker, attacker_piece); }
   // Capture the attacker with a pawn that is not pinned.
   u64 pawn_capturers = bitboard::pawn_attacks(attacker, !is_white_turn) & cur[Piece::Pawn] & ~pinned_pieces;
   BITBOARD_ITERATE(pawn_capturers, from) { add_pawn_moves(moves, from, attacker); }
@@ -616,20 +614,19 @@ void Board::generate_king_single_check_evasions(MoveContainer& moves, u64 attack
   if (attacker == (is_white_turn ? en_passant_bit >> 8 : en_passant_bit << 8)) {
     u64 capturing_square = is_white_turn ? attacker << 8 : attacker >> 8;
     u64 pawn_capturers = bitboard::pawn_attacks(capturing_square, !is_white_turn) & cur[Piece::Pawn] & ~pinned_pieces;
-    BITBOARD_ITERATE(pawn_capturers, from) { moves.emplace_back(Piece::Pawn, from, capturing_square); }
+    BITBOARD_ITERATE(pawn_capturers, from) { moves.emplace_back(Piece::Pawn, from, capturing_square, attacker_piece); }
   }
   // Capture the attacker with a queen that is not pinned.
   u64 queen_capturers = (attacker_bishop_rays | attacker_rook_rays) & cur[Piece::Queen] & ~pinned_pieces;
-  BITBOARD_ITERATE(queen_capturers, from) { moves.emplace_back(Piece::Queen, from, attacker); }
+  BITBOARD_ITERATE(queen_capturers, from) { moves.emplace_back(Piece::Queen, from, attacker, attacker_piece); }
   // Capture the attacker with a rook that is not pinned.
   u64 rook_capturers = attacker_rook_rays & cur[Piece::Rook] & ~pinned_pieces;
-  BITBOARD_ITERATE(rook_capturers, from) { moves.emplace_back(Piece::Rook, from, attacker); }
+  BITBOARD_ITERATE(rook_capturers, from) { moves.emplace_back(Piece::Rook, from, attacker, attacker_piece); }
 
   // 2. King moves to a square that is not attacked. This is the same as evading double check.
   generate_king_double_check_evasions<MoveType::All>(moves);
 
   // 3. Block the check if it is a sliding check.
-  const Piece attacker_piece = opp.piece_at(attacker);
   if (piece::is_slider(attacker_piece)) {
     u64 blocking_squares = bitboard::block_slider_check(cur[Piece::King], attacker);
     BITBOARD_ITERATE(blocking_squares, to) {
@@ -674,7 +671,7 @@ void Board::generate_king_double_check_evasions(MoveContainer& moves) const {
     if (bitboard::knight_attacks(to) & opp[Piece::Knight]) continue;
     if (bitboard::pawn_attacks(to, is_white_turn) & opp[Piece::Pawn]) continue;
     if (bitboard::rook_attacks(to, total_occupied) & (opp[Piece::Rook] | opp[Piece::Queen])) continue;
-    moves.emplace_back(Piece::King, king, to);
+    moves.emplace_back(Piece::King, king, to, opp_player().piece_at(to));
   }
 }
 

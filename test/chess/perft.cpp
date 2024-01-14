@@ -78,7 +78,7 @@ void search_quiescence(const Board& board, size_t depth, size_t max_depth) {
     unsigned int captures_checks_and_promotions_cnt = 0;
     for (size_t i = 0; i < moves.size(); i++) {
       auto& move = moves[i];
-      if (board.is_a_capture(move) || move.is_promotion()) {
+      if (move.is_capture() || move.is_promotion()) {
         captures_and_promotions_cnt++;
         captures_checks_and_promotions_cnt++;
       } else if (board.is_a_check(move)) {

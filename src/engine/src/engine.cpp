@@ -25,7 +25,8 @@ Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::millisecon
   };
 
   // Iterative deepening.
-  while (true) {
+  while (search_depth < config::max_depth) {
+    soft_reset();
     int alpha = evaluation::LOSING;
     Move best_move{};
     bool finished_evaluation = true;
@@ -69,24 +70,32 @@ int Engine::evaluate_board(const Board& board) {
   return score;
 }
 
-int Engine::evaluate_move_priority(const Move& move, const Board& board) {
+int Engine::evaluate_move_priority(const Move& move, int depth_left) {
   int priority = 0;
-  if (board.is_a_capture(move)) {
-    // Captures are given +1000000 priority, as they should be considered first.
-    Piece captured_piece = board.opp_player().piece_at(move.get_to());
-    if (captured_piece == Piece::None) captured_piece = Piece::Pawn;  // En-passant.
-    priority += 1000000;
+  if (move.is_capture()) {
+    // MVV LVA priority.
+    priority += move_priority::capture;
     priority +=
-        evaluation::piece[static_cast<int>(captured_piece)] - evaluation::piece[static_cast<int>(move.get_piece())];
-  }
-  if (move.is_promotion()) {
-    priority += evaluation::piece[static_cast<int>(move.get_promotion_piece())] -
-                evaluation::piece[static_cast<int>(Piece::Pawn)];
-    priority -= pst::value_of(move.get_piece(), move.get_from(), board.is_white_to_move());
-    priority += pst::value_of(move.get_promotion_piece(), move.get_to(), board.is_white_to_move());
+        move_priority::mvv_lva[static_cast<size_t>(move.get_captured_piece())][static_cast<size_t>(move.get_piece())];
   } else {
-    priority -= pst::value_of(move.get_piece(), move.get_from(), board.is_white_to_move());
-    priority += pst::value_of(move.get_piece(), move.get_to(), board.is_white_to_move());
+    for (size_t i = 0; i < config::killer_move_count; i++) {
+      // Killer move priority.
+      if (killer_moves.get(depth_left, i) == move) {
+        priority += move_priority::killer - move_priority::killer_index * i;
+        break;
+      }
+    }
+  }
+  return priority;
+}
+
+int Engine::evaluate_quiescence_move_priority(const Move& move) {
+  int priority = 0;
+  if (move.is_capture()) {
+    // MVV LVA priority.
+    priority += move_priority::capture;
+    priority +=
+        move_priority::mvv_lva[static_cast<size_t>(move.get_captured_piece())][static_cast<size_t>(move.get_piece())];
   }
   return priority;
 }
@@ -117,7 +126,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   std::vector<int> move_priorities;
   move_priorities.reserve(moves.size());
   for (size_t i = 0; i < moves.size(); i++) {
-    move_priorities[i] = evaluate_move_priority(moves[i], board);
+    move_priorities[i] = evaluate_move_priority(moves[i], depth_left);
   }
 
   for (size_t i = 0; i < moves.size(); i++) {
@@ -133,7 +142,13 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     std::swap(move_priorities[i], move_priorities[best_index]);
     Board new_board = board.apply_move(moves[i]);
     int new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1);
-    if (new_board_evaluation >= beta) return beta;
+    if (new_board_evaluation >= beta) {
+      if (!moves[i].is_capture()) {
+        // Add new killer move.
+        killer_moves.add(moves[i], depth_left);
+      }
+      return beta;
+    }
     alpha = std::max(alpha, new_board_evaluation);
   }
 
@@ -168,7 +183,7 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
   std::vector<int> move_priorities;
   move_priorities.reserve(moves.size());
   for (size_t i = 0; i < moves.size(); i++) {
-    move_priorities[i] = evaluate_move_priority(moves[i], board);
+    move_priorities[i] = evaluate_quiescence_move_priority(moves[i]);
   }
 
   for (size_t i = 0; i < moves.size(); i++) {
@@ -190,3 +205,5 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
 
   return alpha;
 }
+
+void Engine::soft_reset() { killer_moves.clear(); }

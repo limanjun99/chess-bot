@@ -7,17 +7,6 @@
 #include "chess/move.h"
 #include "chess_engine/engine.h"
 
-static void alpha_beta_quiescence_search(benchmark::State& state) {
-  Board board = Board::from_epd("r2qkb1r/pbpppppp/p4n2/3PP3/P1P5/1P3N2/RB2NPPP/Q4RK1 b kq -");
-  Engine engine{};
-  for (auto _ : state) {
-    Move move = engine.choose_move(board, std::chrono::milliseconds(100)).move;
-    benchmark::DoNotOptimize(move);
-  }
-}
-
-BENCHMARK(alpha_beta_quiescence_search);
-
 static void initial_position_move_generation(benchmark::State& state) {
   Board board = Board::initial();
   for (auto _ : state) {

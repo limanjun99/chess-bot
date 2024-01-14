@@ -4,6 +4,8 @@
 
 #include "chess/board.h"
 #include "chess/move.h"
+#include "config.h"
+#include "killer_moves.h"
 
 class Engine {
 public:
@@ -22,12 +24,16 @@ public:
 private:
   int normal_node_count;
   int quiescence_node_count;
+  KillerMoves killer_moves;
 
   // Evaluate the current board state, without searching any further.
   int evaluate_board(const Board& board);
 
   // Evaluate the priority of the given move. Higher priority moves should be searched first.
-  int evaluate_move_priority(const Move& move, const Board& board);
+  int evaluate_move_priority(const Move& move, int depth_left);
+
+  // Evaluate the priority of the given quiescence move. Higher priority moves should be searched first.
+  int evaluate_quiescence_move_priority(const Move& move);
 
   // Continue traversing the search tree. Returns the evaluation of the current board for the current player.
   int search(const Board& board, int alpha, int beta, int depth_left);
@@ -36,4 +42,7 @@ private:
   // current board for the current player. Note that `depth_left` starts from 0 and decreases, so that all `depth_left`
   // in quiescence search is lower than in normal search.
   int quiescence_search(const Board& board, int alpha, int beta, int depth_left);
+
+  // Clears outdated information between each search depth increase in iterative deepening.
+  void soft_reset();
 };
