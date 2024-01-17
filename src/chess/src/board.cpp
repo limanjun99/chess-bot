@@ -308,6 +308,10 @@ bool Board::is_under_attack(u64 square) const {
   return false;
 }
 
+const Player& Board::get_white() const { return white; }
+
+const Player& Board::get_black() const { return black; }
+
 bool Board::moved_into_check() const {
   const Player& cur = cur_player();
   const Player& opp = opp_player();
@@ -335,6 +339,8 @@ Board Board::skip_turn() const {
   std::swap(new_board.cur_occupied, new_board.opp_occupied);
   return new_board;
 }
+
+u64 Board::get_en_passant() const { return en_passant_bit; }
 
 std::string Board::to_string() const {
   std::string s;

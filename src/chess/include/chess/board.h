@@ -62,6 +62,15 @@ public:
   // Return a new board, where the current player skipped their turn.
   Board skip_turn() const;
 
+  // Returns a reference to the white player.
+  const Player& get_white() const;
+
+  // Returns a reference to the black player.
+  const Player& get_black() const;
+
+  // Returns the bitboard for the en passant bit.
+  u64 get_en_passant() const;
+
   // Returns a 8x8 newline delimited string represenation of the board.
   std::string to_string() const;
 

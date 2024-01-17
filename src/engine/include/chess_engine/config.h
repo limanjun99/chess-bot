@@ -19,21 +19,33 @@ constexpr int max_depth = 64;
 
 // Number of killer moves to store per ply.
 constexpr int killer_move_count = 2;
+
+// Size of transposition table. Roughly 16 million.
+constexpr int transposition_table_size = 1 << 24;
+
+// Size of repetition table. Roughly 16k, which is sufficient for longest possible chess game.
+constexpr int repetition_table_size = 1 << 14;
 }  // namespace config
 
 // Evaluation of the board (is in centipawns).
 namespace evaluation {
-constexpr int LOSING = -1'000'000'000;
+constexpr int min = -1'000'000'000;
 
-constexpr int WINNING = 1'000'000'000;
+constexpr int losing = -1'000'000;
 
-constexpr int DRAW = 0;
+constexpr int draw = 0;
+
+constexpr int winning = 1'000'000;
+
+constexpr int max = 1'000'000'000;
 
 constexpr int piece[6] = {300, 10000, 300, 100, 900, 500};
 }  // namespace evaluation
 
 // Scores for move priority.
 namespace move_priority {
+constexpr int refutation = 1'000;
+
 constexpr int capture = 100;
 
 // Ordered by most valuable victim, then least valuable attacker. Indexed by [victim][attacker].
