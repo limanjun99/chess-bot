@@ -14,8 +14,7 @@ Engine::Engine() {}
 
 Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::milliseconds search_time) {
   auto start_time = std::chrono::high_resolution_clock::now();
-  normal_node_count = 0;
-  quiescence_node_count = 0;
+  reset_debug();
   int search_depth = 0;
   MoveContainer moves = board.generate_moves();
   Move chosen_move{};
@@ -52,13 +51,12 @@ Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::millisecon
   auto end_time = std::chrono::high_resolution_clock::now();
   auto time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-  return {chosen_move, time_spent, search_depth, normal_node_count, quiescence_node_count};
+  return {chosen_move, time_spent, search_depth, debug};
 }
 
 Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
   auto start_time = std::chrono::high_resolution_clock::now();
-  normal_node_count = 0;
-  quiescence_node_count = 0;
+  reset_debug();
   int search_depth = 0;
   MoveContainer moves = board.generate_moves();
   Move chosen_move{};
@@ -83,7 +81,7 @@ Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
   auto end_time = std::chrono::high_resolution_clock::now();
   auto time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-  return {chosen_move, time_spent, search_depth, normal_node_count, quiescence_node_count};
+  return {chosen_move, time_spent, search_depth, debug};
 }
 
 void Engine::add_position(const Board& board) { repetition_table.add(board_hash::hash(board)); }
@@ -140,7 +138,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     // Switch to quiescence search
     return quiescence_search(board, alpha, beta, 0);
   }
-  normal_node_count++;
+  debug.normal_node_count++;
 
   bool is_in_check = board.is_in_check();
   if (!board.has_moves()) {
@@ -158,11 +156,14 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   Move refutation{};
   const PositionInfo& info = transposition_table.get(board_hash);
   if (info.hash == board_hash && info.depth_left >= depth_left) {
+    debug.transposition_table_total++;
     // We have seen this position before and analyzed it to at least the same depth.
     if ((info.node_type == NodeType::PV || info.node_type == NodeType::Cut) && info.score >= beta) {
+      debug.transposition_table_success++;
       return beta;
     }
     if ((info.node_type == NodeType::PV || info.node_type == NodeType::All) && info.score <= alpha) {
+      debug.transposition_table_success++;
       return alpha;
     }
     refutation = info.best_move;
@@ -173,9 +174,13 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
 
   // Null move heuristic (https://www.chessprogramming.org/Null_Move_Pruning).
   if (!is_in_check && depth_left >= config::null_move_heuristic_R + 1 && beta < evaluation::winning) {
+    debug.null_move_total++;
     Board new_board = board.skip_turn();
     int null_move_evaluation = -search(new_board, -beta, -alpha, depth_left - 1 - config::null_move_heuristic_R);
-    if (null_move_evaluation >= beta) return beta;
+    if (null_move_evaluation >= beta) {
+      debug.null_move_success++;
+      return beta;
+    }
   }
 
   MoveContainer moves = board.generate_moves();
@@ -231,7 +236,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
 }
 
 int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth_left) {
-  quiescence_node_count++;
+  debug.quiescence_node_count++;
   if (!board.has_moves()) {
     if (board.is_in_check())
       return evaluation::losing - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
@@ -282,3 +287,5 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
 }
 
 void Engine::soft_reset() { killer_moves.clear(); }
+
+void Engine::reset_debug() { debug = {0, 0, 0, 0, 0, 0}; }

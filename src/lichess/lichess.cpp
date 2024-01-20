@@ -121,8 +121,12 @@ bool GameHandler::handle_game_event(const std::string& game_id, std::string_view
   engine.add_position(board.apply_move(move_info.move));
   Logger::info() << "Found move " << move_info.move.to_uci() << " for game " << game_id << " in "
                  << move_info.time_spent.count() << "ms (depth " << move_info.search_depth << " reached, "
-                 << move_info.normal_node_count / 1000 << "k nodes, " << move_info.quiescence_node_count / 1000
-                 << "k quiescent nodes)\n";
+                 << move_info.debug.normal_node_count / 1000 << "k nodes, "
+                 << move_info.debug.quiescence_node_count / 1000 << "k quiescent nodes, "
+                 << move_info.debug.transposition_table_success / 1000 << "/"
+                 << move_info.debug.transposition_table_total / 1000 << "k transpositions skipped, "
+                 << move_info.debug.null_move_success / 1000 << "/" << move_info.debug.null_move_total / 1000
+                 << "k null moves worked)\n";
   return true;
 }
 

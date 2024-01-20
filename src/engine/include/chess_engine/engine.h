@@ -14,12 +14,19 @@ class Engine {
 public:
   Engine();
 
+  struct DebugInfo {
+    int normal_node_count;            // Number of nodes in the main search tree.
+    int quiescence_node_count;        // Number of nodes in quiescence search.
+    int null_move_success;            // Nodes that returned after a null move search.
+    int null_move_total;              // Nodes that did a null move search.
+    int transposition_table_success;  // Nodes that returned immediately after checking transposition table.
+    int transposition_table_total;    // Nodes that checked the transposition table.
+  };
   struct MoveInfo {
     Move move;
     std::chrono::milliseconds time_spent;  // Time in milliseconds spent searching.
     int search_depth;                      // Maximum depth reached during search.
-    int normal_node_count;                 // Number of nodes in the main search tree.
-    int quiescence_node_count;             // Number of nodes in quiescence search.
+    DebugInfo debug;
   };
   // Choose a move to make for the current player of the given board within the given `search_time`.
   MoveInfo choose_move(const Board& board, std::chrono::milliseconds search_time);
@@ -31,8 +38,7 @@ public:
   void add_position(const Board& board);
 
 private:
-  int normal_node_count;
-  int quiescence_node_count;
+  DebugInfo debug;
   KillerMoves killer_moves;
   TranspositionTable transposition_table;
   RepetitionTable repetition_table;
@@ -56,4 +62,7 @@ private:
 
   // Clears outdated information between each search depth increase in iterative deepening.
   void soft_reset();
+
+  // Reset debug information between calls to `choose_move`.
+  void reset_debug();
 };
