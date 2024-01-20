@@ -247,9 +247,18 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
   bool is_in_check = board.is_in_check();
   if (!is_in_check && depth_left <= -config::quiescence_search_depth) return evaluate_board(board);
 
+  int board_evaluation = evaluate_board(board);
   if (!is_in_check) {
-    int board_evaluation = evaluate_board(board);
     if (board_evaluation >= beta) return beta;
+
+    // Delta pruning. If the evaluation remains below alpha after capturing a queen, then the position's true evaluation
+    // is likely below alpha.
+    debug.q_delta_pruning_total++;
+    if (board_evaluation + evaluation::piece[static_cast<int>(Piece::Queen)] < alpha) {
+      debug.q_delta_pruning_success++;
+      return alpha;
+    }
+
     alpha = std::max(alpha, board_evaluation);
   }
 
@@ -277,6 +286,19 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
     }
     std::swap(moves[i], moves[best_index]);
     std::swap(move_priorities[i], move_priorities[best_index]);
+
+    // Delta pruning. If capturing a piece (+ some safety value) does not raise evaluation above alpha, then there is
+    // likely no point in checking this move at all.
+    if (!is_in_check && moves[i].is_capture()) {
+      debug.q_delta_pruning_total++;
+      if (board_evaluation + evaluation::piece[static_cast<int>(moves[i].get_captured_piece())] +
+              config::quiescence_search_delta_pruning_safety <
+          alpha) {
+        debug.q_delta_pruning_success++;
+        continue;
+      }
+    }
+
     Board new_board = board.apply_move(moves[i]);
     int new_board_evaluation = -quiescence_search(new_board, -beta, -alpha, depth_left - 1);
     if (new_board_evaluation >= beta) return beta;
@@ -288,4 +310,4 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
 
 void Engine::soft_reset() { killer_moves.clear(); }
 
-void Engine::reset_debug() { debug = {0, 0, 0, 0, 0, 0}; }
+void Engine::reset_debug() { debug = {0, 0, 0, 0, 0, 0, 0, 0}; }

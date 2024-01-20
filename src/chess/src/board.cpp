@@ -337,6 +337,7 @@ Board Board::skip_turn() const {
   Board new_board = *this;
   new_board.is_white_turn = !new_board.is_white_turn;
   std::swap(new_board.cur_occupied, new_board.opp_occupied);
+  new_board.en_passant_bit = 0;
   return new_board;
 }
 

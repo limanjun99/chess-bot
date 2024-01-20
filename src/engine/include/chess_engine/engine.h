@@ -21,6 +21,8 @@ public:
     int null_move_total;              // Nodes that did a null move search.
     int transposition_table_success;  // Nodes that returned immediately after checking transposition table.
     int transposition_table_total;    // Nodes that checked the transposition table.
+    int q_delta_pruning_success;      // Nodes that were delta pruned.
+    int q_delta_pruning_total;        // Nodes that tried to delta prune.
   };
   struct MoveInfo {
     Move move;

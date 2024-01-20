@@ -93,7 +93,7 @@ void GameHandler::listen() {
 }
 
 Engine::MoveInfo GameHandler::choose_move(const Board& board) {
-  return engine.choose_move(board, std::chrono::seconds{2});
+  return engine.choose_move(board, std::chrono::seconds{5});
 }
 
 bool GameHandler::handle_game_event(const std::string& game_id, std::string_view data) {
@@ -124,9 +124,10 @@ bool GameHandler::handle_game_event(const std::string& game_id, std::string_view
                  << move_info.debug.normal_node_count / 1000 << "k nodes, "
                  << move_info.debug.quiescence_node_count / 1000 << "k quiescent nodes, "
                  << move_info.debug.transposition_table_success / 1000 << "/"
-                 << move_info.debug.transposition_table_total / 1000 << "k transpositions skipped, "
+                 << move_info.debug.transposition_table_total / 1000 << "k TT, "
                  << move_info.debug.null_move_success / 1000 << "/" << move_info.debug.null_move_total / 1000
-                 << "k null moves worked)\n";
+                 << "k NM, " << move_info.debug.q_delta_pruning_success / 1000 << "/"
+                 << move_info.debug.q_delta_pruning_total / 1000 << "k QDP)\n";
   return true;
 }
 

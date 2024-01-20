@@ -6,10 +6,13 @@ namespace config {
 constexpr double search_time_lowerbound = 0.9;
 
 // Depth of quiescence search.
-constexpr int quiescence_search_depth = 4;
+constexpr int quiescence_search_depth = 6;
 
 // Include checks in the search when within this depth of the quiescence search.
-constexpr int quiescence_search_check_depth = 2;
+constexpr int quiescence_search_check_depth = 3;
+
+// Safety value used in delta pruning during quiescence search. Ignores move if the evaluation + safety is below alpha.
+constexpr int quiescence_search_delta_pruning_safety = 200;
 
 // The depth of subtree searched in null move heuristic is reduced by an additional R.
 constexpr int null_move_heuristic_R = 2;
