@@ -1,5 +1,6 @@
 #pragma once
 
+#include <type_traits>
 #include <vector>
 
 #include "move.h"
@@ -23,10 +24,12 @@ public:
   const Move& operator[](size_t index) const;
   Move& operator[](size_t index);
 
+  ~MoveContainer();
+
 private:
-  // Note that the moves are purposely stored in an array instead of a heap-allocating container for performance.
+  // Use malloc instead of new to avoid overhead of default constructing all Move objects.
   // Max number of legal moves in any position is probably 218 (https://www.chessprogramming.org/Chess_Position).
-  Move moves[218];
+  Move* moves = static_cast<Move*>(malloc(sizeof(Move) * 218));
   size_t size_;
 };
 
@@ -34,7 +37,7 @@ inline MoveContainer::MoveContainer() : size_{0} {}
 
 template <class... Args>
 inline void MoveContainer::emplace_back(Args&&... args) {
-  moves[size_] = Move(args...);
+  new (&moves[size_]) Move(args...);
   size_++;
 }
 
@@ -44,3 +47,9 @@ inline size_t MoveContainer::size() const { return size_; }
 
 inline const Move& MoveContainer::operator[](size_t index) const { return moves[index]; }
 inline Move& MoveContainer::operator[](size_t index) { return moves[index]; }
+
+inline MoveContainer::~MoveContainer() {
+  // Move is trivially destructible, hence we avoid the overhead of calling the destructor on each object.
+  static_assert(std::is_trivially_destructible_v<Move>);
+  free(moves);
+}
