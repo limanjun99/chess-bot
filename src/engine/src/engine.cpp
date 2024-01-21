@@ -231,7 +231,9 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   } else {
     node_type = NodeType::PV;
   }
-  transposition_table.update(board_hash, depth_left, best_move, node_type, evaluation);
+  if (info.hash != board_hash || depth_left >= info.depth_left) {
+    transposition_table.update(board_hash, depth_left, best_move, node_type, evaluation);
+  }
   return std::max(alpha, evaluation);
 }
 

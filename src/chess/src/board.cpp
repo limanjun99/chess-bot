@@ -506,15 +506,9 @@ void Board::generate_unchecked_pawn_moves(MoveContainer& moves, u64 pinned_piece
 
   u64 unpinned_pawns = cur_player()[Piece::Pawn] & ~pinned_pieces;
   BITBOARD_ITERATE(unpinned_pawns, from) {
-    u64 to_bitboard = bitboard::pawn_attacks(from, is_white_turn) & opp_occupied;
-    if (is_white_turn) {
-      to_bitboard |=
-          (from << 8 & ~total_occupied) | ((from & bitboard::RANK_2) << 16 & ~total_occupied & ~(total_occupied << 8));
-    } else {
-      to_bitboard |=
-          (from >> 8 & ~total_occupied) | ((from & bitboard::RANK_7) >> 16 & ~total_occupied & ~(total_occupied >> 8));
-    }
-    to_bitboard &= to_mask;
+    u64 to_bitboard = ((bitboard::pawn_attacks(from, is_white_turn) & opp_occupied) |
+                       bitboard::pawn_pushes(from, total_occupied, is_white_turn)) &
+                      to_mask;
     BITBOARD_ITERATE(to_bitboard, to) { add_pawn_moves(moves, from, to); }
   }
 
