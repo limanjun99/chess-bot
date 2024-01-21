@@ -18,6 +18,11 @@ std::ostream& Logger::error() {
   return logger.out;
 }
 
+void Logger::flush() {
+  Logger& logger = Logger::instance();
+  logger.out.flush();
+}
+
 Logger::Logger(std::ostream& out) : out{out} {}
 
 Logger& Logger::instance() {

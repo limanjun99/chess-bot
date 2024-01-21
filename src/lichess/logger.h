@@ -16,6 +16,9 @@ public:
   // Usage: `Logger::error() << "Error";`
   static std::ostream& error();
 
+  // Flush the buffered output.
+  static void flush();
+
 private:
   std::ostream& out;
 
