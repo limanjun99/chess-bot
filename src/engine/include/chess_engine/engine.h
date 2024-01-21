@@ -6,6 +6,7 @@
 #include "chess/board.h"
 #include "chess/move.h"
 #include "config.h"
+#include "history_heuristic.h"
 #include "killer_moves.h"
 #include "repetition_table.h"
 #include "transposition_table.h"
@@ -40,16 +41,19 @@ public:
   void add_position(const Board& board);
 
 private:
+  std::chrono::time_point<std::chrono::steady_clock, std::chrono::milliseconds> cutoff_time;
   DebugInfo debug;
   KillerMoves killer_moves;
   TranspositionTable transposition_table;
   RepetitionTable repetition_table;
+  HistoryHeuristic history_heuristic;
+  bool search_timeout;
 
   // Evaluate the current board state, without searching any further.
   int evaluate_board(const Board& board);
 
   // Evaluate the priority of the given move. Higher priority moves should be searched first.
-  int evaluate_move_priority(const Move& move, int depth_left, const Move& refutation);
+  int evaluate_move_priority(const Move& move, int depth_left, const Move& hash_move, bool is_white);
 
   // Evaluate the priority of the given quiescence move. Higher priority moves should be searched first.
   int evaluate_quiescence_move_priority(const Move& move);
@@ -67,4 +71,7 @@ private:
 
   // Reset debug information between calls to `choose_move`.
   void reset_debug();
+
+  // Check if the engine has ran out of time to search.
+  bool is_out_of_time();
 };

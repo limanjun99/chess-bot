@@ -13,16 +13,15 @@
 Engine::Engine() {}
 
 Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::milliseconds search_time) {
-  auto start_time = std::chrono::high_resolution_clock::now();
+  auto start_time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now());
+  cutoff_time =
+      start_time + std::chrono::duration_cast<std::chrono::milliseconds>(search_time * config::search_time_lowerbound);
+  search_timeout = false;
   reset_debug();
+  history_heuristic.clear();
   int search_depth = 0;
   MoveContainer moves = board.generate_moves();
   Move chosen_move{};
-  auto is_out_of_time = [&]() {
-    auto current_time = std::chrono::high_resolution_clock::now();
-    auto current_time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time);
-    return current_time_spent >= search_time * config::search_time_lowerbound;
-  };
 
   // Iterative deepening.
   while (search_depth < config::max_depth) {
@@ -37,7 +36,7 @@ Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::millisecon
         alpha = -new_board_evaluation;
         best_move = moves[i];
       }
-      if (is_out_of_time()) {
+      if (search_timeout) {
         finished_evaluation = false;
         break;
       }
@@ -48,15 +47,18 @@ Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::millisecon
     search_depth++;
   }
 
-  auto end_time = std::chrono::high_resolution_clock::now();
+  auto end_time = std::chrono::steady_clock::now();
   auto time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
   return {chosen_move, time_spent, search_depth, debug};
 }
 
 Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
-  auto start_time = std::chrono::high_resolution_clock::now();
+  auto start_time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now());
+  cutoff_time = start_time + std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::years(1));
+  search_timeout = false;
   reset_debug();
+  history_heuristic.clear();
   int search_depth = 0;
   MoveContainer moves = board.generate_moves();
   Move chosen_move{};
@@ -78,7 +80,7 @@ Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
     search_depth++;
   }
 
-  auto end_time = std::chrono::high_resolution_clock::now();
+  auto end_time = std::chrono::steady_clock::now();
   auto time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
   return {chosen_move, time_spent, search_depth, debug};
@@ -102,23 +104,38 @@ int Engine::evaluate_board(const Board& board) {
   return score;
 }
 
-int Engine::evaluate_move_priority(const Move& move, int depth_left, const Move& refutation) {
+int Engine::evaluate_move_priority(const Move& move, int depth_left, const Move& hash_move, bool is_white) {
+  if (move == hash_move) return move_priority::hash_move;
+
   int priority = 0;
+
   if (move.is_capture()) {
     // MVV LVA priority.
-    priority += move_priority::capture;
     priority +=
+        move_priority::capture +
         move_priority::mvv_lva[static_cast<size_t>(move.get_captured_piece())][static_cast<size_t>(move.get_piece())];
-  } else {
+  }
+
+  if (move.is_promotion()) {
+    priority += move_priority::promotion + move_priority::promotion_piece[static_cast<int>(move.get_promotion_piece())];
+  }
+
+  if (!move.is_capture()) {
+    bool is_killer = false;
     for (size_t i = 0; i < config::killer_move_count; i++) {
       // Killer move priority.
       if (killer_moves.get(depth_left, i) == move) {
         priority += move_priority::killer - move_priority::killer_index * i;
+        is_killer = true;
         break;
       }
     }
+
+    if (!is_killer) {
+      priority += history_heuristic.get_score(is_white, move.get_from(), move.get_to());
+    }
   }
-  if (move == refutation) priority += move_priority::refutation;
+
   return priority;
 }
 
@@ -134,11 +151,19 @@ int Engine::evaluate_quiescence_move_priority(const Move& move) {
 }
 
 int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
+  if (search_timeout) return 0;
+
   if (depth_left <= 0) {
     // Switch to quiescence search
     return quiescence_search(board, alpha, beta, 0);
   }
   debug.normal_node_count++;
+  if (debug.normal_node_count % config::timeout_check_interval == 0) {
+    if (is_out_of_time()) {
+      search_timeout = true;
+      return 0;
+    }
+  }
 
   bool is_in_check = board.is_in_check();
   if (!board.has_moves()) {
@@ -153,7 +178,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   if (repetition_table.is_draw_if_add(board_hash)) return evaluation::draw;
 
   // Check transposition table.
-  Move refutation{};
+  Move hash_move{};
   const PositionInfo& info = transposition_table.get(board_hash);
   if (info.hash == board_hash && info.depth_left >= depth_left) {
     debug.transposition_table_total++;
@@ -166,10 +191,10 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
       debug.transposition_table_success++;
       return alpha;
     }
-    refutation = info.best_move;
+    hash_move = info.best_move;
   } else if (info.hash == board_hash) {
     // We have seen this position before, but this time we must analyze it to a greater depth.
-    refutation = info.best_move;
+    hash_move = info.best_move;
   }
 
   // Null move heuristic (https://www.chessprogramming.org/Null_Move_Pruning).
@@ -187,17 +212,17 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   std::vector<int> move_priorities;
   move_priorities.reserve(moves.size());
   for (size_t i = 0; i < moves.size(); i++) {
-    move_priorities[i] = evaluate_move_priority(moves[i], depth_left, refutation);
+    move_priorities[i] = evaluate_move_priority(moves[i], depth_left, hash_move, board.is_white_to_move());
   }
 
-  int evaluation = evaluation::min;
+  NodeType node_type{NodeType::All};  // Assume all-node unless a good enough move is found.
   Move best_move{};
-  bool beta_cutoff = false;
 
+  int late_moves_count = 0;
   for (size_t i = 0; i < moves.size(); i++) {
-    int best_priority = INT_MIN;
+    int best_priority = move_priorities[i];
     size_t best_index = i;
-    for (size_t j = i; j < moves.size(); j++) {
+    for (size_t j = i + 1; j < moves.size(); j++) {
       if (move_priorities[j] > best_priority) {
         best_priority = move_priorities[j];
         best_index = j;
@@ -205,36 +230,42 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     }
     std::swap(moves[i], moves[best_index]);
     std::swap(move_priorities[i], move_priorities[best_index]);
+    late_moves_count += depth_left >= 2 && !moves[i].is_capture() && !moves[i].is_promotion();
+    int late_move_reduction = late_moves_count > 4 ? depth_left / 3 : 0;
     Board new_board = board.apply_move(moves[i]);
-    int new_board_evaluation = -search(new_board, -beta, -std::max(evaluation, alpha), depth_left - 1);
+    int new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1 - late_move_reduction);
+
+    if (new_board_evaluation > alpha && late_move_reduction) {
+      // If a late move was found to be good, we should recompute it with full depth.
+      new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1);
+    }
+
     if (new_board_evaluation >= beta) {
-      beta_cutoff = true;
+      alpha = beta;
       best_move = moves[i];
-      evaluation = beta;
+      node_type = NodeType::Cut;
+      history_heuristic.add_move_success(board.is_white_to_move(), moves[i].get_from(), moves[i].get_to());
       break;
     }
-    if (new_board_evaluation > evaluation) {
-      evaluation = new_board_evaluation;
+    history_heuristic.add_move_failure(board.is_white_to_move(), moves[i].get_from(), moves[i].get_to());
+    if (new_board_evaluation > alpha) {
+      alpha = new_board_evaluation;
       best_move = moves[i];
+      node_type = NodeType::PV;
     }
   }
 
-  NodeType node_type;
-  if (beta_cutoff) {
-    node_type = NodeType::Cut;
-    if (!best_move.is_capture()) {
-      // Add new killer move.
-      killer_moves.add(best_move, depth_left);
-    }
-  } else if (evaluation < alpha) {
-    node_type = NodeType::All;
-  } else {
-    node_type = NodeType::PV;
+  if (node_type == NodeType::Cut && !best_move.is_capture()) {
+    // Add new killer move if beta-cutoff caused by non-capture.
+    killer_moves.add(best_move, depth_left);
   }
+
   if (info.hash != board_hash || depth_left >= info.depth_left) {
-    transposition_table.update(board_hash, depth_left, best_move, node_type, evaluation);
+    // Update transposition table if this entry is new or has >= depth than current entry.
+    transposition_table.update(board_hash, depth_left, best_move, node_type, alpha);
   }
-  return std::max(alpha, evaluation);
+
+  return alpha;
 }
 
 int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth_left) {
@@ -266,7 +297,6 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
 
   auto generate_moves = [&]() {
     if (is_in_check) return board.generate_moves();
-    if (depth_left > -config::quiescence_search_check_depth) return board.generate_quiescence_moves_and_checks();
     return board.generate_quiescence_moves();
   };
   MoveContainer moves = generate_moves();
@@ -313,3 +343,8 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
 void Engine::soft_reset() { killer_moves.clear(); }
 
 void Engine::reset_debug() { debug = {0, 0, 0, 0, 0, 0, 0, 0}; }
+
+bool Engine::is_out_of_time() {
+  auto current_time = std::chrono::steady_clock::now();
+  return current_time >= cutoff_time;
+}

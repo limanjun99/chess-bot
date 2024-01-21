@@ -1,6 +1,6 @@
 add_library(
   chess_engine
-  src/board_hash.cpp src/engine.cpp src/evaluation.cpp src/killer_moves.cpp
+  src/board_hash.cpp src/engine.cpp src/evaluation.cpp src/history_heuristic.cpp src/killer_moves.cpp
   src/repetition_table.cpp src/transposition_table.cpp)
 
 target_compile_features(chess_engine PRIVATE cxx_std_20)

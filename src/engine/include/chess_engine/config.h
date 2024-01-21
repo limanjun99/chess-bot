@@ -3,13 +3,10 @@
 // Configuration for the engine.
 namespace config {
 // When searching by iterative deepening, stop the search once this ratio of search time is reached.
-constexpr double search_time_lowerbound = 0.9;
+constexpr double search_time_lowerbound = 0.99;
 
 // Depth of quiescence search.
 constexpr int quiescence_search_depth = 6;
-
-// Include checks in the search when within this depth of the quiescence search.
-constexpr int quiescence_search_check_depth = 3;
 
 // Safety value used in delta pruning during quiescence search. Ignores move if the evaluation + safety is below alpha.
 constexpr int quiescence_search_delta_pruning_safety = 200;
@@ -28,6 +25,9 @@ constexpr int transposition_table_size = 1 << 24;
 
 // Size of repetition table. Roughly 16k, which is sufficient for longest possible chess game.
 constexpr int repetition_table_size = 1 << 14;
+
+// Check for timeout every time this amount of nodes have been searched.
+constexpr int timeout_check_interval = 8192;
 }  // namespace config
 
 // Evaluation of the board (is in centipawns).
@@ -47,12 +47,12 @@ constexpr int piece[6] = {300, 10000, 300, 100, 900, 500};
 
 // Scores for move priority.
 namespace move_priority {
-constexpr int refutation = 1'000;
+constexpr int hash_move = 1e6;
 
-constexpr int capture = 100;
+constexpr int capture = 4e5;
 
 // Ordered by most valuable victim, then least valuable attacker. Indexed by [victim][attacker].
-constexpr int mvv_lva[7][6] = {
+constexpr u64 mvv_lva[7][6] = {
     {33, 30, 34, 35, 31, 32},  // Bishop victim.
     {0, 0, 0, 0, 0, 0},        // King victim (just filler as king can't be captured).
     {23, 20, 24, 25, 21, 22},  // Knight victim.
@@ -62,7 +62,12 @@ constexpr int mvv_lva[7][6] = {
     {0, 0, 0, 0, 0, 0},        // None victim (i.e. not a capture).
 };
 
-// Killer moves have slightly lower priority than captures, as captures also add mvv_lva.
-constexpr int killer = 100;
+constexpr u64 promotion = 3e5;
+constexpr int promotion_piece[6] = {2, 0, 1, 0, 4, 3};
+
+constexpr int killer = 2e5;
 constexpr int killer_index = 1;  // To prioritise more recent killer moves.
+
+// History heuristic gives a evaluation of at most this value.
+constexpr int history_heuristic_scale = 1e5;
 }  // namespace move_priority
