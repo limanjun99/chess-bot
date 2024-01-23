@@ -201,7 +201,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   if (!is_in_check && depth_left >= config::null_move_heuristic_R + 1 && beta < evaluation::winning) {
     debug.null_move_total++;
     Board new_board = board.skip_turn();
-    int null_move_evaluation = -search(new_board, -beta, -alpha, depth_left - 1 - config::null_move_heuristic_R);
+    int null_move_evaluation = -search(new_board, -beta, -beta + 1, depth_left - 1 - config::null_move_heuristic_R);
     if (null_move_evaluation >= beta) {
       debug.null_move_success++;
       return beta;
@@ -233,10 +233,14 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     late_moves_count += depth_left >= 2 && !moves[i].is_capture() && !moves[i].is_promotion();
     int late_move_reduction = late_moves_count > 4 ? depth_left / 3 : 0;
     Board new_board = board.apply_move(moves[i]);
-    int new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1 - late_move_reduction);
-
-    if (new_board_evaluation > alpha && late_move_reduction) {
-      // If a late move was found to be good, we should recompute it with full depth.
+    int new_board_evaluation;
+    if (late_move_reduction) {
+      new_board_evaluation = -search(new_board, -alpha - 1, -alpha, depth_left - 1 - late_move_reduction);
+      if (new_board_evaluation > alpha) {
+        // If a late move was found to be good, we should recompute it with full depth.
+        new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1);
+      }
+    } else {
       new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1);
     }
 
