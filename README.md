@@ -1,14 +1,17 @@
 A simple chess bot that runs on Lichess.
 
-The current engine is a naive bruteforce with extremely low depth. It seems to be able to avoid one-move blunders, and is able to spot hanging pieces, but beyond that it is extremely weak and will only shuffle pieces around.
+## Engine
+
+The engine uses alpha-beta pruning to explore the search tree, along with a bunch of heuristics to further prune the search ([more details](docs/engine.md)). It is capable of beating up to Fairy Stockfish Level 6 on Lichess (which is not so impressive). One major weakness is that the position evaluation function is terrible, which causes it to continually make mistakes in quiet positions until the position is completely lost.
 
 The Lichess bot will only accept unrated challenges, and only plays against one challenger at any time. Try it out [here](https://lichess.org/@/penguin_bot).
 
 ## Building
 
 ```bash
-cmake -S . -B ./build
-cmake --build ./build
+./scripts/build.sh
+
+./scripts/build.sh -d   # For debug builds:
 ```
 
 ## Running
@@ -23,13 +26,12 @@ LICHESS_BOT_NAME=yyy    # Username of your bot
 Then run the bot:
 
 ```bash
-./build/src/lichess/lichess_bot
+./scripts/run.sh
 ```
 
 ## Testing
 
 ```bash
-./build/test/benchmark/benchmarks       # To run performance benchmarks
-./build/test/chess/chess_tests          # To test the base chess library
-./build/test/engine/chess_engine_tests  # To test the chess engines
+./scripts/test.sh                  # To test the base chess library and chess engine
+./build/test/benchmark/benchmarks  # To run performance benchmarks
 ```
