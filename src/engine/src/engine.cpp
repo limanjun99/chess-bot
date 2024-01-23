@@ -191,10 +191,10 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
       debug.transposition_table_success++;
       return alpha;
     }
-    hash_move = info.best_move;
+    hash_move = info.best_move.to_move();
   } else if (info.hash == board_hash) {
     // We have seen this position before, but this time we must analyze it to a greater depth.
-    hash_move = info.best_move;
+    hash_move = info.best_move.to_move();
   }
 
   // Null move heuristic (https://www.chessprogramming.org/Null_Move_Pruning).
