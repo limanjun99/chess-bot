@@ -1,4 +1,4 @@
-add_executable(benchmarks main.cpp engine.cpp)
+add_executable(benchmarks main.cpp board.cpp engine.cpp perft.cpp)
 
 target_link_libraries(benchmarks PRIVATE chess)
 target_link_libraries(benchmarks PRIVATE chess_engine)

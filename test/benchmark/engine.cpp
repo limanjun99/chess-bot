@@ -17,5 +17,4 @@ static void engine_initial_position_search(benchmark::State& state) {
     benchmark::DoNotOptimize(move_info);
   }
 }
-
 BENCHMARK(engine_initial_position_search);
