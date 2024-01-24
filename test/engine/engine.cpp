@@ -15,6 +15,12 @@ Move choose_move_for_epd(std::string_view epd) {
   return engine.choose_move(board, ENGINE_SEARCH_TIME).move;
 }
 
+Move choose_move_for_epd(std::string_view epd, int depth) {
+  Board board = Board::from_epd(epd);
+  Engine engine{};
+  return engine.choose_move(board, depth).move;
+}
+
 TEST_SUITE("checkmate") {
   TEST_CASE("mate in one") {
     Move move = choose_move_for_epd("6k1/6pp/1R1N1p2/p2r1P2/P7/2pn2P1/6KP/5R2 w - -");
@@ -51,5 +57,30 @@ TEST_SUITE("hanging pieces") {
   TEST_CASE("engine captures free pawn") {
     Move move = choose_move_for_epd("rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR w KQkq -");
     REQUIRE(move.to_uci() == "d4e5");
+  }
+}
+
+TEST_SUITE("quiet positions") {
+  // This test suite contains positions taken from games the engine has played, where there is a single superior move,
+  // but the engine failed to find it.
+
+  TEST_CASE("position 1") {
+    Move move = choose_move_for_epd("3r1rk1/5ppp/p1bq4/P2pb3/6P1/1R3N1P/1P2NP2/3QK2R w K -", 11);
+    REQUIRE(move.to_uci() == "f3e5");
+  }
+
+  TEST_CASE("position 2") {
+    Move move = choose_move_for_epd("2kr3r/ppp2ppp/2p1b3/8/1b1NP3/2N4P/PPP2PP1/R3K2R w KQ -", 11);
+    REQUIRE(move.to_uci() == "d4e6");
+  }
+
+  TEST_CASE("position 3") {
+    Move move = choose_move_for_epd("5rk1/1ppb1pp1/1r1p1q1p/p1n5/P1PnPP2/RP1P1N2/3Q3P/3B1KNR w - -", 13);
+    REQUIRE(move.to_uci() == "d2c3");
+  }
+
+  TEST_CASE("position 4") {
+    Move move = choose_move_for_epd("2r2r2/1Q2k1p1/p2p2q1/7p/P3Np2/7P/6P1/5R1K b - -", 15);
+    REQUIRE(move.to_uci() == "e7d8");
   }
 }

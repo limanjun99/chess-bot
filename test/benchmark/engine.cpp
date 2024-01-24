@@ -13,7 +13,7 @@ static void engine_initial_position_search(benchmark::State& state) {
   Engine engine{};
   Board board = Board::initial();
   for (auto _ : state) {
-    auto move_info = engine.choose_move(board, 10);
+    auto move_info = engine.choose_move(board, 13);
     benchmark::DoNotOptimize(move_info);
   }
 }
