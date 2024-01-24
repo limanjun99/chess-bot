@@ -59,6 +59,7 @@ private:
   int evaluate_quiescence_move_priority(const Move& move);
 
   // Continue traversing the search tree. Returns the evaluation of the current board for the current player.
+  template <bool IsTimed>
   int search(const Board& board, int alpha, int beta, int depth_left);
 
   // Traverse the search tree until a position with no captures or max depth is reached. Returns the evaluation of the

@@ -21,6 +21,8 @@ Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::millisecon
   history_heuristic.clear();
   int search_depth = 0;
   MoveContainer moves = board.generate_moves();
+  std::vector<int> move_priorities;
+  move_priorities.reserve(moves.size());
   Move chosen_move{};
 
   // Iterative deepening.
@@ -29,9 +31,22 @@ Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::millisecon
     int alpha = evaluation::min;
     Move best_move{};
     bool finished_evaluation = true;
+    for (size_t i = 0; i < move_priorities.size(); i++) {
+      move_priorities[i] = evaluate_move_priority(moves[i], search_depth, chosen_move, board.is_white_to_move());
+    }
     for (size_t i = 0; i < moves.size(); i++) {
+      int best_priority = move_priorities[i];
+      size_t best_index = i;
+      for (size_t j = i + 1; j < moves.size(); j++) {
+        if (move_priorities[j] > best_priority) {
+          best_priority = move_priorities[j];
+          best_index = j;
+        }
+      }
+      std::swap(moves[i], moves[best_index]);
+      std::swap(move_priorities[i], move_priorities[best_index]);
       Board new_board = board.apply_move(moves[i]);
-      int new_board_evaluation = search(new_board, -evaluation::max, -alpha, search_depth);
+      int new_board_evaluation = search<true>(new_board, -evaluation::max, -alpha, search_depth);
       if (-new_board_evaluation > alpha) {
         alpha = -new_board_evaluation;
         best_move = moves[i];
@@ -61,6 +76,8 @@ Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
   history_heuristic.clear();
   int search_depth = 0;
   MoveContainer moves = board.generate_moves();
+  std::vector<int> move_priorities;
+  move_priorities.reserve(moves.size());
   Move chosen_move{};
 
   // Iterative deepening.
@@ -68,9 +85,22 @@ Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
     soft_reset();
     int alpha = evaluation::min;
     Move best_move{};
+    for (size_t i = 0; i < move_priorities.size(); i++) {
+      move_priorities[i] = evaluate_move_priority(moves[i], search_depth, chosen_move, board.is_white_to_move());
+    }
     for (size_t i = 0; i < moves.size(); i++) {
+      int best_priority = move_priorities[i];
+      size_t best_index = i;
+      for (size_t j = i + 1; j < moves.size(); j++) {
+        if (move_priorities[j] > best_priority) {
+          best_priority = move_priorities[j];
+          best_index = j;
+        }
+      }
+      std::swap(moves[i], moves[best_index]);
+      std::swap(move_priorities[i], move_priorities[best_index]);
       Board new_board = board.apply_move(moves[i]);
-      int new_board_evaluation = search(new_board, -evaluation::max, -alpha, search_depth);
+      int new_board_evaluation = search<false>(new_board, -evaluation::max, -alpha, search_depth);
       if (-new_board_evaluation > alpha) {
         alpha = -new_board_evaluation;
         best_move = moves[i];
@@ -150,19 +180,19 @@ int Engine::evaluate_quiescence_move_priority(const Move& move) {
   return priority;
 }
 
+template <bool IsTimed>
 int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
-  if (search_timeout) return 0;
-
   if (depth_left <= 0) {
     // Switch to quiescence search
     return quiescence_search(board, alpha, beta, 0);
   }
+
   debug.normal_node_count++;
-  if (debug.normal_node_count % config::timeout_check_interval == 0) {
-    if (is_out_of_time()) {
+  if constexpr (IsTimed) {
+    if (debug.normal_node_count % config::timeout_check_interval == 0 && is_out_of_time()) {
       search_timeout = true;
-      return 0;
     }
+    if (search_timeout) return 0;
   }
 
   bool is_in_check = board.is_in_check();
@@ -201,7 +231,8 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   if (!is_in_check && depth_left >= config::null_move_heuristic_R + 1 && beta < evaluation::winning) {
     debug.null_move_total++;
     Board new_board = board.skip_turn();
-    int null_move_evaluation = -search(new_board, -beta, -beta + 1, depth_left - 1 - config::null_move_heuristic_R);
+    int null_move_evaluation =
+        -search<IsTimed>(new_board, -beta, -beta + 1, depth_left - 1 - config::null_move_heuristic_R);
     if (null_move_evaluation >= beta) {
       debug.null_move_success++;
       return beta;
@@ -235,13 +266,13 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     Board new_board = board.apply_move(moves[i]);
     int new_board_evaluation;
     if (late_move_reduction) {
-      new_board_evaluation = -search(new_board, -alpha - 1, -alpha, depth_left - 1 - late_move_reduction);
+      new_board_evaluation = -search<IsTimed>(new_board, -alpha - 1, -alpha, depth_left - 1 - late_move_reduction);
       if (new_board_evaluation > alpha) {
         // If a late move was found to be good, we should recompute it with full depth.
-        new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1);
+        new_board_evaluation = -search<IsTimed>(new_board, -beta, -alpha, depth_left - 1);
       }
     } else {
-      new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1);
+      new_board_evaluation = -search<IsTimed>(new_board, -beta, -alpha, depth_left - 1);
     }
 
     if (new_board_evaluation >= beta) {
