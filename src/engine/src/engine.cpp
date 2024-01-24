@@ -246,6 +246,10 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     move_priorities[i] = evaluate_move_priority(moves[i], depth_left, hash_move, board.is_white_to_move());
   }
 
+  // Only used for futility pruning.
+  int cur_board_evaluation = 0;
+  if (depth_left == 1) cur_board_evaluation = evaluate_board(board);
+
   NodeType node_type{NodeType::All};  // Assume all-node unless a good enough move is found.
   Move best_move{};
 
@@ -261,6 +265,22 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     }
     std::swap(moves[i], moves[best_index]);
     std::swap(move_priorities[i], move_priorities[best_index]);
+
+    // Futility pruning. If the expected value of this move does not raise the evaluation above alpha, then it is likely
+    // not worth it to try it out.
+    if (depth_left == 1) {
+      int move_value_estimate = 0;
+      if (moves[i].get_captured_piece() != Piece::None) {
+        move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_captured_piece())];
+      }
+      if (moves[i].get_promotion_piece() != Piece::None) {
+        move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_promotion_piece())];
+      }
+      if (cur_board_evaluation + move_value_estimate + config::futility_margin <= alpha) {
+        continue;
+      }
+    }
+
     late_moves_count += depth_left >= 2 && !moves[i].is_capture() && !moves[i].is_promotion();
     int late_move_reduction = late_moves_count > 4 ? depth_left / 3 : 0;
     Board new_board = board.apply_move(moves[i]);

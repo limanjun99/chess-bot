@@ -22,6 +22,10 @@ Here is a list of the current heuristics implemented by the engine (full credit 
 
   With all the other heuristics, we can assume that our move ordering is fairly good, which means that the later moves are likely bad (not good enough to raise alpha). Hence we search those at a reduced depth, but if they do manage to raise alpha, then they are promising enough and we re-search them with full depth to get an accurate evaluation.
 
+- **[Futility Pruning](https://www.chessprogramming.org/Futility_Pruning)**
+
+  When we are at frontier nodes (with 1 depth left), we estimate whether each move's value + some safety margin will bring us above alpha. If not, it likely that quiescence searching it still gives us an evaluation below alpha, so we can just skip it.
+
 ## Move Ordering
 
 Moves are searched in the following order:
