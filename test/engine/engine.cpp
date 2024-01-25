@@ -65,17 +65,17 @@ TEST_SUITE("quiet positions") {
   // but the engine failed to find it.
 
   TEST_CASE("position 1") {
-    Move move = choose_move_for_epd("3r1rk1/5ppp/p1bq4/P2pb3/6P1/1R3N1P/1P2NP2/3QK2R w K -", 11);
+    Move move = choose_move_for_epd("3r1rk1/5ppp/p1bq4/P2pb3/6P1/1R3N1P/1P2NP2/3QK2R w K -", 10);
     REQUIRE(move.to_uci() == "f3e5");
   }
 
   TEST_CASE("position 2") {
-    Move move = choose_move_for_epd("2kr3r/ppp2ppp/2p1b3/8/1b1NP3/2N4P/PPP2PP1/R3K2R w KQ -", 11);
+    Move move = choose_move_for_epd("2kr3r/ppp2ppp/2p1b3/8/1b1NP3/2N4P/PPP2PP1/R3K2R w KQ -", 10);
     REQUIRE(move.to_uci() == "d4e6");
   }
 
   TEST_CASE("position 3") {
-    Move move = choose_move_for_epd("5rk1/1ppb1pp1/1r1p1q1p/p1n5/P1PnPP2/RP1P1N2/3Q3P/3B1KNR w - -", 13);
+    Move move = choose_move_for_epd("5rk1/1ppb1pp1/1r1p1q1p/p1n5/P1PnPP2/RP1P1N2/3Q3P/3B1KNR w - -", 12);
     REQUIRE(move.to_uci() == "d2c3");
   }
 

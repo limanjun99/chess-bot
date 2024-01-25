@@ -30,8 +30,7 @@ private:
   const u64 cur_occupied;
   const u64 opp_occupied;
   const u64 total_occupied;
-  const std::array<Piece, 64> cur_piece_at;
-  const std::array<Piece, 64> opp_piece_at;
+  const std::array<u64, 3> opp_piece_at;
   const u64 king_bishop_rays;
   const u64 king_rook_rays;
   const u64 pinned_pieces;
@@ -42,6 +41,8 @@ private:
   u64 get_king_attackers() const;
   // Returns a bitboard of my pieces that are pinned (i.e. removing them will open up the king to an attacker).
   u64 get_pinned_pieces() const;
+  // Gets the opponent piece at the given square.
+  Piece get_opp_piece_at(u64 bit) const;
 
   enum class MoveType { All, CapturesAndPromotionsOnly, CapturesChecksAndPromotionsOnly };
   // Generate legal bishop moves (and queen moves with bishop movement) given that the king is not in check.

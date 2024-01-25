@@ -207,19 +207,32 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   const u64 board_hash = board_hash::hash(board);
   if (repetition_table.is_draw_if_add(board_hash)) return evaluation::draw;
 
+  NodeType node_type{NodeType::All};  // Assume all-node unless a good enough move is found.
+  Move best_move{};
+
   // Check transposition table.
   Move hash_move{};
   const PositionInfo& info = transposition_table.get(board_hash);
   if (info.hash == board_hash && info.depth_left >= depth_left) {
     debug.transposition_table_total++;
     // We have seen this position before and analyzed it to at least the same depth.
-    if ((info.node_type == NodeType::PV || info.node_type == NodeType::Cut) && info.score >= beta) {
+    if (info.node_type == NodeType::PV) {
       debug.transposition_table_success++;
-      return beta;
-    }
-    if ((info.node_type == NodeType::PV || info.node_type == NodeType::All) && info.score <= alpha) {
-      debug.transposition_table_success++;
-      return alpha;
+      return std::max(alpha, std::min(beta, info.score));
+    } else if (info.node_type == NodeType::Cut) {
+      if (info.score >= beta) {
+        debug.transposition_table_success++;
+        return beta;
+      }
+      if (info.score >= alpha) {
+        alpha = info.score;
+        node_type = NodeType::PV;
+      }
+    } else {
+      if (info.score <= alpha) {
+        debug.transposition_table_success++;
+        return alpha;
+      }
     }
     hash_move = info.best_move.to_move();
   } else if (info.hash == board_hash) {
@@ -243,15 +256,12 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   std::vector<int> move_priorities;
   move_priorities.reserve(moves.size());
   for (size_t i = 0; i < moves.size(); i++) {
-    move_priorities[i] = evaluate_move_priority(moves[i], depth_left, hash_move, board.is_white_to_move());
+    move_priorities.push_back(evaluate_move_priority(moves[i], depth_left, hash_move, board.is_white_to_move()));
   }
 
   // Only used for futility pruning.
   int cur_board_evaluation = 0;
   if (depth_left == 1) cur_board_evaluation = evaluate_board(board);
-
-  NodeType node_type{NodeType::All};  // Assume all-node unless a good enough move is found.
-  Move best_move{};
 
   int late_moves_count = 0;
   for (size_t i = 0; i < moves.size(); i++) {
@@ -268,7 +278,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
 
     // Futility pruning. If the expected value of this move does not raise the evaluation above alpha, then it is likely
     // not worth it to try it out.
-    if (depth_left == 1) {
+    if (depth_left == 1 && !is_in_check && beta <= evaluation::winning / 2 && alpha >= evaluation::losing / 2) {
       int move_value_estimate = 0;
       if (moves[i].get_captured_piece() != Piece::None) {
         move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_captured_piece())];
@@ -281,9 +291,11 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
       }
     }
 
-    late_moves_count += depth_left >= 2 && !moves[i].is_capture() && !moves[i].is_promotion();
-    int late_move_reduction = late_moves_count > 4 ? depth_left / 3 : 0;
     Board new_board = board.apply_move(moves[i]);
+    bool is_late_move =
+        depth_left >= 2 && !moves[i].is_capture() && !moves[i].is_promotion() && !new_board.is_in_check();
+    late_moves_count += is_late_move;
+    int late_move_reduction = is_late_move && late_moves_count > 3 ? depth_left / 3 : 0;
     int new_board_evaluation;
     if (late_move_reduction) {
       new_board_evaluation = -search<IsTimed>(new_board, -alpha - 1, -alpha, depth_left - 1 - late_move_reduction);
@@ -342,7 +354,9 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
     // Delta pruning. If the evaluation remains below alpha after capturing a queen, then the position's true evaluation
     // is likely below alpha.
     debug.q_delta_pruning_total++;
-    if (board_evaluation + evaluation::piece[static_cast<int>(Piece::Queen)] < alpha) {
+    if (board_evaluation + evaluation::piece[static_cast<int>(Piece::Queen)] +
+            config::quiescence_search_delta_pruning_safety <
+        alpha) {
       debug.q_delta_pruning_success++;
       return alpha;
     }
@@ -359,7 +373,7 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
   std::vector<int> move_priorities;
   move_priorities.reserve(moves.size());
   for (size_t i = 0; i < moves.size(); i++) {
-    move_priorities[i] = evaluate_quiescence_move_priority(moves[i]);
+    move_priorities.push_back(evaluate_quiescence_move_priority(moves[i]));
   }
 
   for (size_t i = 0; i < moves.size(); i++) {

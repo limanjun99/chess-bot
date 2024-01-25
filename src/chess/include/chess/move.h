@@ -85,3 +85,8 @@ inline Piece Move::get_promotion_piece() const { return promotion_piece; }
 inline bool Move::is_capture() const { return captured_piece != Piece::None; }
 
 inline bool Move::is_promotion() const { return promotion_piece != Piece::None; }
+
+inline bool Move::operator==(const Move& move) const {
+  return from == move.from && to == move.to && piece == move.piece && captured_piece == move.captured_piece &&
+         promotion_piece == move.promotion_piece;
+}

@@ -133,6 +133,10 @@ MagicBitboard<52> rook_magic{
 
 u64 bitboard::rook_attacks(u64 rook, u64 occupancy) { return rook_magic.attacks(rook, occupancy); }
 
+u64 bitboard::queen_attacks(u64 queen, u64 occupancy) {
+  return bishop_magic.attacks(queen, occupancy) | rook_magic.attacks(queen, occupancy);
+}
+
 // Generate bitboards of squares that block an attacker from checking the king.
 consteval std::array<std::array<u64, 64>, 64> generate_block_checks(
     const std::initializer_list<std::pair<int, int>> directions) {
@@ -174,10 +178,6 @@ u64 bitboard::block_slider_check(u64 king, u64 slider) {
   size_t king_index = bit::to_index(king);
   size_t slider_index = bit::to_index(slider);
   return block_bishop_checks[king_index][slider_index] | block_rook_checks[king_index][slider_index];
-}
-
-u64 bitboard::queen_attacks(u64 queen, u64 occupancy) {
-  return bishop_magic.attacks(queen, occupancy) | rook_magic.attacks(queen, occupancy);
 }
 
 std::string bitboard::to_string(u64 bitboard) {

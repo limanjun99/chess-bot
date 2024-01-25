@@ -1,17 +1,13 @@
 #include "move_gen.h"
 
-constexpr std::array<Piece, 64> empty_piece_at = ([]() {
-  std::array<Piece, 64> array;
-  for (auto& piece : array) piece = Piece::None;
-  return array;
-})();
-
-std::array<Piece, 64> compute_piece_at(const Player& player) {
-  std::array<Piece, 64> piece_at = empty_piece_at;
-  for (Piece piece : {Piece::Bishop, Piece::King, Piece::Knight, Piece::Pawn, Piece::Queen, Piece::Rook}) {
-    u64 bitboard = player[piece];
-    BITBOARD_ITERATE(bitboard, bit) { piece_at[bit::to_index(bit)] = piece; }
-  }
+std::array<u64, 3> compute_piece_at(const Player& player) {
+  std::array<u64, 3> piece_at{0, 0, 0};
+  // All the piece bitboards are compressed into 3 bitboards, where piece_at[i] represents whether the ith bit is set
+  // for the piece at each square.
+  const u64 none_bitboard = bitboard::ALL & ~(player.occupied());
+  piece_at[0] = player[static_cast<Piece>(1)] | player[static_cast<Piece>(3)] | player[static_cast<Piece>(5)];
+  piece_at[1] = player[static_cast<Piece>(2)] | player[static_cast<Piece>(3)] | none_bitboard;
+  piece_at[2] = player[static_cast<Piece>(4)] | player[static_cast<Piece>(5)] | none_bitboard;
   return piece_at;
 }
 
@@ -22,7 +18,6 @@ MoveGen::MoveGen(const Board& board)
       cur_occupied{cur_player.occupied()},
       opp_occupied{opp_player.occupied()},
       total_occupied{cur_occupied | opp_occupied},
-      cur_piece_at{compute_piece_at(cur_player)},
       opp_piece_at{compute_piece_at(opp_player)},
       king_bishop_rays{bitboard::bishop_attacks(cur_player[Piece::King], total_occupied)},
       king_rook_rays{bitboard::rook_attacks(cur_player[Piece::King], total_occupied)},
@@ -55,7 +50,7 @@ MoveContainer MoveGen::generate_quiescence_moves_and_checks() const {
   // The piece at `from`, if moved to anywhere in `to_mask`, will cause a check by another piece.
   // Note that captures and promotions are ignored, as they are generated above already.
   auto generate_indirect_checks = [&](const u64 from, u64 to_mask) {
-    const Piece piece = cur_piece_at[bit::to_index(from)];
+    const Piece piece = cur_player.piece_at(from);
     if (pinned_pieces & from) {
       // The piece is pinned to its own king, can only move along the pin ray.
       const u64 new_king_attackers = bitboard::queen_attacks(cur_player[Piece::King], total_occupied ^ from);
@@ -96,10 +91,10 @@ MoveContainer MoveGen::generate_quiescence_moves_and_checks() const {
         if (bitboard::knight_attacks(to) & opp_player[Piece::Knight]) continue;
         if (bitboard::pawn_attacks(to, board.is_white_to_move()) & opp_player[Piece::Pawn]) continue;
         if (bitboard::rook_attacks(to, total_occupied) & (opp_player[Piece::Rook] | opp_player[Piece::Queen])) continue;
-        moves.emplace_back(piece, from, to, opp_piece_at[bit::to_index(to)]);
+        moves.emplace_back(piece, from, to, get_opp_piece_at(to));
       }
     } else {
-      BITBOARD_ITERATE(to_mask, to) { moves.emplace_back(piece, from, to, opp_piece_at[bit::to_index(to)]); }
+      BITBOARD_ITERATE(to_mask, to) { moves.emplace_back(piece, from, to, get_opp_piece_at(to)); }
     }
   };
 
@@ -179,7 +174,7 @@ bool MoveGen::is_under_attack(u64 square) const {
 }
 
 void MoveGen::add_pawn_moves(MoveContainer& moves, u64 from, u64 to) const {
-  Piece captured = board.get_en_passant() == to ? Piece::Pawn : opp_piece_at[bit::to_index(to)];
+  Piece captured = board.get_en_passant() == to ? Piece::Pawn : get_opp_piece_at(to);
   if (to & (bitboard::RANK_1 | bitboard::RANK_8)) {
     moves.emplace_back(from, to, Piece::Bishop, captured);
     moves.emplace_back(from, to, Piece::Knight, captured);
@@ -201,29 +196,27 @@ u64 MoveGen::get_king_attackers() const {
 
 u64 MoveGen::get_pinned_pieces() const {
   const u64 king = cur_player[Piece::King];
-  const u64 bishop_attackers = king_bishop_rays & (opp_player[Piece::Bishop] | opp_player[Piece::Queen]);
-  const u64 rook_attackers = king_rook_rays & (opp_player[Piece::Rook] | opp_player[Piece::Queen]);
+  const u64 current_slider_attackers = (king_bishop_rays & (opp_player[Piece::Bishop] | opp_player[Piece::Queen])) |
+                                       (king_rook_rays & (opp_player[Piece::Rook] | opp_player[Piece::Queen]));
+  const u64 potential_pinned_pieces = (king_bishop_rays | king_rook_rays) & cur_occupied;
+  const u64 new_slider_attackers = (bitboard::bishop_attacks(king, total_occupied ^ potential_pinned_pieces) &
+                                    (opp_player[Piece::Bishop] | opp_player[Piece::Queen])) |
+                                   (bitboard::rook_attacks(king, total_occupied ^ potential_pinned_pieces) &
+                                    (opp_player[Piece::Rook] | opp_player[Piece::Queen]));
+  u64 pinners = new_slider_attackers ^ current_slider_attackers;
   u64 pinned_pieces = 0;
-
-  u64 potential_bishop_pins = king_bishop_rays & cur_occupied;
-  BITBOARD_ITERATE(potential_bishop_pins, pinned) {
-    // Check if removing the piece opens up the king to a new bishop / queen attacker.
-    const u64 new_bishop_attackers = bitboard::bishop_attacks(king, total_occupied ^ pinned) &
-                                     (opp_player[Piece::Bishop] | opp_player[Piece::Queen]);
-    if (new_bishop_attackers == bishop_attackers) continue;
-    pinned_pieces ^= pinned;
+  BITBOARD_ITERATE(pinners, pinner) {
+    const u64 pinned_piece = bitboard::block_slider_check(king, pinner) & cur_occupied;
+    pinned_pieces ^= pinned_piece;
   }
-
-  u64 potential_rook_pins = king_rook_rays & cur_occupied;
-  BITBOARD_ITERATE(potential_rook_pins, pinned) {
-    // Check if removing the piece opens up the king to a new rook / queen attacker.
-    const u64 new_rook_attackers =
-        bitboard::rook_attacks(king, total_occupied ^ pinned) & (opp_player[Piece::Rook] | opp_player[Piece::Queen]);
-    if (new_rook_attackers == rook_attackers) continue;
-    pinned_pieces ^= pinned;
-  }
-
   return pinned_pieces;
+}
+
+Piece MoveGen::get_opp_piece_at(u64 bit) const {
+  int index = bit::to_index(bit);
+  int piece =
+      (opp_piece_at[0] >> index & 1) + ((opp_piece_at[1] >> index & 1) << 1) + ((opp_piece_at[2] >> index & 1) << 2);
+  return static_cast<Piece>(piece);
 }
 
 template <MoveGen::MoveType MT>
@@ -245,7 +238,7 @@ void MoveGen::generate_unchecked_bishoplike_moves(MoveContainer& moves) const {
     u64 unpinned_pieces = cur_player[from_piece] & ~pinned_pieces;
     BITBOARD_ITERATE(unpinned_pieces, from) {
       u64 to_bitboard = bitboard::bishop_attacks(from, total_occupied) & ~cur_occupied & to_mask;
-      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, opp_piece_at[bit::to_index(to)]); }
+      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, get_opp_piece_at(to)); }
     }
 
     u64 pinned_from_pieces = king_bishop_rays & pinned_pieces & cur_player[from_piece];
@@ -254,7 +247,7 @@ void MoveGen::generate_unchecked_bishoplike_moves(MoveContainer& moves) const {
                             (opp_player[Piece::Bishop] | opp_player[Piece::Queen]) & ~opp_blockers;
       u64 to_bitboard =
           (bitboard::block_slider_check(cur_player[Piece::King], pinned_by) | pinned_by) & ~from & to_mask;
-      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, opp_piece_at[bit::to_index(to)]); }
+      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, get_opp_piece_at(to)); }
     }
   }
 }
@@ -292,7 +285,7 @@ void MoveGen::generate_unchecked_knight_moves(MoveContainer& moves) const {
   }
   BITBOARD_ITERATE(knights, from) {
     u64 to_bitboard = bitboard::knight_attacks(from) & ~cur_occupied & to_mask;
-    BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(Piece::Knight, from, to, opp_piece_at[bit::to_index(to)]); }
+    BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(Piece::Knight, from, to, get_opp_piece_at(to)); }
   }
 }
 
@@ -378,7 +371,7 @@ void MoveGen::generate_unchecked_rooklike_moves(MoveContainer& moves) const {
     u64 unpinned_pieces = cur_player[from_piece] & ~pinned_pieces;
     BITBOARD_ITERATE(unpinned_pieces, from) {
       u64 to_bitboard = bitboard::rook_attacks(from, total_occupied) & ~cur_occupied & to_mask;
-      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, opp_piece_at[bit::to_index(to)]); }
+      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, get_opp_piece_at(to)); }
     }
 
     u64 pinned_from_pieces = king_rook_rays & pinned_pieces & cur_player[from_piece];
@@ -387,7 +380,7 @@ void MoveGen::generate_unchecked_rooklike_moves(MoveContainer& moves) const {
                             (opp_player[Piece::Rook] | opp_player[Piece::Queen]) & ~opp_blockers;
       u64 to_bitboard =
           (bitboard::block_slider_check(cur_player[Piece::King], pinned_by) | pinned_by) & ~from & to_mask;
-      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, opp_piece_at[bit::to_index(to)]); }
+      BITBOARD_ITERATE(to_bitboard, to) { moves.emplace_back(from_piece, from, to, get_opp_piece_at(to)); }
     }
   }
 }
@@ -401,7 +394,7 @@ void MoveGen::generate_king_single_check_evasions(MoveContainer& moves, u64 atta
   // 1. Capture the attacker with a piece that is not pinned.
   const u64 attacker_bishop_rays = bitboard::bishop_attacks(attacker, total_occupied);
   const u64 attacker_rook_rays = bitboard::rook_attacks(attacker, total_occupied);
-  const Piece attacker_piece = opp_piece_at[bit::to_index(attacker)];
+  const Piece attacker_piece = get_opp_piece_at(attacker);
   // Capture the attacker with a bishop that is not pinned.
   u64 bishop_capturers = attacker_bishop_rays & cur_player[Piece::Bishop] & ~pinned_pieces;
   BITBOARD_ITERATE(bishop_capturers, from) { moves.emplace_back(Piece::Bishop, from, attacker, attacker_piece); }
@@ -476,7 +469,7 @@ void MoveGen::generate_king_double_check_evasions(MoveContainer& moves) const {
     if (bitboard::pawn_attacks(to, board.is_white_to_move()) & opp_player[Piece::Pawn]) continue;
     if (bitboard::rook_attacks(to, total_occupied_without_king) & (opp_player[Piece::Rook] | opp_player[Piece::Queen]))
       continue;
-    moves.emplace_back(Piece::King, king, to, opp_piece_at[bit::to_index(to)]);
+    moves.emplace_back(Piece::King, king, to, get_opp_piece_at(to));
   }
 }
 
@@ -653,7 +646,7 @@ bool MoveGen::has_king_single_check_evasions(u64 attacker) const {
   if (has_king_double_check_evasions()) return true;
 
   // 3. Block the check if it is a sliding check.
-  const Piece attacker_piece = opp_piece_at[bit::to_index(attacker)];
+  const Piece attacker_piece = get_opp_piece_at(attacker);
   if (piece::is_slider(attacker_piece)) {
     u64 blocking_squares = bitboard::block_slider_check(cur_player[Piece::King], attacker);
     BITBOARD_ITERATE(blocking_squares, to) {

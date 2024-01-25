@@ -6,10 +6,10 @@ namespace config {
 constexpr double search_time_lowerbound = 0.99;
 
 // Depth of quiescence search.
-constexpr int quiescence_search_depth = 6;
+constexpr int quiescence_search_depth = 8;
 
 // Safety value used in delta pruning during quiescence search. Ignores move if the evaluation + safety is below alpha.
-constexpr int quiescence_search_delta_pruning_safety = 200;
+constexpr int quiescence_search_delta_pruning_safety = 500;
 
 // The depth of subtree searched in null move heuristic is reduced by an additional R.
 constexpr int null_move_heuristic_R = 2;
@@ -30,7 +30,7 @@ constexpr int repetition_table_size = 1 << 14;
 constexpr int timeout_check_interval = 8192;
 
 // If the expected value of a move does not raise evaluation to within this amount of the alpha, then prune it.
-constexpr int futility_margin = 200;
+constexpr int futility_margin = 500;
 }  // namespace config
 
 // Evaluation of the board (is in centipawns).
