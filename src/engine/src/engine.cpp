@@ -57,7 +57,10 @@ Engine::MoveInfo Engine::choose_move(const Board& board, std::chrono::millisecon
       }
     }
 
-    if (finished_evaluation) chosen_move = best_move;
+    if (finished_evaluation) {
+      chosen_move = best_move;
+      debug.evaluation = alpha;
+    }
     if (is_out_of_time()) break;
     search_depth++;
   }
@@ -106,8 +109,13 @@ Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
         best_move = moves[i];
       }
     }
-    if (search_depth == depth) chosen_move = best_move;
-    search_depth++;
+    if (search_depth == depth) {
+      chosen_move = best_move;
+      debug.evaluation = alpha;
+      break;
+    } else {
+      search_depth++;
+    }
   }
 
   auto end_time = std::chrono::steady_clock::now();
@@ -118,21 +126,7 @@ Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
 
 void Engine::add_position(const Board& board) { repetition_table.add(board_hash::hash(board)); }
 
-int Engine::evaluate_board(const Board& board) {
-  int score = 0;
-  const Player& cur_player = board.cur_player();
-  const Player& opp_player = board.opp_player();
-  for (Piece piece : {Piece::Bishop, Piece::Knight, Piece::Pawn, Piece::Queen, Piece::Rook}) {
-    score += (bitboard::count(cur_player[piece]) - bitboard::count(opp_player[piece])) *
-             evaluation::piece[static_cast<int>(piece)];
-  }
-  u64 cur_pawn_bitboard = cur_player[Piece::Pawn];
-  BITBOARD_ITERATE(cur_pawn_bitboard, bit) { score += pst::value_of(Piece::Pawn, bit, board.is_white_to_move()); }
-  u64 opp_piece_bitboard = opp_player[Piece::Pawn];
-  BITBOARD_ITERATE(opp_piece_bitboard, bit) { score -= pst::value_of(Piece::Pawn, bit, !board.is_white_to_move()); }
-
-  return score;
-}
+int Engine::evaluate_board(const Board& board) { return pst::evaluate(board); }
 
 int Engine::evaluate_move_priority(const Move& move, int depth_left, const Move& hash_move, bool is_white) {
   if (move == hash_move) return move_priority::hash_move;
@@ -411,7 +405,7 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
 
 void Engine::soft_reset() { killer_moves.clear(); }
 
-void Engine::reset_debug() { debug = {0, 0, 0, 0, 0, 0, 0, 0}; }
+void Engine::reset_debug() { debug = {0, 0, 0, 0, 0, 0, 0, 0, 0}; }
 
 bool Engine::is_out_of_time() {
   auto current_time = std::chrono::steady_clock::now();

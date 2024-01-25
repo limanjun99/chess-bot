@@ -127,7 +127,8 @@ bool GameHandler::handle_game_event(const std::string& game_id, std::string_view
                  << move_info.debug.transposition_table_total / 1000 << "k TT, "
                  << move_info.debug.null_move_success / 1000 << "/" << move_info.debug.null_move_total / 1000
                  << "k NM, " << move_info.debug.q_delta_pruning_success / 1000 << "/"
-                 << move_info.debug.q_delta_pruning_total / 1000 << "k QDP)\n";
+                 << move_info.debug.q_delta_pruning_total / 1000 << "k QDP, " << move_info.debug.evaluation
+                 << " eval)\n";
   Logger::flush();
   return true;
 }

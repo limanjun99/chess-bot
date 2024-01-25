@@ -2,7 +2,7 @@ A simple chess bot that runs on Lichess.
 
 ## Engine
 
-The engine uses alpha-beta pruning to explore the search tree, along with a bunch of heuristics to further prune the search ([more details](docs/engine.md)). It is capable of beating up to Fairy Stockfish Level 6 on Lichess (which is not so impressive). One major weakness is that the position evaluation function is terrible, which causes it to continually make mistakes in quiet positions until the position is completely lost.
+The engine uses alpha-beta pruning to explore the search tree, along with a bunch of heuristics to further prune the search ([more details](docs/engine.md)). It is capable of beating up to Fairy Stockfish Level 6 on Lichess (which is not so impressive).
 
 The Lichess bot will only accept unrated challenges, and only plays against one challenger at any time. Try it out [here](https://lichess.org/@/penguin_bot).
 

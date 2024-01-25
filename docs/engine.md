@@ -34,3 +34,7 @@ Moves are searched in the following order:
 - Captures / promotions (sorted according to [MVV-LVA](https://www.chessprogramming.org/MVV-LVA))
 - Killer moves
 - All other moves sorted by history heuristic
+
+## Evaluation
+
+Evaluation is done by [PeSTO's Evaluation Function](https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function).

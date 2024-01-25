@@ -16,6 +16,7 @@ public:
   Engine();
 
   struct DebugInfo {
+    int evaluation;                   // Evaluation of the board position after playing the chosen move.
     int normal_node_count;            // Number of nodes in the main search tree.
     int quiescence_node_count;        // Number of nodes in quiescence search.
     int null_move_success;            // Nodes that returned after a null move search.
