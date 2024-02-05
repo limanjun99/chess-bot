@@ -41,10 +41,8 @@ Board Board::from_epd(std::string_view epd) {
   while (epd[index] != '-' && epd[index] != ' ') {
     bool is_white = std::isupper(epd[index]);
     Player& player = is_white ? white : black;
-    if (epd[index] == 'K' || epd[index] == 'k')
-      player.enable_kingside_castling();
-    else
-      player.enable_queenside_castling();
+    if (epd[index] == 'K' || epd[index] == 'k') player.enable_kingside_castling();
+    else player.enable_queenside_castling();
     index++;
   }
   if (epd[index] == '-') index++;
@@ -134,15 +132,15 @@ const Player& Board::cur_player() const { return is_white_turn ? white : black; 
 
 Player& Board::cur_player() { return is_white_turn ? white : black; }
 
-MoveContainer Board::generate_quiescence_moves() const { return MoveGen{*this}.generate_quiescence_moves(); }
+MoveContainer Board::generate_quiescence_moves() const { return move_gen::generate_quiescence_moves(*this); }
 
 MoveContainer Board::generate_quiescence_moves_and_checks() const {
-  return MoveGen{*this}.generate_quiescence_moves_and_checks();
+  return move_gen::generate_quiescence_moves_and_checks(*this);
 }
 
-MoveContainer Board::generate_moves() const { return MoveGen{*this}.generate_moves(); }
+MoveContainer Board::generate_moves() const { return move_gen::generate_moves(*this); }
 
-bool Board::has_moves() const { return MoveGen{*this}.has_moves(); }
+bool Board::has_moves() const { return move_gen::has_moves(*this); }
 
 bool Board::is_a_check(const Move& move) const {
   // This function is not optimized as it should only be called in non-critical code for external interaction.
@@ -151,7 +149,7 @@ bool Board::is_a_check(const Move& move) const {
 
 bool Board::is_in_check() const { return is_under_attack(cur_player()[Piece::King]); }
 
-bool Board::is_under_attack(u64 square) const { return MoveGen{*this}.is_under_attack(square); }
+bool Board::is_under_attack(u64 square) const { return move_gen::is_under_attack(*this, square); }
 
 const Player& Board::get_white() const { return white; }
 

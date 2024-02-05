@@ -15,32 +15,32 @@ public:
   static Player black_initial();
 
   // Not allowed to castle anymore due to king move.
-  inline void disable_castling() { can_castle_kingside_ = can_castle_queenside_ = false; }
+  void disable_castling();
 
   // Not allowed to castle kingside anymore due to rook move.
-  inline void disable_kingside_castling() { can_castle_kingside_ = false; }
+  void disable_kingside_castling();
 
   // Not allowed to castle queenside anymore due to rook move.
-  inline void disable_queenside_castling() { can_castle_queenside_ = false; }
+  void disable_queenside_castling();
 
   // Enable both kingside and queenside castling.
-  inline void enable_castling() { can_castle_kingside_ = can_castle_queenside_ = true; }
+  void enable_castling();
 
   // Enable kingside castling.
-  inline void enable_kingside_castling() { can_castle_kingside_ = true; }
+  void enable_kingside_castling();
 
   // Enable queenside castling.
-  inline void enable_queenside_castling() { can_castle_queenside_ = true; }
+  void enable_queenside_castling();
 
   // Returns true if the player is still allowed to castle kingside.
-  inline u64 can_castle_kingside() const { return can_castle_kingside_; }
+  bool can_castle_kingside() const;
 
   // Returns true if the player is still allowed to castle queenside.
-  inline u64 can_castle_queenside() const { return can_castle_queenside_; }
+  bool can_castle_queenside() const;
 
   // Returns a reference to the bitboard of the given piece.
-  inline u64& operator[](Piece piece) { return pieces[static_cast<int>(piece)]; }
-  inline const u64& operator[](Piece piece) const { return pieces[static_cast<int>(piece)]; }
+  u64& operator[](Piece piece);
+  const u64& operator[](Piece piece) const;
 
   // Returns the piece at the given bit (or Piece::None if no piece is there).
   Piece piece_at(u64 bit) const;
@@ -56,3 +56,25 @@ private:
   bool can_castle_kingside_;
   bool can_castle_queenside_;
 };
+
+inline void Player::disable_castling() { can_castle_kingside_ = can_castle_queenside_ = false; }
+
+inline void Player::disable_kingside_castling() { can_castle_kingside_ = false; }
+
+inline void Player::disable_queenside_castling() { can_castle_queenside_ = false; }
+
+inline void Player::enable_castling() { can_castle_kingside_ = can_castle_queenside_ = true; };
+
+inline void Player::enable_kingside_castling() { can_castle_kingside_ = true; }
+
+inline void Player::enable_queenside_castling() { can_castle_queenside_ = true; }
+
+inline bool Player::can_castle_kingside() const { return can_castle_kingside_; }
+
+inline bool Player::can_castle_queenside() const { return can_castle_queenside_; }
+
+inline u64& Player::operator[](Piece piece) { return pieces[static_cast<int>(piece)]; }
+
+inline const u64& Player::operator[](Piece piece) const { return pieces[static_cast<int>(piece)]; }
+
+inline u64 Player::occupied() const { return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5]; }

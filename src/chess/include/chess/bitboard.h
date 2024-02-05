@@ -5,11 +5,13 @@
 
 using u64 = uint64_t;
 
-// Iterate through all the bits of `bitboard` as `bit`.
+// Iterate through all the bits of `bitboard` as `bit` (without modifying `bitboard`).
 // The only(?) alternative to using a macro (besides repeating this code) is a function that takes in a lambda,
 // which is both uglier and slower than this.
-#define BITBOARD_ITERATE(bitboard, bit) \
-  for (u64 bit = bitboard & -bitboard; (bit = bitboard & -bitboard) != 0; bitboard ^= bit)
+#define BITBOARD_ITERATE(bitboard, bit)                                                 \
+  for (u64 temp_bitboard_e7ab3d7c97fb65c3 = (bitboard), bit = (bitboard) & -(bitboard); \
+       temp_bitboard_e7ab3d7c97fb65c3 != 0;                                             \
+       temp_bitboard_e7ab3d7c97fb65c3 ^= bit, bit = temp_bitboard_e7ab3d7c97fb65c3 & -temp_bitboard_e7ab3d7c97fb65c3)
 
 namespace bitboard {
 constexpr u64 A1 = u64(1) << 0;
@@ -106,11 +108,15 @@ u64 king_attacks(u64 king);
 // Returns a bitboard of all attacked squares by the knight.
 u64 knight_attacks(u64 knight);
 
-// Returns a bitboard of all attacked squares by the pawn.
+// Returns a bitboard of all attacked squares by the pawn(s).
 u64 pawn_attacks(u64 pawn, bool is_white);
+template <bool IsWhite>
+u64 pawn_attacks(u64 pawn);
 
 // Returns a bitboard of squares the pawn can be pushed to.
 u64 pawn_pushes(u64 pawn, u64 occupancy, bool is_white);
+template <bool IsWhite>
+u64 pawn_pushes(u64 pawn, u64 occupancy);
 
 // Returns a bitboard of all attacked squares by the queen.
 u64 queen_attacks(u64 queen, u64 occupancy);
@@ -118,17 +124,31 @@ u64 queen_attacks(u64 queen, u64 occupancy);
 // Returns a bitboard of all attacked squares by the rook.
 u64 rook_attacks(u64 rook, u64 occupancy);
 
-// Returns a bitboard of squares between the slider and king that can block this check if it were occupied.
-// For example (k = king, s = slider, x = returned bitboard)
+// Returns a bitboard of squares between the `from` and `to` squares.
+// This only makes sense for squares that are horizontally / vertically / diagonally apart, and will return 0 otherwise.
+// For example (f = `from`, t = `to`, x = returned bitboard)
 // ........
-// .....s..
+// .....t..
 // ....x...
 // ...x....
 // ..x.....
-// .k......
+// .f......
 // ........
 // ........
-u64 block_slider_check(u64 king, u64 slider);
+u64 between(u64 from, u64 to);
+
+// Returns a bitboard of squares beyond the `to` square, from the `from` square.
+// This only makes sense for squares that are horizontally / vertically / diagonally apart, and will return 0 otherwise.
+// For example (f = from, t = to, x = returned bitboard)
+// ......x.
+// .....x..
+// ....t...
+// ........
+// ........
+// .f......
+// ........
+// ........
+u64 beyond(u64 from, u64 to);
 
 // Counts the number of set bits in the given bitboard.
 inline int count(u64 bitboard) { return __builtin_popcountll(bitboard); }
@@ -154,6 +174,24 @@ inline int to_index(u64 bit) { return __builtin_ctzll(bit); }
 // Returns the least significant bit.
 inline u64 lsb(u64 bitboard) { return bitboard & -bitboard; }
 }  // namespace bit
+
+template <bool IsWhite>
+u64 bitboard::pawn_attacks(u64 pawn) {
+  if constexpr (IsWhite) {
+    return (pawn << 7 & ~FILE_H) | (pawn << 9 & ~FILE_A);
+  } else {
+    return (pawn >> 9 & ~FILE_H) | (pawn >> 7 & ~FILE_A);
+  }
+}
+
+template <bool IsWhite>
+u64 bitboard::pawn_pushes(u64 pawn, u64 occupancy) {
+  if constexpr (IsWhite) {
+    return ((((pawn & bitboard::RANK_2) << 8 & ~occupancy) | pawn) << 8) & ~occupancy;
+  } else {
+    return ((((pawn & bitboard::RANK_7) >> 8 & ~occupancy) | pawn) >> 8) & ~occupancy;
+  }
+}
 
 template <typename Function>
 void bitboard::iterate(u64 bitboard, Function function) {

@@ -193,8 +193,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   if (!board.has_moves()) {
     if (is_in_check)
       return evaluation::losing - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
-    else
-      return evaluation::draw;  // Stalemate.
+    else return evaluation::draw;              // Stalemate.
   }
 
   // Don't threefold.
@@ -334,8 +333,7 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
   if (!board.has_moves()) {
     if (board.is_in_check())
       return evaluation::losing - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
-    else
-      return evaluation::draw;  // Stalemate.
+    else return evaluation::draw;              // Stalemate.
   }
 
   bool is_in_check = board.is_in_check();

@@ -23,8 +23,6 @@ Piece Player::piece_at(u64 bit) const {
   return Piece::None;
 }
 
-u64 Player::occupied() const { return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5]; }
-
 Player& Player::operator&=(u64 mask) {
   pieces[static_cast<int>(Piece::Bishop)] &= mask;
   pieces[static_cast<int>(Piece::Knight)] &= mask;
