@@ -1,11 +1,20 @@
 #pragma once
 
+#include <chrono>
 #include <string>
-#include <string_view>
 
-#include "chess/board.h"
-#include "chess_engine/engine.h"
 #include "config.h"
+
+namespace lichess_api {
+static std::string base{"https://lichess.org/api"};
+static std::string stream_incoming_events{base + "/stream/event"};
+std::string online_bots(int bot_count);
+std::string accept_challenge(const std::string& challenge_id);
+std::string decline_challenge(const std::string& challenge_id);
+std::string issue_challenge(const std::string& username);
+std::string stream_game(const std::string& game_id);
+std::string make_move(const std::string& game_id, const std::string& move);
+};  // namespace lichess_api
 
 class Lichess {
 public:
@@ -16,6 +25,7 @@ public:
 
 private:
   const Config& config;
+  std::chrono::time_point<std::chrono::system_clock> last_challenge_time{std::chrono::system_clock::now()};
 
   // Either accept or decline the challenge with given `challenge_id`.
   // Returns false if challenge was not found.
@@ -26,31 +36,7 @@ private:
 
   // Handle an incoming event. Returns true if handled successfully.
   bool handle_incoming_event(std::string data);
-};
 
-class GameHandler {
-public:
-  GameHandler(const Config& config, const std::string& game_id);
-
-  // Start listening and responding to incoming game events from Lichess API.
-  void listen();
-
-private:
-  const Config& config;
-  const std::string& game_id;
-  bool is_white;  // Whether the bot is playing as white.
-  Engine engine{};
-
-  // Find the move to make in the given position.
-  Engine::MoveInfo choose_move(const Board& board);
-
-  // Handle a game event from an ongoing game. Returns false if the game has ended.
-  bool handle_game_event(const std::string& game_id, std::string_view data);
-
-  // Initialise a board after applying all the moves to a starting position.
-  // Moves are in UCI format.
-  Board initialise_board(const std::string& moves);
-
-  // Send the given move to the server.
-  void send_move(const Move& move);
+  // Issues a rated challenge to an online bot. This is called periodically.
+  void issue_challenge();
 };

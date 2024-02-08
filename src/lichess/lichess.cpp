@@ -2,41 +2,54 @@
 
 #include <cpr/cpr.h>
 
+#include <array>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "chess_engine/engine.h"
+#include "game_handler.h"
 #include "logger.h"
 
 using json = nlohmann::json;
 
-namespace api {
-std::string base{"https://lichess.org/api"};
-std::string stream_incoming_events{base + "/stream/event"};
-std::string accept_challenge(const std::string& challenge_id) {
+std::string lichess_api::online_bots(int bot_count) { return base + "/bot/online?nb=" + std::to_string(bot_count); }
+std::string lichess_api::accept_challenge(const std::string& challenge_id) {
   return base + "/challenge/" + challenge_id + "/accept";
 }
-std::string decline_challenge(const std::string& challenge_id) {
+std::string lichess_api::decline_challenge(const std::string& challenge_id) {
   return base + "/challenge/" + challenge_id + "/decline";
 }
-std::string stream_game(const std::string& game_id) { return base + "/bot/game/stream/" + game_id; }
-std::string make_move(const std::string& game_id, const std::string& move) {
+std::string lichess_api::issue_challenge(const std::string& username) { return base + "/challenge/" + username; }
+std::string lichess_api::stream_game(const std::string& game_id) { return base + "/bot/game/stream/" + game_id; }
+std::string lichess_api::make_move(const std::string& game_id, const std::string& move) {
   return base + "/bot/game/" + game_id + "/move/" + move;
 }
-};  // namespace api
 
 Lichess::Lichess(const Config& config) : config{config} {}
 
 void Lichess::listen() {
-  auto callback = [this](std::string data, intptr_t) { return handle_incoming_event(std::move(data)); };
-  cpr::Get(cpr::Url{api::stream_incoming_events}, cpr::Bearer{config.get_lichess_token()},
+  auto callback = [this](std::string data, intptr_t) {
+    if (data == "\n") {
+      // Issue a new challenge if our last challenge was >45 seconds ago.
+      if (std::chrono::system_clock::now() - last_challenge_time > std::chrono::seconds{45}) {
+        last_challenge_time = std::chrono::system_clock::now();
+        issue_challenge();
+      }
+      return true;
+    } else {
+      return handle_incoming_event(std::move(data));
+    }
+  };
+  cpr::Get(cpr::Url{lichess_api::stream_incoming_events}, cpr::Bearer{config.get_lichess_token()},
            cpr::WriteCallback{callback});
 }
 
 bool Lichess::handle_challenge(const std::string& challenge_id, bool accept) {
-  std::string url = accept ? api::accept_challenge(challenge_id) : api::decline_challenge(challenge_id);
+  std::string url = accept ? lichess_api::accept_challenge(challenge_id) : lichess_api::decline_challenge(challenge_id);
   cpr::Response res = cpr::Post(cpr::Url{std::move(url)}, cpr::Bearer{config.get_lichess_token()});
   return res.status_code == 200;
 }
@@ -53,95 +66,73 @@ bool Lichess::handle_incoming_event(std::string data) {
 
   if (event["type"] == "challenge") {
     auto challenge = event["challenge"];
-    // Ignore all requests sent out by the bot.
-    if (challenge["challenger"]["id"] == config.get_lichess_bot_name()) return true;
-    // Decline all rated challenges.
-    if (challenge["rated"]) {
+
+    // Ignore all events that are not other players challenging us.
+    if (challenge["status"] != "created" || challenge["challenger"]["id"] == config.get_lichess_bot_name()) return true;
+
+    // Decline all classical / correspondance or non-standard chess challenges.
+    if (challenge["speed"] == "classical" || challenge["speed"] == "correspondence" ||
+        challenge["variant"]["key"] != "standard") {
       handle_challenge(challenge["id"], false);
       Logger::info() << "Declined challenge " << challenge["id"] << " from " << challenge["challenger"]["id"] << "\n";
       return true;
     }
+
     // Accept all other challenges.
     handle_challenge(challenge["id"], true);
     Logger::info() << "Accepted challenge " << challenge["id"] << " from " << challenge["challenger"]["id"] << "\n";
   } else if (event["type"] == "gameStart") {
     auto game = event["game"];
     handle_game(game["gameId"]);
+  } else if (event["type"] == "challengeDeclined") {
+    Logger::info() << "Challenge to " << event["challenge"]["destUser"]["name"] << " was declined because '"
+                   << event["challenge"]["declineReason"] << "'\n";
   }
   return true;
 }
 
-GameHandler::GameHandler(const Config& config, const std::string& game_id) : config{config}, game_id{game_id} {}
+void Lichess::issue_challenge() {
+  // List of initial time and increment (in seconds) to choose from.
+  //! TODO: Add no-increment clocks once we handle network latency.
+  constexpr std::array<std::pair<int, int>, 3> clocks = {{
+      {120, 1},  // 2+1 Bullet
+      {180, 2},  // 3+2 Blitz
+      {300, 3},  // 5+3 Blitz
+  }};
 
-void GameHandler::listen() {
-  Logger::info() << "Handling game " << game_id << "\n";
-  auto callback = [this](std::string data, intptr_t) {
-    bool ongoing = true;
-    size_t start = 0;
-    size_t end = 0;
-    while (end != std::string::npos) {
-      while (start < data.size() && data[start] == '\n') start++;
-      if (start >= data.size()) break;
-      end = data.find("\n", start + 1);
-      if (end == std::string::npos) end = data.size();
-      ongoing &= handle_game_event(game_id, std::string_view{data}.substr(start, end - start));
-      start = end + 1;
-    }
-    return ongoing;
+  const int clock_choice = rand() % clocks.size();
+  const int clock_time = clocks[clock_choice].first;
+  const int clock_increment = clocks[clock_choice].second;
+
+  std::string online_bots_data;
+  auto online_bots_callback = [&](std::string data, intptr_t) {
+    online_bots_data += data;
+    return true;
   };
-  cpr::Get(cpr::Url{api::stream_game(game_id)}, cpr::Bearer{config.get_lichess_token()}, cpr::WriteCallback{callback});
-}
-
-Engine::MoveInfo GameHandler::choose_move(const Board& board) {
-  return engine.choose_move(board, std::chrono::seconds{5});
-}
-
-bool GameHandler::handle_game_event(const std::string& game_id, std::string_view data) {
-  if (data.empty()) return true;
-  json event = json::parse(data);
-
-  std::optional<Board> board_opt = std::nullopt;
-  if (event["type"] == "gameFull") {
-    // Initialise game data.
-    is_white = event["white"]["id"] == config.get_lichess_bot_name();
-    board_opt = std::optional(initialise_board(event["state"]["moves"]));
-  } else if (event["type"] == "gameState") {
-    if (event["status"] != "started") {
-      return false;  // Game ended.
-    }
-    board_opt = std::optional(initialise_board(event["moves"]));
+  const cpr::Response res = cpr::Get(cpr::Url{lichess_api::online_bots(150)}, cpr::Bearer{config.get_lichess_token()},
+                                     cpr::WriteCallback{online_bots_callback});
+  std::vector<std::string> usernames;
+  std::stringstream input{online_bots_data};
+  std::string line;
+  while (std::getline(input, line)) {
+    if (line.empty()) continue;
+    auto bot = json::parse(line);
+    usernames.push_back(bot["username"]);
   }
-  if (!board_opt.has_value()) return true;  // Not an event caused by a move.
-  auto board = *board_opt;
-  if (board.is_white_to_move() != is_white) return true;  // Not my turn.
+  if (usernames.empty()) {
+    Logger::warn() << "Did not manage to find an online bot to challenge.\n";
+    return;
+  }
 
-  engine.add_position(board);
-  Engine::MoveInfo move_info = choose_move(board);
-  send_move(move_info.move);
-  engine.add_position(board.apply_move(move_info.move));
-  Logger::info() << "Found move " << move_info.move.to_uci() << " for game " << game_id << " in "
-                 << move_info.time_spent.count() << "ms (depth " << move_info.search_depth << " reached, "
-                 << move_info.debug.normal_node_count / 1000 << "k nodes, "
-                 << move_info.debug.quiescence_node_count / 1000 << "k quiescent nodes, "
-                 << move_info.debug.transposition_table_success / 1000 << "/"
-                 << move_info.debug.transposition_table_total / 1000 << "k TT, "
-                 << move_info.debug.null_move_success / 1000 << "/" << move_info.debug.null_move_total / 1000
-                 << "k NM, " << move_info.debug.q_delta_pruning_success / 1000 << "/"
-                 << move_info.debug.q_delta_pruning_total / 1000 << "k QDP, " << move_info.debug.evaluation
-                 << " eval)\n";
-  Logger::flush();
-  return true;
-}
+  int username_index = rand() % usernames.size();
+  const std::string username = usernames[username_index];
+  const std::string url{lichess_api::issue_challenge(username)};
 
-Board GameHandler::initialise_board(const std::string& moves) {
-  Board board = Board::initial();
-  std::istringstream moves_stream{moves};
-  std::string move;
-  while (moves_stream >> move) board = board.apply_uci_move(move);
-  return board;
-}
-
-void GameHandler::send_move(const Move& move) {
-  std::string uci{move.to_uci()};
-  cpr::Response res = cpr::Post(cpr::Url{api::make_move(game_id, uci)}, cpr::Bearer{config.get_lichess_token()});
+  Logger::info() << "Issuing challenge to " << username << "\n";
+  cpr::Post(cpr::Url{std::move(url)}, cpr::Bearer{config.get_lichess_token()},
+            cpr::Payload{{"rated", "false"},
+                         {"clock.limit", std::to_string(clock_time)},
+                         {"clock.increment", std::to_string(clock_increment)},
+                         {"color", "random"},
+                         {"variant", "standard"}});
 }
