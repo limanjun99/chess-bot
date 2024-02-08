@@ -234,7 +234,13 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   }
 
   // Null move heuristic (https://www.chessprogramming.org/Null_Move_Pruning).
-  if (!is_in_check && depth_left >= config::null_move_heuristic_R + 1 && beta < evaluation::winning) {
+  // We check whether a null move causes beta cutoff when the following condtions are met:
+  // 1. Current player is not in check.
+  // 2. There is at least R depth left.
+  // 3. Beta is not completely winning.
+  // 4. Static evalution of current position is >= beta.
+  if (!is_in_check && depth_left >= config::null_move_heuristic_R + 1 && beta < evaluation::winning &&
+      evaluate_board(board) >= beta) {
     debug.null_move_total++;
     Board new_board = board.skip_turn();
     int null_move_evaluation =
