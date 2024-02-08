@@ -75,18 +75,21 @@ bool Lichess::handle_incoming_event(std::string data) {
         challenge["variant"]["key"] != "standard") {
       handle_challenge(challenge["id"], false);
       Logger::info() << "Declined challenge " << challenge["id"] << " from " << challenge["challenger"]["id"] << "\n";
+      Logger::flush();
       return true;
     }
 
     // Accept all other challenges.
     handle_challenge(challenge["id"], true);
     Logger::info() << "Accepted challenge " << challenge["id"] << " from " << challenge["challenger"]["id"] << "\n";
+    Logger::flush();
   } else if (event["type"] == "gameStart") {
     auto game = event["game"];
     handle_game(game["gameId"]);
   } else if (event["type"] == "challengeDeclined") {
     Logger::info() << "Challenge to " << event["challenge"]["destUser"]["name"] << " was declined because '"
                    << event["challenge"]["declineReason"] << "'\n";
+    Logger::flush();
   }
   return true;
 }
@@ -121,6 +124,7 @@ void Lichess::issue_challenge() {
   }
   if (usernames.empty()) {
     Logger::warn() << "Did not manage to find an online bot to challenge.\n";
+    Logger::flush();
     return;
   }
 
@@ -129,6 +133,7 @@ void Lichess::issue_challenge() {
   const std::string url{lichess_api::issue_challenge(username)};
 
   Logger::info() << "Issuing challenge to " << username << "\n";
+  Logger::flush();
   cpr::Post(cpr::Url{std::move(url)}, cpr::Bearer{config.get_lichess_token()},
             cpr::Payload{{"rated", "false"},
                          {"clock.limit", std::to_string(clock_time)},
