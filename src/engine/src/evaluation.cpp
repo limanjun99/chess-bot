@@ -77,7 +77,8 @@ constexpr std::array<std::array<int, 64>, 6> middlegame_values = ([]() {
              }}}};
 
   int piece_values[6]{365, 0, 337, 82, 1025, 477};
-  for (PieceVariant piece : {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
+  for (PieceVariant piece :
+       {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
     for (int& value : values[static_cast<int>(piece)]) value += piece_values[static_cast<int>(piece)];
   }
   return values;
@@ -156,7 +157,8 @@ constexpr std::array<std::array<int, 64>, 6> endgame_values = ([]() {
              }}}};
 
   int piece_values[6]{297, 0, 281, 94, 936, 512};
-  for (PieceVariant piece : {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
+  for (PieceVariant piece :
+       {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
     for (int& value : values[static_cast<int>(piece)]) value += piece_values[static_cast<int>(piece)];
   }
   return values;
@@ -175,30 +177,29 @@ constexpr int total_phase = []() {
 
 int pst::evaluate(const Board& board) {
   int game_phase = total_phase;
-  for (const PieceVariant piece : {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
-    game_phase -= (bitboard::count(board.get_white()[piece]) + bitboard::count(board.get_black()[piece])) *
-                  piece_phase_value[static_cast<int>(piece)];
-  }
-  game_phase = (game_phase * 256 + (total_phase / 2)) / total_phase;
-
   int middlegame_evaluation = 0;
   int endgame_evaluation = 0;
-  for (const PieceVariant piece : {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
-    u64 white_bitboard = board.get_white()[piece];
-    BITBOARD_ITERATE(white_bitboard, bit) {
+
+  for (const PieceVariant piece :
+       {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
+    const u64 white_pieces = board.get_white()[piece];
+    const u64 black_pieces = board.get_black()[piece];
+    const u64 piece_index = static_cast<int>(piece);
+    game_phase -=
+        (bitboard::count(white_pieces) + bitboard::count(black_pieces)) * piece_phase_value[static_cast<int>(piece)];
+    BITBOARD_ITERATE(white_pieces, bit) {
       const int index = bit::to_index(bit);
       // ^ 56 flips the y-coordinate (e.g. y = 1 -> y = 6).
-      middlegame_evaluation += middlegame_values[static_cast<int>(piece)][index ^ 56];
-      endgame_evaluation += endgame_values[static_cast<int>(piece)][index ^ 56];
+      middlegame_evaluation += middlegame_values[piece_index][index ^ 56];
+      endgame_evaluation += endgame_values[piece_index][index ^ 56];
     }
-    u64 black_bitboard = board.get_black()[piece];
-    BITBOARD_ITERATE(black_bitboard, bit) {
+    BITBOARD_ITERATE(black_pieces, bit) {
       const int index = bit::to_index(bit);
-      middlegame_evaluation -= middlegame_values[static_cast<int>(piece)][index];
-      endgame_evaluation -= endgame_values[static_cast<int>(piece)][index];
+      middlegame_evaluation -= middlegame_values[piece_index][index];
+      endgame_evaluation -= endgame_values[piece_index][index];
     }
   }
-
+  game_phase = (game_phase * 256 + (total_phase / 2)) / total_phase;
   const int evaluation = ((middlegame_evaluation * (256 - game_phase)) + endgame_evaluation * game_phase) / 256;
   return board.is_white_to_move() ? evaluation : -evaluation;
 }

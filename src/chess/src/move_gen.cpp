@@ -79,15 +79,15 @@ private:
   // `generate_..._moves`. Find a better way to do it.
 
   // Check if there are legal bishop moves (and queen moves with bishop movement) given that the king is not in check.
-  bool has_unchecked_bishoplike_moves(u64 pinned_pieces) const;
+  bool has_unchecked_bishoplike_moves() const;
   // Check if there are legal king moves given that the king is not in check.
   bool has_unchecked_king_moves() const;
   // Check if there are legal knight moves given that the king is not in check.
-  bool has_unchecked_knight_moves(u64 pinned_pieces) const;
+  bool has_unchecked_knight_moves() const;
   // Check if there are legal pawn moves given that the king is not in check.
-  bool has_unchecked_pawn_moves(u64 pinned_pieces) const;
+  bool has_unchecked_pawn_moves() const;
   // Check if there are legal rook moves (and queen moves with rook movement) given that the king is not in check.
-  bool has_unchecked_rooklike_moves(u64 pinned_pieces) const;
+  bool has_unchecked_rooklike_moves() const;
 
   // Check if there are legal king moves that escape the single-check.
   bool has_king_single_check_evasions(u64 attacker) const;
@@ -267,9 +267,8 @@ bool MoveGen<PlayerColor>::has_moves() const {
     // King is not in check.
     // Note that queen moves are checked in both has_unchecked_bishoplike_moves() and
     // has_unchecked_rooklike_moves().
-    return has_unchecked_bishoplike_moves(pinned_pieces) || has_unchecked_king_moves() ||
-           has_unchecked_knight_moves(pinned_pieces) || has_unchecked_pawn_moves(pinned_pieces) ||
-           has_unchecked_rooklike_moves(pinned_pieces);
+    return has_unchecked_bishoplike_moves() || has_unchecked_king_moves() || has_unchecked_knight_moves() ||
+           has_unchecked_pawn_moves() || has_unchecked_rooklike_moves();
   } else if (bitboard::count(king_attackers) == 1) {
     // King is in single-check.
     return has_king_single_check_evasions(king_attackers);
@@ -619,7 +618,7 @@ void MoveGen<PlayerColor>::generate_king_double_check_evasions(MoveContainer& mo
 }
 
 template <Color PlayerColor>
-bool MoveGen<PlayerColor>::has_unchecked_bishoplike_moves(u64 pinned_pieces) const {
+bool MoveGen<PlayerColor>::has_unchecked_bishoplike_moves() const {
   // Bishops that are pinned along a rook ray cannot move at all.
   // Bishops that are pinned along a bishop ray can only move along that ray.
   // Un-pinned bishops can move anywhere.
@@ -660,7 +659,7 @@ bool MoveGen<PlayerColor>::has_unchecked_king_moves() const {
 }
 
 template <Color PlayerColor>
-bool MoveGen<PlayerColor>::has_unchecked_knight_moves(u64 pinned_pieces) const {
+bool MoveGen<PlayerColor>::has_unchecked_knight_moves() const {
   // Pinned knights cannot move, while un-pinned knights can move anywhere.
   u64 knights = cur_player[PieceVariant::Knight] & ~pinned_pieces;
   BITBOARD_ITERATE(knights, from) {
@@ -671,7 +670,7 @@ bool MoveGen<PlayerColor>::has_unchecked_knight_moves(u64 pinned_pieces) const {
 }
 
 template <Color PlayerColor>
-bool MoveGen<PlayerColor>::has_unchecked_pawn_moves(u64 pinned_pieces) const {
+bool MoveGen<PlayerColor>::has_unchecked_pawn_moves() const {
   // Un-pinned pawns can move anywhere.
   // Pawns that are pinned by a rook ray can only push forward.
   // Pawns that are pinned by a bishop ray can only capture in the direction of the pinner.
@@ -720,7 +719,7 @@ bool MoveGen<PlayerColor>::has_unchecked_pawn_moves(u64 pinned_pieces) const {
 }
 
 template <Color PlayerColor>
-bool MoveGen<PlayerColor>::has_unchecked_rooklike_moves(u64 pinned_pieces) const {
+bool MoveGen<PlayerColor>::has_unchecked_rooklike_moves() const {
   // Rooks that are pinned along a bishop ray cannot move at all.
   // Rooks that are pinned along a rook ray can only move along that ray.
   // Un-pinned rooks can move anywhere.
