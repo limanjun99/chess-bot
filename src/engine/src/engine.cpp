@@ -211,7 +211,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     // We have seen this position before and analyzed it to at least the same depth.
     if (info.node_type == NodeType::PV) {
       debug.transposition_table_success++;
-      return std::max(alpha, std::min(beta, info.score));
+      return std::max(alpha, std::min(beta, static_cast<int>(info.score)));
     } else if (info.node_type == NodeType::Cut) {
       if (info.score >= beta) {
         debug.transposition_table_success++;

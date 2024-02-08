@@ -35,15 +35,16 @@ constexpr int futility_margin = 500;
 
 // Evaluation of the board (is in centipawns).
 namespace evaluation {
-constexpr int min = -1'000'000'000;
+// The scores have been chosen to fit within int16_t, so that they can be stored in the transposition table.
+constexpr int min = -31'000;
 
-constexpr int losing = -1'000'000;
+constexpr int losing = -10'000;
 
 constexpr int draw = 0;
 
-constexpr int winning = 1'000'000;
+constexpr int winning = 10'000;
 
-constexpr int max = 1'000'000'000;
+constexpr int max = 31'000;
 
 constexpr int piece[6] = {300, 10000, 300, 100, 900, 500};
 }  // namespace evaluation
