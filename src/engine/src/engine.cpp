@@ -273,10 +273,10 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
     // not worth it to try it out.
     if (depth_left == 1 && !is_in_check && beta <= evaluation::winning / 2 && alpha >= evaluation::losing / 2) {
       int move_value_estimate = 0;
-      if (moves[i].get_captured_piece() != Piece::None) {
+      if (moves[i].get_captured_piece() != PieceVariant::None) {
         move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_captured_piece())];
       }
-      if (moves[i].get_promotion_piece() != Piece::None) {
+      if (moves[i].get_promotion_piece() != PieceVariant::None) {
         move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_promotion_piece())];
       }
       if (cur_board_evaluation + move_value_estimate + config::futility_margin <= alpha) {
@@ -346,7 +346,7 @@ int Engine::quiescence_search(const Board& board, int alpha, int beta, int depth
     // Delta pruning. If the evaluation remains below alpha after capturing a queen, then the position's true evaluation
     // is likely below alpha.
     debug.q_delta_pruning_total++;
-    if (board_evaluation + evaluation::piece[static_cast<int>(Piece::Queen)] +
+    if (board_evaluation + evaluation::piece[static_cast<int>(PieceVariant::Queen)] +
             config::quiescence_search_delta_pruning_safety <
         alpha) {
       debug.q_delta_pruning_success++;

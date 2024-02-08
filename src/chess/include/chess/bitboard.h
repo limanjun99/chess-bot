@@ -99,31 +99,6 @@ constexpr u64 FILE_H = FILE_A << 7;
 
 constexpr u64 ALL = ~u64(0);
 
-// Returns a bitboard of all attacked squares by the bishop.
-u64 bishop_attacks(u64 bishop, u64 occupancy);
-
-// Returns a bitboard of all attacked squares by the king.
-u64 king_attacks(u64 king);
-
-// Returns a bitboard of all attacked squares by the knight.
-u64 knight_attacks(u64 knight);
-
-// Returns a bitboard of all attacked squares by the pawn(s).
-u64 pawn_attacks(u64 pawn, bool is_white);
-template <bool IsWhite>
-u64 pawn_attacks(u64 pawn);
-
-// Returns a bitboard of squares the pawn can be pushed to.
-u64 pawn_pushes(u64 pawn, u64 occupancy, bool is_white);
-template <bool IsWhite>
-u64 pawn_pushes(u64 pawn, u64 occupancy);
-
-// Returns a bitboard of all attacked squares by the queen.
-u64 queen_attacks(u64 queen, u64 occupancy);
-
-// Returns a bitboard of all attacked squares by the rook.
-u64 rook_attacks(u64 rook, u64 occupancy);
-
 // Returns a bitboard of squares between the `from` and `to` squares.
 // This only makes sense for squares that are horizontally / vertically / diagonally apart, and will return 0 otherwise.
 // For example (f = `from`, t = `to`, x = returned bitboard)
@@ -153,10 +128,6 @@ u64 beyond(u64 from, u64 to);
 // Counts the number of set bits in the given bitboard.
 inline int count(u64 bitboard) { return __builtin_popcountll(bitboard); }
 
-// Iterate through the bits of a bitboard and apply function to each one of them.
-template <typename Function>
-inline void iterate(u64 bitboard, Function function);
-
 // A utility function to convert bitboards into a 8x8 binary string for visualization.
 std::string to_string(u64 bitboard);
 }  // namespace bitboard
@@ -174,30 +145,3 @@ inline int to_index(u64 bit) { return __builtin_ctzll(bit); }
 // Returns the least significant bit.
 inline u64 lsb(u64 bitboard) { return bitboard & -bitboard; }
 }  // namespace bit
-
-template <bool IsWhite>
-u64 bitboard::pawn_attacks(u64 pawn) {
-  if constexpr (IsWhite) {
-    return (pawn << 7 & ~FILE_H) | (pawn << 9 & ~FILE_A);
-  } else {
-    return (pawn >> 9 & ~FILE_H) | (pawn >> 7 & ~FILE_A);
-  }
-}
-
-template <bool IsWhite>
-u64 bitboard::pawn_pushes(u64 pawn, u64 occupancy) {
-  if constexpr (IsWhite) {
-    return ((((pawn & bitboard::RANK_2) << 8 & ~occupancy) | pawn) << 8) & ~occupancy;
-  } else {
-    return ((((pawn & bitboard::RANK_7) >> 8 & ~occupancy) | pawn) >> 8) & ~occupancy;
-  }
-}
-
-template <typename Function>
-void bitboard::iterate(u64 bitboard, Function function) {
-  while (bitboard) {
-    u64 bit = bitboard & -bitboard;
-    bitboard ^= bit;
-    function(bit);
-  }
-}

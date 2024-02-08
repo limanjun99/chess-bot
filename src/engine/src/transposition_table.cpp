@@ -5,7 +5,7 @@
 
 CompactMove::CompactMove() : from_index{0} {}
 
-CompactMove::CompactMove(int8_t from_index, int8_t to_index, Piece piece, Piece captured_piece, Piece promotion_piece)
+CompactMove::CompactMove(int8_t from_index, int8_t to_index, PieceVariant piece, PieceVariant captured_piece, PieceVariant promotion_piece)
     : from_index{from_index},
       to_index{to_index},
       piece{piece},
@@ -18,7 +18,7 @@ CompactMove CompactMove::from_move(Move& move) {
 }
 
 Move CompactMove::to_move() const {
-  if (promotion_piece != Piece::None) {
+  if (promotion_piece != PieceVariant::None) {
     return Move(piece, u64(1) << from_index, u64(1) << to_index, captured_piece);
   }
   return Move(u64(1) << from_index, u64(1) << to_index, promotion_piece, captured_piece);

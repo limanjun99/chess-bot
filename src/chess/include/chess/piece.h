@@ -1,27 +1,82 @@
 #pragma once
 
-#include <cstdint>
+#include <cctype>
 
-enum class Piece : int8_t {
-  Bishop = 0,
-  King = 1,
-  Knight = 2,
-  Pawn = 3,
-  Queen = 4,
-  Rook = 5,
-  None = 6,  // Piece::None is preferred over std::optional<Piece> as it takes up 4 bytes (as compared to 8 bytes).
-};
+#include "pieces/base_piece.h"
+#include "pieces/bishop.h"
+#include "pieces/king.h"
+#include "pieces/knight.h"
+#include "pieces/pawn.h"
+#include "pieces/queen.h"
+#include "pieces/rook.h"
 
-namespace piece {
-// Returns true if the piece is a bishop, queen or rook.
-bool is_slider(Piece piece);
+namespace piece_variant {
+// Returns the corresponding PieceVariant given the piece's character (can be lowercase / uppercase).
+constexpr PieceVariant from_char(char c);
 
-// Convert a piece to the corresponding lowercase char. The piece must not be None.
-char to_char(Piece piece);
+// Returns true if the piece is a sliding piece.
+constexpr bool is_slider(PieceVariant piece);
 
-// Convert a piece to the corresponding char (uppercase for white, lowercase for black). The piece must not be None.
-char to_colored_char(Piece piece, bool is_white);
+// Returns the corresponding lowercase character of the piece.
+constexpr char to_char(PieceVariant piece);
+}  // namespace piece_variant
 
-// Convert a char (either uppercase / lowercase) to the corresponding piece.
-Piece from_char(char c);
+// =============== IMPLEMENTATIONS ===============
+//! TODO: Surely this is a terrible way of trying to get runtime polymorphism. Figure out how to fix this duplication.
+
+constexpr PieceVariant piece_variant::from_char(char c) {
+  switch (tolower(c)) {
+    case Bishop::get_character():
+      return Bishop::get_variant();
+    case King::get_character():
+      return King::get_variant();
+    case Knight::get_character():
+      return Knight::get_variant();
+    case Pawn::get_character():
+      return Pawn::get_variant();
+    case Queen::get_character():
+      return Queen::get_variant();
+    case Rook::get_character():
+      return Rook::get_variant();
+    default:
+      throw "Unreachable";
+  }
+}
+
+constexpr bool piece_variant::is_slider(PieceVariant piece) {
+  switch (piece) {
+    case Bishop::get_variant():
+      return Bishop::is_slider();
+    case King::get_variant():
+      return King::is_slider();
+    case Knight::get_variant():
+      return Knight::is_slider();
+    case Pawn::get_variant():
+      return Pawn::is_slider();
+    case Queen::get_variant():
+      return Queen::is_slider();
+    case Rook::get_variant():
+      return Rook::is_slider();
+    default:
+      throw "Unreachable";
+  }
+}
+
+constexpr char piece_variant::to_char(PieceVariant piece) {
+  switch (piece) {
+    case Bishop::get_variant():
+      return Bishop::get_character();
+    case King::get_variant():
+      return King::get_character();
+    case Knight::get_variant():
+      return Knight::get_character();
+    case Pawn::get_variant():
+      return Pawn::get_character();
+    case Queen::get_variant():
+      return Queen::get_character();
+    case Rook::get_variant():
+      return Rook::get_character();
+    default:
+      throw "Unreachable";
+  }
 }

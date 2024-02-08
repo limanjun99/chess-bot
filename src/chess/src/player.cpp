@@ -16,18 +16,19 @@ Player Player::black_initial() {
                 bitboard::A8 | bitboard::H8, true, true);
 }
 
-Piece Player::piece_at(u64 bit) const {
-  for (Piece piece : {Piece::Bishop, Piece::King, Piece::Knight, Piece::Pawn, Piece::Queen, Piece::Rook}) {
+PieceVariant Player::piece_at(u64 bit) const {
+  for (PieceVariant piece : {PieceVariant::Bishop, PieceVariant::King, PieceVariant::Knight, PieceVariant::Pawn,
+                             PieceVariant::Queen, PieceVariant::Rook}) {
     if (pieces[static_cast<int>(piece)] & bit) return piece;
   }
-  return Piece::None;
+  return PieceVariant::None;
 }
 
 Player& Player::operator&=(u64 mask) {
-  pieces[static_cast<int>(Piece::Bishop)] &= mask;
-  pieces[static_cast<int>(Piece::Knight)] &= mask;
-  pieces[static_cast<int>(Piece::Pawn)] &= mask;
-  pieces[static_cast<int>(Piece::Queen)] &= mask;
-  pieces[static_cast<int>(Piece::Rook)] &= mask;
+  pieces[static_cast<int>(PieceVariant::Bishop)] &= mask;
+  pieces[static_cast<int>(PieceVariant::Knight)] &= mask;
+  pieces[static_cast<int>(PieceVariant::Pawn)] &= mask;
+  pieces[static_cast<int>(PieceVariant::Queen)] &= mask;
+  pieces[static_cast<int>(PieceVariant::Rook)] &= mask;
   return *this;
 }

@@ -21,11 +21,12 @@ public:
 private:
   int8_t from_index;
   int8_t to_index;
-  Piece piece;
-  Piece captured_piece;
-  Piece promotion_piece;
+  PieceVariant piece;
+  PieceVariant captured_piece;
+  PieceVariant promotion_piece;
 
-  CompactMove(int8_t from_index, int8_t to_index, Piece piece, Piece captured_piece, Piece promotion_piece);
+  CompactMove(int8_t from_index, int8_t to_index, PieceVariant piece, PieceVariant captured_piece,
+              PieceVariant promotion_piece);
 };
 
 struct PositionInfo {

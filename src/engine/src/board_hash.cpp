@@ -33,7 +33,7 @@ u64 board_hash::hash(const Board& board) {
     if (player.can_castle_kingside()) hash ^= zobrist::castle_kingside_rng[is_white];
     if (player.can_castle_queenside()) hash ^= zobrist::castle_queenside_rng[is_white];
     for (int piece = 0; piece < 6; piece++) {
-      u64 bitboard = player[static_cast<Piece>(piece)];
+      u64 bitboard = player[static_cast<PieceVariant>(piece)];
       BITBOARD_ITERATE(bitboard, bit) { hash ^= zobrist::piece_square_rng[is_white][piece][bit::to_index(bit)]; }
     }
   }

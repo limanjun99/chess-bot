@@ -25,7 +25,7 @@ Board Board::from_epd(std::string_view epd) {
         continue;
       }
       bool is_white_piece = std::isupper(ch);
-      Piece piece = piece::from_char(ch);
+      PieceVariant piece = piece_variant::from_char(ch);
       Player& player = is_white_piece ? white : black;
       player[piece] |= u64(1) << (y * 8 + x);
       x++;
@@ -59,20 +59,20 @@ Board Board::apply_move(const Move& move) const {
   Board board = *this;
   Player& cur = board.cur_player();
   Player& opp = board.opp_player();
-  const Piece piece = move.get_piece();
+  const PieceVariant piece = move.get_piece();
   const u64 from = move.get_from();
   const u64 to = move.get_to();
 
   cur[piece] ^= from | to;
 
   // Update castling flag.
-  if (move.get_captured_piece() == Piece::Rook) {
+  if (move.get_captured_piece() == PieceVariant::Rook) {
     if (to == (is_white_turn ? bitboard::H8 : bitboard::H1)) opp.disable_kingside_castling();
     if (to == (is_white_turn ? bitboard::A8 : bitboard::A1)) opp.disable_queenside_castling();
   }
-  if (piece == Piece::King) {
+  if (piece == PieceVariant::King) {
     cur.disable_castling();
-  } else if (piece == Piece::Rook) {
+  } else if (piece == PieceVariant::Rook) {
     if (from == (is_white_turn ? bitboard::H1 : bitboard::H8)) cur.disable_kingside_castling();
     if (from == (is_white_turn ? bitboard::A1 : bitboard::A8)) cur.disable_queenside_castling();
   }
@@ -82,22 +82,22 @@ Board Board::apply_move(const Move& move) const {
   }
 
   // Handle castling.
-  if (piece == Piece::King) {
+  if (piece == PieceVariant::King) {
     if (to == from << 2) {  // Kingside castling.
-      cur[Piece::Rook] ^= from << 1 | from << 3;
+      cur[PieceVariant::Rook] ^= from << 1 | from << 3;
     } else if (to == from >> 2) {  // Queenside castling.
-      cur[Piece::Rook] ^= from >> 1 | from >> 4;
+      cur[PieceVariant::Rook] ^= from >> 1 | from >> 4;
     }
   }
 
   // Handle en passant's capture.
-  if (piece == Piece::Pawn && to == en_passant_bit) {
-    opp[Piece::Pawn] ^= is_white_turn ? en_passant_bit >> 8 : en_passant_bit << 8;
+  if (piece == PieceVariant::Pawn && to == en_passant_bit) {
+    opp[PieceVariant::Pawn] ^= is_white_turn ? en_passant_bit >> 8 : en_passant_bit << 8;
   }
 
   // Update en passant flag.
   board.en_passant_bit = 0;
-  if (piece == Piece::Pawn) {
+  if (piece == PieceVariant::Pawn) {
     if (to == from << 16) {
       board.en_passant_bit = from << 8;
     } else if (to == from >> 16) {
@@ -108,7 +108,7 @@ Board Board::apply_move(const Move& move) const {
   // Handle promotions.
   if (move.is_promotion()) {
     cur[move.get_promotion_piece()] ^= to;
-    cur[Piece::Pawn] ^= to;
+    cur[PieceVariant::Pawn] ^= to;
   }
 
   board.is_white_turn = !board.is_white_turn;
@@ -120,10 +120,10 @@ Board Board::apply_uci_move(std::string_view uci_move) {
   u64 from = bit::from_algebraic(uci_move.substr(0, 2));
   u64 to = bit::from_algebraic(uci_move.substr(2, 2));
   if (uci_move.size() == 5) {
-    Piece promotion_piece = piece::from_char(uci_move[4]);
+    PieceVariant promotion_piece = piece_variant::from_char(uci_move[4]);
     return apply_move(Move{from, to, promotion_piece, opp_player().piece_at(to)});
   } else {
-    Piece piece = cur_player().piece_at(from);
+    PieceVariant piece = cur_player().piece_at(from);
     return apply_move(Move{piece, from, to, opp_player().piece_at(to)});
   }
 }
@@ -147,7 +147,7 @@ bool Board::is_a_check(const Move& move) const {
   return apply_move(move).is_in_check();
 }
 
-bool Board::is_in_check() const { return is_under_attack(cur_player()[Piece::King]); }
+bool Board::is_in_check() const { return is_under_attack(cur_player()[PieceVariant::King]); }
 
 bool Board::is_under_attack(u64 square) const { return move_gen::is_under_attack(*this, square); }
 

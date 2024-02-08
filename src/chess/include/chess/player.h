@@ -39,11 +39,11 @@ public:
   bool can_castle_queenside() const;
 
   // Returns a reference to the bitboard of the given piece.
-  u64& operator[](Piece piece);
-  const u64& operator[](Piece piece) const;
+  u64& operator[](PieceVariant piece);
+  const u64& operator[](PieceVariant piece) const;
 
-  // Returns the piece at the given bit (or Piece::None if no piece is there).
-  Piece piece_at(u64 bit) const;
+  // Returns the piece at the given bit (or PieceVariant::None if no piece is there).
+  PieceVariant piece_at(u64 bit) const;
 
   // Returns the bitwise OR of all pieces.
   u64 occupied() const;
@@ -73,8 +73,8 @@ inline bool Player::can_castle_kingside() const { return can_castle_kingside_; }
 
 inline bool Player::can_castle_queenside() const { return can_castle_queenside_; }
 
-inline u64& Player::operator[](Piece piece) { return pieces[static_cast<int>(piece)]; }
+inline u64& Player::operator[](PieceVariant piece) { return pieces[static_cast<int>(piece)]; }
 
-inline const u64& Player::operator[](Piece piece) const { return pieces[static_cast<int>(piece)]; }
+inline const u64& Player::operator[](PieceVariant piece) const { return pieces[static_cast<int>(piece)]; }
 
 inline u64 Player::occupied() const { return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5]; }
