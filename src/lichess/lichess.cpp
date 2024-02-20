@@ -49,7 +49,7 @@ void Lichess::listen() {
 }
 
 bool Lichess::is_ready_to_challenge() {
-  return state == State::Idle && std::chrono::system_clock::now() - last_challenge_time > std::chrono::seconds{30};
+  return state == State::Idle && std::chrono::system_clock::now() - last_challenge_time > std::chrono::seconds{10};
 }
 
 bool Lichess::handle_challenge(const std::string& challenge_id, bool accept) {
