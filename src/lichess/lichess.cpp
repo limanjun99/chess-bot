@@ -136,6 +136,7 @@ void Lichess::issue_challenge() {
     Logger::flush();
     return;
   }
+  srand(time(NULL));
   int username_index = rand() % usernames.size();
   const std::string username = usernames[username_index];
 
