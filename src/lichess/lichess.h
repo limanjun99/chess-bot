@@ -24,8 +24,18 @@ public:
   void listen();
 
 private:
+  enum class State {
+    Idle,
+    InGame,
+    IssueChallenge,  // We have exactly one issued challenge that is still pending.
+  };
+
   const Config& config;
-  std::chrono::time_point<std::chrono::system_clock> last_challenge_time{std::chrono::system_clock::now()};
+  std::chrono::time_point<std::chrono::system_clock> last_challenge_time;
+  State state;  // Current state of this handler. Used to decide how to handle incoming events.
+
+  // Returns true if the bot is ready to issue a new challenge to another bot.
+  bool is_ready_to_challenge();
 
   // Either accept or decline the challenge with given `challenge_id`.
   // Returns false if challenge was not found.

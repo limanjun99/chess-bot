@@ -29,14 +29,14 @@ std::string lichess_api::make_move(const std::string& game_id, const std::string
   return base + "/bot/game/" + game_id + "/move/" + move;
 }
 
-Lichess::Lichess(const Config& config) : config{config} {}
+Lichess::Lichess(const Config& config)
+    : config{config}, last_challenge_time{std::chrono::system_clock::now()}, state{State::Idle} {}
 
 void Lichess::listen() {
   auto callback = [this](std::string data, intptr_t) {
     if (data == "\n") {
-      // Issue a new challenge if our last challenge was >45 seconds ago.
-      if (std::chrono::system_clock::now() - last_challenge_time > std::chrono::seconds{45}) {
-        last_challenge_time = std::chrono::system_clock::now();
+      // Null event received.
+      if (is_ready_to_challenge()) {
         issue_challenge();
       }
       return true;
@@ -46,6 +46,10 @@ void Lichess::listen() {
   };
   cpr::Get(cpr::Url{lichess_api::stream_incoming_events}, cpr::Bearer{config.get_lichess_token()},
            cpr::WriteCallback{callback});
+}
+
+bool Lichess::is_ready_to_challenge() {
+  return state == State::Idle && std::chrono::system_clock::now() - last_challenge_time > std::chrono::seconds{30};
 }
 
 bool Lichess::handle_challenge(const std::string& challenge_id, bool accept) {
@@ -72,7 +76,7 @@ bool Lichess::handle_incoming_event(std::string data) {
 
     // Decline all classical / correspondance or non-standard chess challenges.
     if (challenge["speed"] == "classical" || challenge["speed"] == "correspondence" ||
-        challenge["variant"]["key"] != "standard") {
+        challenge["variant"]["key"] != "standard" || state != State::Idle) {
       handle_challenge(challenge["id"], false);
       Logger::info() << "Declined challenge " << challenge["id"] << " from " << challenge["challenger"]["id"] << "\n";
       Logger::flush();
@@ -84,17 +88,22 @@ bool Lichess::handle_incoming_event(std::string data) {
     Logger::info() << "Accepted challenge " << challenge["id"] << " from " << challenge["challenger"]["id"] << "\n";
     Logger::flush();
   } else if (event["type"] == "gameStart") {
+    state = State::InGame;
     auto game = event["game"];
     handle_game(game["gameId"]);
+    state = State::Idle;
   } else if (event["type"] == "challengeDeclined") {
     Logger::info() << "Challenge to " << event["challenge"]["destUser"]["name"] << " was declined because '"
                    << event["challenge"]["declineReason"] << "'\n";
     Logger::flush();
+    if (state == State::IssueChallenge) state = State::Idle;
   }
   return true;
 }
 
 void Lichess::issue_challenge() {
+  last_challenge_time = std::chrono::system_clock::now();
+
   // List of initial time and increment (in seconds) to choose from.
   //! TODO: Add no-increment clocks once we handle network latency.
   constexpr std::array<std::pair<int, int>, 3> clocks = {{
@@ -102,11 +111,11 @@ void Lichess::issue_challenge() {
       {180, 2},  // 3+2 Blitz
       {300, 3},  // 5+3 Blitz
   }};
-
   const int clock_choice = rand() % clocks.size();
   const int clock_time = clocks[clock_choice].first;
   const int clock_increment = clocks[clock_choice].second;
 
+  // Pick a random bot from the list of online bots.
   std::string online_bots_data;
   auto online_bots_callback = [&](std::string data, intptr_t) {
     online_bots_data += data;
@@ -127,11 +136,12 @@ void Lichess::issue_challenge() {
     Logger::flush();
     return;
   }
-
   int username_index = rand() % usernames.size();
   const std::string username = usernames[username_index];
-  const std::string url{lichess_api::issue_challenge(username)};
 
+  // Issue a challenge to the bot.
+  state = State::IssueChallenge;
+  const std::string url{lichess_api::issue_challenge(username)};
   Logger::info() << "Issuing challenge to " << username << "\n";
   Logger::flush();
   cpr::Post(cpr::Url{std::move(url)}, cpr::Bearer{config.get_lichess_token()},
