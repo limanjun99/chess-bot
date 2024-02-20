@@ -145,7 +145,7 @@ void Lichess::issue_challenge() {
   Logger::info() << "Issuing challenge to " << username << "\n";
   Logger::flush();
   cpr::Post(cpr::Url{std::move(url)}, cpr::Bearer{config.get_lichess_token()},
-            cpr::Payload{{"rated", "false"},
+            cpr::Payload{{"rated", "true"},
                          {"clock.limit", std::to_string(clock_time)},
                          {"clock.increment", std::to_string(clock_increment)},
                          {"color", "random"},
