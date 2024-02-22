@@ -48,6 +48,9 @@ bool GameHandler::handle_game_event(const std::string& game_id, std::string_view
   if (event["type"] == "gameFull") {
     // Initialise game data.
     initialise(event);
+    if (event["state"]["status"] == "aborted") {
+      return false;  // Game was aborted.
+    }
   } else if (event["type"] == "gameState") {
     if (event["status"] != "started") {
       return false;  // Game ended.
