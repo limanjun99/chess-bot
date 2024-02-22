@@ -2,12 +2,8 @@
 
 #include <cpr/cpr.h>
 
-#include <nlohmann/json.hpp>
-
 #include "lichess.h"
 #include "logger.h"
-
-using json = nlohmann::json;
 
 GameHandler::GameHandler(const Config& config, const std::string& game_id) : config{config}, game_id{game_id} {}
 
@@ -27,8 +23,7 @@ void GameHandler::listen() {
     }
     return ongoing;
   };
-  cpr::Get(cpr::Url{lichess_api::stream_game(game_id)}, cpr::Bearer{config.get_lichess_token()},
-           cpr::WriteCallback{callback});
+  cpr::Get(cpr::Url{api::stream_game(game_id)}, cpr::Bearer{config.get_lichess_token()}, cpr::WriteCallback{callback});
 }
 
 Engine::MoveInfo GameHandler::choose_move(const Board& board) {
@@ -46,6 +41,9 @@ Engine::MoveInfo GameHandler::choose_move(const Board& board) {
 bool GameHandler::handle_game_event(const std::string& game_id, std::string_view data) {
   if (data.empty()) return true;
   json event = json::parse(data);
+
+  Logger::info() << event << "\n";
+  Logger::flush();
 
   if (event["type"] == "gameFull") {
     // Initialise game data.
@@ -104,6 +102,5 @@ void GameHandler::update_state(const json& state) {
 
 void GameHandler::send_move(const Move& move) {
   std::string uci{move.to_uci()};
-  cpr::Response res =
-      cpr::Post(cpr::Url{lichess_api::make_move(game_id, uci)}, cpr::Bearer{config.get_lichess_token()});
+  cpr::Response res = cpr::Post(cpr::Url{api::make_move(game_id, uci)}, cpr::Bearer{config.get_lichess_token()});
 }
