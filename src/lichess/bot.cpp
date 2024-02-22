@@ -111,12 +111,11 @@ void Bot::issue_challenge() {
     return;
   }
   const size_t username_index = (std::uniform_int_distribution<size_t>{1, usernames.size()}(gen)) - 1;
-  // const std::string& username = usernames[username_index];
-  const std::string username = "koupen99";
+  const std::string& username = usernames[username_index];
 
   // Issue a challenge to the bot.
   change_state(State::IssueChallenge);
   Logger::info() << "Issuing challenge to " << username << "\n";
   Logger::flush();
-  lichess.issue_challenge(username, false, clock_time, clock_increment);
+  lichess.issue_challenge(username, true, clock_time, clock_increment);
 }
