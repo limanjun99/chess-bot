@@ -25,8 +25,9 @@ private:
   const Config& config;
   const Lichess& lichess;
   std::chrono::time_point<std::chrono::steady_clock> state_from;
-  State state;       // Current state of this handler. Used to decide how to handle incoming events.
-  std::mt19937 gen;  // Used for any rng within this class (e.g. challenging a random online bot).
+  State state;                      // Current state of this handler. Used to decide how to handle incoming events.
+  std::mt19937 gen;                 // Used for any rng within this class (e.g. challenging a random online bot).
+  std::string issued_challenge_id;  // Challenge id of the last issued challenge.
 
   void change_state(State new_state);
 

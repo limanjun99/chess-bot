@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -23,6 +24,8 @@ std::string online_bots(int bot_count);
 
 std::string accept_challenge(const std::string& challenge_id);
 
+std::string cancel_challenge(const std::string& challenge_id);
+
 std::string decline_challenge(const std::string& challenge_id);
 
 std::string issue_challenge(const std::string& username);
@@ -40,6 +43,13 @@ concept is_event_handler = requires(T v) {
   { v.handle_game_start(std::declval<json>()) };
   { v.handle_game_finish(std::declval<json>()) };
   { v.handle_null_event() };
+};
+
+template <typename T>
+concept is_game_handler = requires(T v) {
+  { v.handle_game_initialization(std::declval<json>()) } -> std::convertible_to<bool>;
+  { v.handle_game_update(std::declval<json>()) } -> std::convertible_to<bool>;
+  { v.handle_game_end(std::declval<json>()) };
 };
 
 // An interface for communicating with the Lichess API.
@@ -61,12 +71,24 @@ public:
   template <is_event_handler T>
   void handle_incoming_events(T& handler) const;
 
+  // Listen for events for the game with `game_id`, and handle them using `handler`.
+  template <is_game_handler T>
+  void handle_game(const std::string& game_id, T& handler) const;
+
   // Issues a challenge to another account of the given `username`.
   // `rated` - Whether the challenge is rated.
   // `limit` - Initial clock time (in seconds).
   // `increment` - Clock increment per move (in seconds).
-  // Returns true if the challenge was created successfully.
-  bool issue_challenge(const std::string& username, bool rated, int limit, int increment) const;
+  // Returns the id of the created challenge, or nullopt if creation failed.
+  std::optional<std::string> issue_challenge(const std::string& username, bool rated, int limit, int increment) const;
+
+  // Cancels a challenge with the given `challenge_id`.
+  // Returns true if the challenge was cancelled successfully.
+  bool cancel_challenge(const std::string& challenge_id) const;
+
+  // Make a move on the game with `gameId`. `move` is in UCI format.
+  // Returns true if the move was made successfully.
+  bool send_move(const std::string& game_id, const std::string& move) const;
 
 private:
   cpr::Bearer auth;
@@ -97,4 +119,34 @@ inline void Lichess::handle_incoming_events(T& handler) const {
     return true;
   };
   cpr::Get(cpr::Url{api::stream_incoming_events}, auth, cpr::WriteCallback{NdjsonWriteCallback{callback}});
+}
+
+template <is_game_handler T>
+inline void Lichess::handle_game(const std::string& game_id, T& handler) const {
+  auto callback = [&](const json& event) {
+    // Ignore null / chat / opponent gone events.
+    //! TODO: Maybe check if opponent is gone for too long and claim win?
+    if (event.is_null() || event["status"] == "chatLine" || event["status"] == "opponentGone") {
+      return true;
+    }
+
+    const auto& state = event["type"] == "gameFull" ? event["state"] : event;
+    if (state["status"] != "created" && state["status"] != "started") {
+      // Game has ended (e.g. win / lose / draw / aborted).
+      handler.handle_game_end(state);
+      return false;
+    }
+
+    if (event["type"] == "gameFull") {
+      return handler.handle_game_initialization(event);
+    } else if (event["type"] == "gameState") {
+      return handler.handle_game_update(event);
+    }
+
+    Logger::error() << "Game received invalid event " << event << "\n";
+    Logger::flush();
+    throw "Game received invalid event";
+  };
+  const std::string url = api::stream_game(game_id);
+  cpr::Get(cpr::Url{std::move(url)}, auth, cpr::WriteCallback{NdjsonWriteCallback{callback}});
 }

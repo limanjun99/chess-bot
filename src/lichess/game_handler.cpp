@@ -5,25 +5,12 @@
 #include "lichess.h"
 #include "logger.h"
 
-GameHandler::GameHandler(const Config& config, const std::string& game_id) : config{config}, game_id{game_id} {}
+GameHandler::GameHandler(const Config& config, const Lichess& lichess, const std::string& game_id)
+    : config{config}, lichess{lichess}, game_id{game_id} {}
 
 void GameHandler::listen() {
   Logger::info() << "Handling game " << game_id << "\n";
-  auto callback = [this](std::string data, intptr_t) {
-    bool ongoing = true;
-    size_t start = 0;
-    size_t end = 0;
-    while (end != std::string::npos) {
-      while (start < data.size() && data[start] == '\n') start++;
-      if (start >= data.size()) break;
-      end = data.find("\n", start + 1);
-      if (end == std::string::npos) end = data.size();
-      ongoing &= handle_game_event(game_id, std::string_view{data}.substr(start, end - start));
-      start = end + 1;
-    }
-    return ongoing;
-  };
-  cpr::Get(cpr::Url{api::stream_game(game_id)}, cpr::Bearer{config.get_lichess_token()}, cpr::WriteCallback{callback});
+  lichess.handle_game(game_id, *this);
 }
 
 Engine::MoveInfo GameHandler::choose_move(const Board& board) {
@@ -38,34 +25,23 @@ Engine::MoveInfo GameHandler::choose_move(const Board& board) {
   return engine.choose_move(board, std::chrono::milliseconds{engine_time});
 }
 
-bool GameHandler::handle_game_event(const std::string& game_id, std::string_view data) {
-  if (data.empty()) return true;
-  json event = json::parse(data);
+bool GameHandler::handle_game_initialization(const json& game) {
+  is_white = game["white"]["id"] == config.get_lichess_bot_name();
+  board = Board::initial();
+  return handle_game_update(game["state"]);
+}
 
-  Logger::info() << event << "\n";
-  Logger::flush();
+bool GameHandler::handle_game_update(const json& state) {
+  // Update the board.
+  update_board(state["moves"]);
+  // Update the timers.
+  increment = state[is_white ? "winc" : "binc"];
+  time_left = state[is_white ? "wtime" : "btime"];
 
-  if (event["type"] == "gameFull") {
-    // Initialise game data.
-    initialise(event);
-    if (event["state"]["status"] == "aborted") {
-      return false;  // Game was aborted.
-    }
-  } else if (event["type"] == "gameState") {
-    if (event["status"] != "started") {
-      return false;  // Game ended.
-    }
-    update_state(event);
-  } else {
-    // Ignore other types of event like chat.
-    return true;
-  }
   if (board.is_white_to_move() != is_white) return true;  // Not my turn.
 
-  engine.add_position(board);
   Engine::MoveInfo move_info = choose_move(board);
-  send_move(move_info.move);
-  engine.add_position(board.apply_move(move_info.move));
+  lichess.send_move(game_id, move_info.move.to_uci());
   Logger::info() << "Found move " << move_info.move.to_uci() << " for game " << game_id << " in "
                  << move_info.time_spent.count() << "ms (depth " << move_info.search_depth << " reached, "
                  << move_info.debug.normal_node_count / 1000 << "k nodes, "
@@ -80,30 +56,18 @@ bool GameHandler::handle_game_event(const std::string& game_id, std::string_view
   return true;
 }
 
-void GameHandler::initialise(const json& event) {
-  is_white = event["white"]["id"] == config.get_lichess_bot_name();
-  update_state(event["state"]);
+void GameHandler::handle_game_end(const json& state) {
+  Logger::info() << "Game ended with status: " << state["status"] << "\n";
+  Logger::flush();
 }
 
-void GameHandler::update_state(const json& state) {
-  // Reset the board state, and apply all moves to get the current board.
-  const std::string& moves = state["moves"];
-  board = Board::initial();
+void GameHandler::update_board(const std::string& moves) {
   std::istringstream moves_stream{moves};
   std::string move;
-  while (moves_stream >> move) board = board.apply_uci_move(move);
-
-  // Update our timers.
-  if (is_white) {
-    increment = state["winc"];
-    time_left = state["wtime"];
-  } else {
-    increment = state["binc"];
-    time_left = state["btime"];
+  for (int i = 0; moves_stream >> move; i++) {
+    if (i < ply_count) continue;
+    ply_count++;
+    board = board.apply_uci_move(move);
+    engine.add_position(board);
   }
-}
-
-void GameHandler::send_move(const Move& move) {
-  std::string uci{move.to_uci()};
-  cpr::Response res = cpr::Post(cpr::Url{api::make_move(game_id, uci)}, cpr::Bearer{config.get_lichess_token()});
 }

@@ -63,7 +63,7 @@ void Bot::handle_challenge_declined(const json& challenge) {
 
 void Bot::handle_game_start(const json& game) {
   change_state(State::InGame);
-  GameHandler game_handler{config, game["gameId"]};
+  GameHandler game_handler{config, lichess, game["gameId"]};
   game_handler.listen();
   change_state(State::Idle);
 }
@@ -75,10 +75,13 @@ void Bot::handle_game_finish(const json& game) {
 
 void Bot::handle_null_event() {
   //! TODO: Confirm that Lichess API does not update us when a challenge expires (after 20s).
-  if (state == State::IssueChallenge && std::chrono::steady_clock::now() - state_from > std::chrono::seconds{25}) {
-    // Challenge has timed out, switch back to idle.
+  //! TODO: Figure out why challenges are not actually expiring (bots can accept them long after 20s,
+  //! resulting in abortions as we have entered another game).
+  if (state == State::IssueChallenge && std::chrono::steady_clock::now() - state_from > std::chrono::seconds{20}) {
+    // Challenge has timed out, try to cancel the challenge and switch back to idle.
     Logger::info() << "Challenge timed out.\n";
     Logger::flush();
+    lichess.cancel_challenge(issued_challenge_id);
     change_state(State::Idle);
   }
   if (is_ready_to_challenge()) {
@@ -117,5 +120,10 @@ void Bot::issue_challenge() {
   change_state(State::IssueChallenge);
   Logger::info() << "Issuing challenge to " << username << "\n";
   Logger::flush();
-  lichess.issue_challenge(username, true, clock_time, clock_increment);
+  if (auto challenge_id = lichess.issue_challenge(username, false, clock_time, clock_increment)) {
+    issued_challenge_id = *challenge_id;
+  } else {
+    Logger::warn() << "Challenge to " << username << " failed\n";
+    Logger::flush();
+  }
 }

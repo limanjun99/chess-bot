@@ -22,6 +22,10 @@ std::string api::accept_challenge(const std::string& challenge_id) {
   return base + "/challenge/" + challenge_id + "/accept";
 }
 
+std::string api::cancel_challenge(const std::string& challenge_id) {
+  return base + "/challenge/" + challenge_id + "/cancel";
+}
+
 std::string api::decline_challenge(const std::string& challenge_id) {
   return base + "/challenge/" + challenge_id + "/decline";
 }
@@ -53,7 +57,8 @@ bool Lichess::handle_challenge(const std::string& challenge_id, bool accept) con
 }
 
 // https://lichess.org/api#tag/Challenges/operation/challengeCreate
-bool Lichess::issue_challenge(const std::string& username, bool rated, int limit, int increment) const {
+std::optional<std::string> Lichess::issue_challenge(const std::string& username, bool rated, int limit,
+                                                    int increment) const {
   const std::string url{api::issue_challenge(username)};
   const auto response = cpr::Post(cpr::Url{std::move(url)}, auth,
                                   cpr::Payload{{"rated", rated ? "true" : "false"},
@@ -61,5 +66,16 @@ bool Lichess::issue_challenge(const std::string& username, bool rated, int limit
                                                {"clock.increment", std::to_string(increment)},
                                                {"color", "random"},
                                                {"variant", "standard"}});
+  if (response.status_code != 200) return std::nullopt;
+  return std::optional{json::parse(response.text)["id"]};
+}
+
+bool Lichess::cancel_challenge(const std::string& challenge_id) const {
+  const auto response = cpr::Post(cpr::Url{api::cancel_challenge(challenge_id)}, auth);
+  return response.status_code == 200;
+}
+
+bool Lichess::send_move(const std::string& game_id, const std::string& move) const {
+  const auto response = cpr::Post(cpr::Url{api::make_move(game_id, move)}, auth);
   return response.status_code == 200;
 }
