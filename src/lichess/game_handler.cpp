@@ -22,6 +22,11 @@ Engine::MoveInfo GameHandler::choose_move(const Board& board) {
   engine_time = std::min(engine_time, time_left / 2);
   engine_time = std::min(engine_time, 10'000);
   engine_time = std::max(engine_time, 100);
+  if (ply_count <= 1) {
+    // Spend only 1 second on the first move, as it is not important,
+    // and to prevent the game being aborted from us idling too long.
+    engine_time = 1000;
+  }
   return engine.choose_move(board, std::chrono::milliseconds{engine_time});
 }
 
