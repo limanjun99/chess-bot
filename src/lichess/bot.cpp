@@ -12,7 +12,9 @@ Bot::Bot(const Config& config, const Lichess& lichess)
       lichess{lichess},
       state_from{std::chrono::steady_clock::now()},
       state{State::Idle},
-      gen{static_cast<unsigned int>(time(NULL))} {}
+      gen{static_cast<unsigned int>(time(NULL))},
+      online_bots{},
+      online_bots_from{std::chrono::steady_clock::now() - std::chrono::years{1}} {}
 
 void Bot::listen() { lichess.handle_incoming_events(*this); }
 
@@ -83,15 +85,21 @@ void Bot::handle_null_event() {
     Logger::flush();
     lichess.cancel_challenge(issued_challenge_id);
     change_state(State::Idle);
-  }
-  if (is_ready_to_challenge()) {
+  } else if (is_ready_to_refresh_bots()) {
+    refresh_online_bots();
+  } else if (is_ready_to_challenge()) {
     issue_challenge();
   }
 }
 
-bool Bot::is_ready_to_challenge() {
+bool Bot::is_ready_to_challenge() const {
   // The bot should issue challenges once it has been idling for more than 5 seconds.
-  return state == State::Idle && std::chrono::steady_clock::now() - state_from > std::chrono::seconds{5};
+  return state == State::Idle && std::chrono::steady_clock::now() - state_from > std::chrono::seconds{30};
+}
+
+bool Bot::is_ready_to_refresh_bots() const {
+  // The bot should refresh its list of online bots every 15 minutes.
+  return state == State::Idle && std::chrono::steady_clock::now() - online_bots_from > std::chrono::minutes{15};
 }
 
 void Bot::issue_challenge() {
@@ -107,14 +115,17 @@ void Bot::issue_challenge() {
   const int clock_increment = clocks[clock_choice].second;
 
   // Pick a random bot from the list of online bots.
-  const std::vector<std::string> usernames = lichess.get_online_bots(150);
-  if (usernames.empty()) {
-    Logger::warn() << "Did not manage to find an online bot to challenge.\n";
+  if (online_bots.empty()) {
+    Logger::warn() << "No online bots found to challenge.\n";
     Logger::flush();
+    // We do a quick switch here to record that we tried to send a challenge,
+    // so that we do not immediately try sending challenges again before the waiting period is up.
+    change_state(State::IssueChallenge);
+    change_state(State::Idle);
     return;
   }
-  const size_t username_index = (std::uniform_int_distribution<size_t>{1, usernames.size()}(gen)) - 1;
-  const std::string& username = usernames[username_index];
+  const size_t username_index = (std::uniform_int_distribution<size_t>{1, online_bots.size()}(gen)) - 1;
+  const std::string& username = online_bots[username_index];
 
   // Issue a challenge to the bot.
   change_state(State::IssueChallenge);
@@ -124,6 +135,17 @@ void Bot::issue_challenge() {
     issued_challenge_id = *challenge_id;
   } else {
     Logger::warn() << "Challenge to " << username << " failed\n";
+    Logger::flush();
+  }
+}
+
+void Bot::refresh_online_bots() {
+  Logger::info() << "Getting list of online bots\n";
+  Logger::flush();
+  online_bots_from = std::chrono::steady_clock::now();
+  online_bots = lichess.get_online_bots(150);
+  if (online_bots.empty()) {
+    Logger::warn() << "Did not manage to find an online bot to challenge.\n";
     Logger::flush();
   }
 }

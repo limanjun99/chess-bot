@@ -28,6 +28,8 @@ private:
   State state;                      // Current state of this handler. Used to decide how to handle incoming events.
   std::mt19937 gen;                 // Used for any rng within this class (e.g. challenging a random online bot).
   std::string issued_challenge_id;  // Challenge id of the last issued challenge.
+  std::vector<std::string> online_bots;
+  std::chrono::time_point<std::chrono::steady_clock> online_bots_from;
 
   void change_state(State new_state);
 
@@ -51,10 +53,16 @@ private:
   void handle_null_event();
 
   // Returns true if the bot is ready to issue a new challenge to another bot.
-  bool is_ready_to_challenge();
+  bool is_ready_to_challenge() const;
+
+  // Returns true if the bot is ready to refresh its list of online bots.
+  bool is_ready_to_refresh_bots() const;
 
   // Issues a rated challenge to an online bot. This is called periodically.
   void issue_challenge();
+
+  // Get a fresh list of online bots through the Lichess API. This is called periodically.
+  void refresh_online_bots();
 
   friend class Lichess;
 };

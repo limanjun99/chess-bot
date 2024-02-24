@@ -92,6 +92,10 @@ public:
 
 private:
   cpr::Bearer auth;
+  static constexpr int retry_limit = 4;  // If we get rate limited this number of times, then terminate the program.
+
+  // If we are being rate limited, sleep for 90 seconds and return true.
+  bool rate_limit_check(const cpr::Response& response) const;
 };
 
 // =============== IMPLEMENTATIONS ===============
