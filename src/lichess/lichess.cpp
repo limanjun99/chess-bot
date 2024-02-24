@@ -72,7 +72,7 @@ std::optional<std::string> Lichess::issue_challenge(const std::string& username,
                                                  {"variant", "standard"}});
     if (rate_limit_check(response)) continue;
     if (response.status_code != 200) return std::nullopt;
-    return std::optional{json::parse(response.text)["id"]};
+    return std::optional{json::parse(response.text)["challenge"]["id"]};
   }
   throw "Rate limited.";
 }

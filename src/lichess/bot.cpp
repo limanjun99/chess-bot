@@ -93,8 +93,8 @@ void Bot::handle_null_event() {
 }
 
 bool Bot::is_ready_to_challenge() const {
-  // The bot should issue challenges once it has been idling for more than 5 seconds.
-  return state == State::Idle && std::chrono::steady_clock::now() - state_from > std::chrono::seconds{30};
+  // The bot should issue challenges once it has been idling for more than 1 minute.
+  return state == State::Idle && std::chrono::steady_clock::now() - state_from > std::chrono::minutes{1};
 }
 
 bool Bot::is_ready_to_refresh_bots() const {
@@ -131,7 +131,7 @@ void Bot::issue_challenge() {
   change_state(State::IssueChallenge);
   Logger::info() << "Issuing challenge to " << username << "\n";
   Logger::flush();
-  if (auto challenge_id = lichess.issue_challenge(username, false, clock_time, clock_increment)) {
+  if (auto challenge_id = lichess.issue_challenge(username, true, clock_time, clock_increment)) {
     issued_challenge_id = *challenge_id;
   } else {
     Logger::warn() << "Challenge to " << username << " failed\n";
