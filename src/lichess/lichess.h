@@ -130,7 +130,7 @@ inline void Lichess::handle_game(const std::string& game_id, T& handler) const {
   auto callback = [&](const json& event) {
     // Ignore null / chat / opponent gone events.
     //! TODO: Maybe check if opponent is gone for too long and claim win?
-    if (event.is_null() || event["status"] == "chatLine" || event["status"] == "opponentGone") {
+    if (event.is_null() || event["type"] == "chatLine" || event["type"] == "opponentGone") {
       return true;
     }
 
