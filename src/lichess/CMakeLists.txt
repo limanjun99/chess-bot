@@ -1,5 +1,12 @@
-add_executable(lichess_bot config.cpp game_handler.cpp lichess.cpp logger.cpp
-                           main.cpp)
+add_executable(
+  lichess_bot
+  bot.cpp
+  config.cpp
+  game_handler.cpp
+  lichess.cpp
+  logger.cpp
+  main.cpp
+  ndjson.cpp)
 
 target_compile_features(lichess_bot PRIVATE cxx_std_20)
 target_compile_options(lichess_bot PRIVATE -Wall -Wextra -Wpedantic -O3)
