@@ -94,11 +94,13 @@ void Bot::handle_null_event() {
 
 bool Bot::is_ready_to_challenge() const {
   // The bot should issue challenges once it has been idling for more than 1 minute.
+  if (!config.should_issue_challenges()) return false;
   return state == State::Idle && std::chrono::steady_clock::now() - state_from > std::chrono::minutes{1};
 }
 
 bool Bot::is_ready_to_refresh_bots() const {
   // The bot should refresh its list of online bots every 15 minutes.
+  if (!config.should_issue_challenges()) return false;
   return state == State::Idle && std::chrono::steady_clock::now() - online_bots_from > std::chrono::minutes{15};
 }
 
