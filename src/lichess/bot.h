@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <random>
 
+#include "bot/bot_state.h"
 #include "lichess.h"
 
 using json = nlohmann::json;
@@ -16,22 +17,12 @@ public:
   void listen();
 
 private:
-  enum class State {
-    Idle,
-    InGame,
-    IssueChallenge,  // We have exactly one issued challenge that is still pending.
-  };
-
   const Config& config;
   const Lichess& lichess;
-  std::chrono::time_point<std::chrono::steady_clock> state_from;
-  State state;                      // Current state of this handler. Used to decide how to handle incoming events.
-  std::mt19937 gen;                 // Used for any rng within this class (e.g. challenging a random online bot).
-  std::string issued_challenge_id;  // Challenge id of the last issued challenge.
-  std::vector<std::string> online_bots;
-  std::chrono::time_point<std::chrono::steady_clock> online_bots_from;
+  std::unique_ptr<BotState> state;  // Current state of this handler. Used to decide how to handle incoming events.
 
-  void change_state(State new_state);
+  void change_state(std::unique_ptr<BotState> new_state);
+  void change_state(std::optional<std::unique_ptr<BotState>> new_state);
 
   // Refer to Lichess API for the shape of `challenge` object.
   void handle_challenge(const json& challenge);
@@ -51,18 +42,6 @@ private:
   // When we open a connection to Lichess's event stream, it periodically sends an empty line.
   // This is used as a heartbeat for us to run periodic jobs.
   void handle_null_event();
-
-  // Returns true if the bot is ready to issue a new challenge to another bot.
-  bool is_ready_to_challenge() const;
-
-  // Returns true if the bot is ready to refresh its list of online bots.
-  bool is_ready_to_refresh_bots() const;
-
-  // Issues a rated challenge to an online bot. This is called periodically.
-  void issue_challenge();
-
-  // Get a fresh list of online bots through the Lichess API. This is called periodically.
-  void refresh_online_bots();
 
   friend class Lichess;
 };

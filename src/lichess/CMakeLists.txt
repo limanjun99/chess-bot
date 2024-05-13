@@ -1,5 +1,10 @@
 add_executable(
   lichess_bot
+  bot/bot_state.cpp
+  bot/challenge_accepted_state.cpp
+  bot/challenge_issued_state.cpp
+  bot/game_state.cpp
+  bot/idle_state.cpp
   bot.cpp
   config.cpp
   game_handler.cpp
