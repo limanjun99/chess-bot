@@ -32,19 +32,21 @@ std::string api::make_move(const std::string& game_id, const std::string& move) 
   return base + "/bot/game/" + game_id + "/move/" + move;
 }
 
+std::string api::profile() { return base + "/account"; }
+
 Lichess::Lichess(const Config& config) : auth{config.get_lichess_token()} {}
 
-std::vector<std::string> Lichess::get_online_bots(int limit) const {
+std::vector<json> Lichess::get_online_bots(int limit) const {
   for (int i = 0; i < retry_limit; i++) {
-    std::vector<std::string> usernames;
+    std::vector<json> bots;
     auto callback = [&](const json& bot) {
-      if (!bot.is_null()) usernames.push_back(bot["username"]);
+      if (!bot.is_null()) bots.push_back(bot);
       return true;
     };
     const auto response =
         cpr::Get(cpr::Url{api::online_bots(limit)}, auth, cpr::WriteCallback{NdjsonWriteCallback{callback}});
     if (rate_limit_check(response)) continue;
-    return usernames;
+    return bots;
   }
   throw "Rate limited.";
 }
@@ -91,6 +93,15 @@ bool Lichess::send_move(const std::string& game_id, const std::string& move) con
     const auto response = cpr::Post(cpr::Url{api::make_move(game_id, move)}, auth);
     if (rate_limit_check(response)) continue;
     return response.status_code == 200;
+  }
+  throw "Rate limited.";
+}
+
+json Lichess::get_my_profile() const {
+  for (int i = 0; i < retry_limit; i++) {
+    const auto response = cpr::Get(cpr::Url{api::profile()}, auth);
+    if (rate_limit_check(response)) continue;
+    return json::parse(response.text);
   }
   throw "Rate limited.";
 }

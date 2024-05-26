@@ -33,6 +33,8 @@ std::string issue_challenge(const std::string& username);
 std::string stream_game(const std::string& game_id);
 
 std::string make_move(const std::string& game_id, const std::string& move);
+
+std::string profile();
 };  // namespace api
 
 template <typename T>
@@ -58,7 +60,7 @@ public:
   Lichess(const Config& config);
 
   // Returns a list of (up to `limit`) bots that are currently online.
-  std::vector<std::string> get_online_bots(int limit) const;
+  std::vector<json> get_online_bots(int limit) const;
 
   // Either accept or decline the challenge with given `challenge_id`.
   // Returns false if challenge was not found.
@@ -89,6 +91,8 @@ public:
   // Make a move on the game with `gameId`. `move` is in UCI format.
   // Returns true if the move was made successfully.
   bool send_move(const std::string& game_id, const std::string& move) const;
+
+  json get_my_profile() const;
 
 private:
   cpr::Bearer auth;

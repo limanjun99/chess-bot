@@ -36,7 +36,7 @@ std::optional<std::unique_ptr<BotState>> IdleState::handle_null_event() {  // to
 }
 
 bool IdleState::is_ready_to_challenge() const {
-  return config.should_issue_challenges() && std::chrono::steady_clock::now() - idle_since > std::chrono::minutes{5};
+  return config.should_issue_challenges() && std::chrono::steady_clock::now() - idle_since > std::chrono::minutes{10};
 }
 
 std::optional<std::unique_ptr<BotState>> IdleState::issue_challenge() {
@@ -44,25 +44,37 @@ std::optional<std::unique_ptr<BotState>> IdleState::issue_challenge() {
 
   // List of initial time and increment (in seconds) to choose from.
   //! TODO: Add no-increment clocks once we handle network latency.
-  constexpr std::array<std::pair<int, int>, 3> clocks = {{
-      {120, 1},  // 2+1 Bullet
-                 // {180, 2},  // 3+2 Blitz
-                 // {300, 3},  // 5+3 Blitz
+  const std::array<std::tuple<int, int, std::string>, 3> clocks = {{
+      {120, 1, "bullet"},  // 2+1 Bullet
+      {180, 2, "blitz"},   // 3+2 Blitz
+      {300, 3, "blitz"},   // 5+3 Blitz
   }};
   std::mt19937 rng{static_cast<std::mt19937::result_type>(std::time(NULL))};
-  const int clock_choice = std::uniform_int_distribution<>{0, clocks.size() - 1}(rng);
-  const int clock_time = clocks[clock_choice].first;
-  const int clock_increment = clocks[clock_choice].second;
+  const int clock_choice = std::uniform_int_distribution<>{0, static_cast<int>(clocks.size()) - 1}(rng);
+  const auto [clock_time, clock_increment, time_control] = clocks[clock_choice];
+
+  auto my_profile = lichess.get_my_profile();
+  const int my_rating = my_profile["perfs"][time_control]["rating"];
+  const int rating_range = 300;  // Only play against bots with a rating within +- 300 of myself.
 
   // Pick a random bot from the list of online bots.
-  std::vector<std::string> online_bots = lichess.get_online_bots(150);
-  if (online_bots.empty()) {
-    Logger::warn() << "No online bots found to challenge.\n";
+  std::vector<json> online_bots = lichess.get_online_bots(300);
+  std::vector<std::string> valid_bots;
+  for (const json& bot : online_bots) {
+    if (bot["username"] == config.get_lichess_bot_name()) continue;
+    if (!bot["perfs"].contains(time_control)) continue;
+    const int bot_rating = bot["perfs"][time_control]["rating"];
+    if (bot_rating > my_rating + rating_range || bot_rating < my_rating - rating_range) continue;
+    valid_bots.push_back(bot["username"]);
+  }
+
+  if (valid_bots.empty()) {
+    Logger::warn() << "No valid online bots found to challenge.\n";
     Logger::flush();
     return std::nullopt;
   }
-  const size_t username_index = (std::uniform_int_distribution<size_t>{1, online_bots.size()}(rng)) - 1;
-  const std::string& username = online_bots[username_index];
+  const size_t username_index = (std::uniform_int_distribution<size_t>{1, valid_bots.size()}(rng)) - 1;
+  const std::string& username = valid_bots[username_index];
 
   // Issue a challenge to the bot.
   Logger::info() << "Issuing challenge to " << username << "\n";
