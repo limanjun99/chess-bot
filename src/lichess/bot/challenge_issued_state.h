@@ -10,4 +10,9 @@ public:
   virtual std::optional<std::unique_ptr<BotState>> handle_challenge_cancelled(const json& challenge) override;
 
   virtual std::optional<std::unique_ptr<BotState>> handle_challenge_declined(const json& challenge) override;
+
+  virtual std::optional<std::unique_ptr<BotState>> handle_null_event() override;
+
+private:
+  std::chrono::time_point<std::chrono::steady_clock> issued_since;
 };
