@@ -71,6 +71,9 @@ public:
   // Returns a 8x8 newline delimited string represenation of the board.
   std::string to_string() const;
 
+  // Returns the current turn's player color.
+  Color get_color() const;
+
 private:
   Player white;
   Player black;

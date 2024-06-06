@@ -6,6 +6,8 @@
 #include "bitboard.h"
 #include "piece.h"
 
+class Board;
+
 class Move {
 public:
   // Construct a null move.
@@ -46,6 +48,9 @@ public:
 
   // Returns this move in UCI format.
   std::string to_uci() const;
+
+  // Returns this move in algebraic notation (e.g. Nf3).
+  std::string to_algebraic(const Board& board) const;
 
   // Check equality between two moves.
   bool operator==(const Move& move) const;

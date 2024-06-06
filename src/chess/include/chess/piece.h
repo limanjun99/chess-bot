@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cctype>
-
 #include "pieces/base_piece.h"
 #include "pieces/bishop.h"
 #include "pieces/king.h"
@@ -25,7 +23,11 @@ constexpr char to_char(PieceVariant piece);
 //! TODO: Surely this is a terrible way of trying to get runtime polymorphism. Figure out how to fix this duplication.
 
 constexpr PieceVariant piece_variant::from_char(char c) {
-  switch (tolower(c)) {
+  // std::tolower is not constexpr.
+  constexpr auto char_to_lower = [](char c) {
+    return static_cast<char>(static_cast<int>(c) + 32);
+  };
+  switch (char_to_lower(c)) {
     case Bishop::get_character():
       return Bishop::get_variant();
     case King::get_character():

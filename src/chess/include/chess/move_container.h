@@ -5,6 +5,7 @@
 
 #include "move.h"
 
+//! TODO: This is literally a vector.
 // A container to store moves in.
 class MoveContainer {
 public:

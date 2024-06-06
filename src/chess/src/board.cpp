@@ -186,3 +186,5 @@ std::string Board::to_string() const {
   }
   return s;
 }
+
+Color Board::get_color() const { return is_white_turn ? Color::White : Color::Black; }
