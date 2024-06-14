@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "board_hash.h"
+#include "chess/board.h"
 
 class RepetitionTable {
 public:

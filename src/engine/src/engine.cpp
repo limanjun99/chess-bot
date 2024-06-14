@@ -6,7 +6,6 @@
 #include <chrono>
 #include <vector>
 
-#include "board_hash.h"
 #include "config.h"
 #include "evaluation.h"
 
@@ -124,7 +123,7 @@ Engine::MoveInfo Engine::choose_move(const Board& board, int depth) {
   return {chosen_move, time_spent, search_depth, debug};
 }
 
-void Engine::add_position(const Board& board) { repetition_table.add(board_hash::hash(board)); }
+void Engine::add_position(const Board& board) { repetition_table.add(board.get_hash()); }
 
 int Engine::evaluate_board(const Board& board) { return pst::evaluate(board); }
 
@@ -197,7 +196,7 @@ int Engine::search(const Board& board, int alpha, int beta, int depth_left) {
   }
 
   // Don't threefold.
-  const u64 board_hash = board_hash::hash(board);
+  const u64 board_hash = board.get_hash();
   if (repetition_table.is_draw_if_add(board_hash)) return evaluation::draw;
 
   NodeType node_type{NodeType::All};  // Assume all-node unless a good enough move is found.

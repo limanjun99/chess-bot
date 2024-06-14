@@ -25,7 +25,8 @@ constexpr char to_char(PieceVariant piece);
 constexpr PieceVariant piece_variant::from_char(char c) {
   // std::tolower is not constexpr.
   constexpr auto char_to_lower = [](char c) {
-    return static_cast<char>(static_cast<int>(c) + 32);
+    if (c >= 'a' && c <= 'z') return c;
+    return static_cast<char>(c + 32);
   };
   switch (char_to_lower(c)) {
     case Bishop::get_character():

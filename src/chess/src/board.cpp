@@ -1,25 +1,41 @@
 #include "board.h"
 
+#include <array>
 #include <cctype>
+#include <random>
+#include <sstream>
 
 #include "move_gen.h"
 
-Board::Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn)
-    : white{white}, black{black}, en_passant_bit{en_passant_bit}, is_white_turn{is_white_turn} {}
+Board::Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn, int16_t halfmove_clock)
+    : white{white},
+      black{black},
+      en_passant_bit{en_passant_bit},
+      tracked_positions{},
+      halfmove_clock{halfmove_clock},
+      is_white_turn{is_white_turn} {
+  tracked_positions.push_back(get_hash());
+}
 
 Board Board::initial() { return Board(Player::white_initial(), Player::black_initial(), 0, true); }
 
-Board Board::from_epd(std::string_view epd) {
+Board Board::from_fen(std::string_view fen) {
   Player white{0, 0, 0, 0, 0, 0, false, false};
   Player black{0, 0, 0, 0, 0, 0, false, false};
-  size_t index = 0;
+
+  // Use stringstream (instead of manually parsing) for clarity,
+  // as this function need not be performant.
+  std::istringstream fen_stream{std::string{fen}};
+  std::string buffer;
 
   // Pieces.
+  fen_stream >> buffer;
+  std::istringstream pieces_stream{std::move(buffer)};
   for (int y = 7; y >= 0; y--) {
+    std::string line;
+    std::getline(pieces_stream, line, '/');
     int x = 0;
-    while (epd[index] != '/' && epd[index] != ' ') {
-      char ch = epd[index];
-      index++;
+    for (char ch : line) {
       if (std::isdigit(ch)) {
         x += static_cast<int>(ch - '0');
         continue;
@@ -30,29 +46,34 @@ Board Board::from_epd(std::string_view epd) {
       player[piece] |= u64(1) << (y * 8 + x);
       x++;
     }
-    index++;
   }
 
   // Side to move.
-  bool is_white_turn = epd[index] == 'w';
-  index += 2;
+  fen_stream >> buffer;
+  bool is_white_turn = buffer[0] == 'w';
 
   // Castling rights.
-  while (epd[index] != '-' && epd[index] != ' ') {
-    bool is_white = std::isupper(epd[index]);
-    Player& player = is_white ? white : black;
-    if (epd[index] == 'K' || epd[index] == 'k') player.enable_kingside_castling();
+  fen_stream >> buffer;
+  for (char ch : buffer) {
+    if (ch == '-') continue;
+    bool is_white_piece = std::isupper(ch);
+    Player& player = is_white_piece ? white : black;
+    if (ch == 'K' || ch == 'k') player.enable_kingside_castling();
     else player.enable_queenside_castling();
-    index++;
   }
-  if (epd[index] == '-') index++;
-  index++;
 
   // En passant target square.
+  fen_stream >> buffer;
   u64 en_passant_bit = 0;
-  if (epd[index] != '-') en_passant_bit = bit::from_algebraic(epd.substr(index, 2));
+  if (buffer[0] != '-') en_passant_bit = bit::from_algebraic(buffer);
 
-  return Board{white, black, en_passant_bit, is_white_turn};
+  // Halfmove clock.
+  int16_t halfmove_clock;
+  fen_stream >> halfmove_clock;
+
+  // Fullmove counter (ignored as it's not necessary for engines).
+
+  return Board{white, black, en_passant_bit, is_white_turn, halfmove_clock};
 }
 
 Board Board::apply_move(const Move& move) const {
@@ -111,7 +132,17 @@ Board Board::apply_move(const Move& move) const {
     cur[PieceVariant::Pawn] ^= to;
   }
 
+  // Update halfmove clock.
+  board.halfmove_clock++;
+  if (move.get_piece() == PieceVariant::Pawn || move.is_capture()) board.halfmove_clock = 0;
+
   board.is_white_turn = !board.is_white_turn;
+
+  // Update tracked positions.
+  if (move.get_piece() == PieceVariant::Pawn || move.is_capture()) board.tracked_positions.clear();
+  // Only keep at most 12 positions to save memory, as threefold is unlikely with positions that occured too early.
+  if (board.tracked_positions.size() >= 12) board.tracked_positions.erase(board.tracked_positions.begin());
+  board.tracked_positions.push_back(board.get_hash());
 
   return board;
 }
@@ -188,3 +219,65 @@ std::string Board::to_string() const {
 }
 
 Color Board::get_color() const { return is_white_turn ? Color::White : Color::Black; }
+
+u64 Board::get_hash() const {
+  // Implementation follows https://www.chessprogramming.org/Zobrist_Hashing
+  static std::mt19937_64 gen64{0};
+  static const std::array<u64, 2> color_rng{gen64(), gen64()};
+  static const std::array<std::array<std::array<u64, 64>, 6>, 2> piece_square_rng = []() {
+    std::array<std::array<std::array<u64, 64>, 6>, 2> piece_square_rng;
+    for (auto& by_color : piece_square_rng) {
+      for (auto& by_piece : by_color) {
+        for (auto& by_square : by_piece) {
+          by_square = gen64();
+        }
+      }
+    }
+    return piece_square_rng;
+  }();
+  static const std::array<u64, 2> castle_kingside_rng{gen64(), gen64()};
+  static const std::array<u64, 2> castle_queenside_rng{gen64(), gen64()};
+  static const std::array<u64, 8> en_passant_file_rng{gen64(), gen64(), gen64(), gen64(),
+                                                      gen64(), gen64(), gen64(), gen64()};
+
+  u64 hash = color_rng[is_white_turn];
+  for (int is_white = 0; is_white < 2; is_white++) {
+    const Player& player = is_white ? get_white() : get_black();
+    if (player.can_castle_kingside()) hash ^= castle_kingside_rng[is_white];
+    if (player.can_castle_queenside()) hash ^= castle_queenside_rng[is_white];
+    for (int piece = 0; piece < 6; piece++) {
+      u64 bitboard = player[static_cast<PieceVariant>(piece)];
+      BITBOARD_ITERATE(bitboard, bit) { hash ^= piece_square_rng[is_white][piece][bit::to_index(bit)]; }
+    }
+  }
+  if (en_passant_bit) hash ^= en_passant_file_rng[bit::to_index(en_passant_bit) % 8];
+  return hash;
+}
+
+bool Board::is_game_over() const { return get_score().has_value(); }
+
+std::optional<int32_t> Board::get_score() const {
+  if (is_stagnant_draw()) return 0;
+  if (has_moves()) return std::nullopt;  // Game not over.
+  if (!is_in_check()) return 0;          // Stalemate.
+  if (is_white_turn) return -1;          // White is checkmated.
+  else return 1;                         // Black is checkmated.
+}
+
+bool Board::is_stagnant_draw() const {
+  // Check fifty move rule.
+  if (halfmove_clock >= 100) return true;
+
+  // Check threefold.
+  if (!tracked_positions.empty()) {
+    const auto& current_position{tracked_positions.back()};
+    int32_t count{0};
+    for (const auto& position : tracked_positions) {
+      if (position != current_position) continue;
+      count++;
+      if (count >= 3) return true;
+    }
+  }
+
+  return false;
+}

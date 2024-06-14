@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -9,14 +10,14 @@
 
 class Board {
 public:
-  Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn);
+  Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn, int16_t halfmove_clock = 0);
 
   // Starting board of a chess game.
   static Board initial();
 
-  // Construct a board from Extended Position Description.
-  // https://www.chessprogramming.org/Extended_Position_Description
-  static Board from_epd(std::string_view epd);
+  // Construct a board from FEN.
+  // https://www.chessprogramming.org/Forsyth-Edwards_Notation
+  static Board from_fen(std::string_view fen);
 
   // Returns a new board that is the result of applying the given move.
   Board apply_move(const Move& move) const;
@@ -74,9 +75,28 @@ public:
   // Returns the current turn's player color.
   Color get_color() const;
 
+  // Returns the Zobrist hash of this board.
+  u64 get_hash() const;
+
+  // Returns true if the game has ended.
+  bool is_game_over() const;
+
+  // Returns std::nullopt if the game has not ended.
+  // Else returns the score (-1 if black won, 0 if draw, 1 if white won).
+  std::optional<int32_t> get_score() const;
+
 private:
   Player white;
   Player black;
-  u64 en_passant_bit;  // The square that is currently capturable by en passant (if any).
+  // The square that is currently capturable by en passant (if any).
+  u64 en_passant_bit;
+  // Keeps track of board positions (using their Zobrist hash) since the last unrepeatable move.
+  //! TODO: Copying all positions for each new Board has terrible performance.
+  std::vector<u64> tracked_positions;
+  // Keeps track of number of plies without capture / pawn pushes (for fifty move rule).
+  int16_t halfmove_clock;
   bool is_white_turn;
+
+  // Returns true if the position is a draw based on fifty move rule / threefold repetition.
+  bool is_stagnant_draw() const;
 };
