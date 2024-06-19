@@ -29,7 +29,7 @@ concept IsMCTS = requires(State state, Action action, Net net) {
                  };
 
 struct Config {
-  float C{std::sqrtf(2)};
+  float C{sqrtf(2)};
 };
 
 template <typename State, typename Action, typename Net>
