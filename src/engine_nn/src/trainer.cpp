@@ -13,15 +13,17 @@
 namespace trainer {
 
 void Trainer::train() {
-  model::Net net{};
   std::mt19937 rng{0};
   torch::manual_seed(0);
+  model::Net net{};
+  torch::set_num_threads(1);
   auto optimizer{torch::optim::Adam(net->parameters(), torch::optim::AdamOptions(1e-4))};
 
-  constexpr int epochs{100};
-  constexpr int self_play_iterations{1};
-  constexpr int rollout_iterations{50};
+  constexpr int epochs{1000};
+  constexpr int self_play_iterations{8};
+  constexpr int rollout_iterations{300};
   constexpr int max_batch_size{16};
+  constexpr int train_per_epoch{32};
 
   for (int epoch{1}; epoch <= epochs; epoch++) {
     std::cout << "Epoch " << epoch << '\n' << std::endl;
@@ -29,14 +31,12 @@ void Trainer::train() {
     std::vector<std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>> train_dataset;
 
     for (int self_play_i{1}; self_play_i <= self_play_iterations; self_play_i++) {
-      auto current_state{ChessGame::BoardState::initial()};
       std::vector<std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>> game_data;
       std::string game_pgn;
 
-      while (!current_state.is_terminal()) {
-        MCTS::MCTS<ChessGame::BoardState, ChessGame::MoveAction, model::Net> mcts{current_state, net};
-
-        for (int rollout_i{1}; rollout_i <= rollout_iterations; rollout_i++) mcts.rollout();
+      MCTS::MCTS<ChessGame::BoardState, ChessGame::MoveAction, model::Net> mcts{ChessGame::BoardState::initial(), net};
+      while (!mcts.get_state().is_terminal()) {
+        while (mcts.get_visit_count() < rollout_iterations) mcts.rollout();
 
         // Add to training data.
         const std::vector<std::pair<ChessGame::MoveAction, int32_t>> action_visits{mcts.get_action_visits()};
@@ -47,17 +47,17 @@ void Trainer::train() {
         for (const auto& [action, visit] : action_visits) {
           action.set_density(policy, static_cast<float>(visit) / total_visits);
         }
-        game_data.emplace_back(current_state.to_tensor(), policy, torch::zeros({1}));
+        game_data.emplace_back(mcts.get_state().to_tensor(), policy, torch::zeros({1}));
 
         // Choose a random action.
         std::discrete_distribution<size_t> dist{weights.begin(), weights.end()};
         const size_t index{dist(rng)};
         const auto action{action_visits[index].first};
-        game_pgn += " " + action.get_move().to_algebraic(current_state.get_board());
-        current_state = current_state.apply_action(action);
+        game_pgn += " " + action.get_move().to_algebraic(mcts.get_state().get_board());
+        mcts.apply_action(action);
       }
 
-      auto score{*current_state.get_player_score()};
+      auto score{*mcts.get_state().get_player_score()};
       bool is_white_turn{true};
       for (auto& [state, policy, value] : game_data) {
         value[0] = is_white_turn ? score : 1 - score;
@@ -70,26 +70,32 @@ void Trainer::train() {
     }
 
     // Train.
-    for (size_t begin{0}; begin < train_dataset.size(); begin += max_batch_size) {
-      size_t end = std::min(begin + max_batch_size, train_dataset.size());
-      int batch_size{static_cast<int>(end - begin)};
+    for (int train_i{1}; train_i <= train_per_epoch; train_i++) {
+      float total_loss{0};
+      for (size_t begin{0}; begin < train_dataset.size(); begin += max_batch_size) {
+        size_t end = std::min(begin + max_batch_size, train_dataset.size());
+        int batch_size{static_cast<int>(end - begin)};
 
-      torch::Tensor states{torch::zeros({batch_size, model::input_channels, model::input_height, model::input_width})};
-      torch::Tensor policies_target{torch::zeros({batch_size, 68, model::input_height, model::input_width})};
-      torch::Tensor values_target{torch::zeros({batch_size, 1})};
-      for (size_t i{begin}; i < end; i++) {
-        states[i - begin] = std::get<0>(train_dataset[i]);
-        policies_target[i - begin] = std::get<1>(train_dataset[i]);
-        values_target[i - begin] = std::get<2>(train_dataset[i]);
+        torch::Tensor states{
+            torch::zeros({batch_size, model::input_channels, model::input_height, model::input_width})};
+        torch::Tensor policies_target{torch::zeros({batch_size, 68, model::input_height, model::input_width})};
+        torch::Tensor values_target{torch::zeros({batch_size, 1})};
+        for (size_t i{begin}; i < end; i++) {
+          states[i - begin] = std::get<0>(train_dataset[i]);
+          policies_target[i - begin] = std::get<1>(train_dataset[i]);
+          values_target[i - begin] = std::get<2>(train_dataset[i]);
+        }
+
+        const auto [policies_pred, values_pred] = net->forward_batch(states);
+        const auto policy_loss{torch::cross_entropy_loss(policies_pred, policies_target)};
+        const auto value_loss{torch::mse_loss(values_pred, values_target)};
+        const auto loss = policy_loss + value_loss;
+        total_loss += loss.item<float>();
+        optimizer.zero_grad();
+        loss.backward();
+        optimizer.step();
       }
-
-      const auto [policies_pred, values_pred] = net->forward_batch(states);
-      const auto policy_loss{torch::cross_entropy_loss(policies_pred, policies_target)};
-      const auto value_loss{torch::mse_loss(values_pred, values_target)};
-      const auto loss = policy_loss + value_loss;
-      optimizer.zero_grad();
-      loss.backward();
-      optimizer.step();
+      std::cout << "Loss: " << total_loss << '\n';
     }
 
     std::filesystem::create_directory("models/");

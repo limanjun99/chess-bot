@@ -272,7 +272,8 @@ std::optional<int32_t> Board::get_player_score() const {
 
 bool Board::is_stagnant_draw() const {
   // Check fifty move rule.
-  if (halfmove_clock >= 100) return true;
+  //! TODO This is temporarily changed to 50 to cut down on game length during training.
+  if (halfmove_clock >= 50) return true;
 
   // Check threefold.
   if (!tracked_positions.empty()) {

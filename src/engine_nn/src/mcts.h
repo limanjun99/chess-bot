@@ -39,6 +39,8 @@ public:
   void rollout();
   Action get_best_action() const;
   std::vector<std::pair<Action, int32_t>> get_action_visits() const;
+  const State &get_state() const;
+  int32_t get_visit_count() const;
   void apply_action(const Action &action);
 
 private:
@@ -53,6 +55,7 @@ private:
     Node *apply_action(const Action &action);
     bool is_expanded() const;
     const State &get_state() const;
+    int32_t get_visit_count() const;
     std::vector<std::pair<Action, int32_t>> get_action_visits() const;
 
   private:
@@ -65,9 +68,9 @@ private:
     std::vector<std::pair<std::unique_ptr<Node>, Action>> children;
   };
 
+  Config config;
   std::unique_ptr<Node> root_node;
   Net net;
-  Config config;
 
   MCTS(std::unique_ptr<Node> node);
 };

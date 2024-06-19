@@ -108,6 +108,12 @@ inline const State &MCTS<State, Action, Net>::Node::get_state() const {
 
 template <typename State, typename Action, typename Net>
   requires IsMCTS<State, Action, Net>
+inline int32_t MCTS<State, Action, Net>::Node::get_visit_count() const {
+  return visit_count;
+}
+
+template <typename State, typename Action, typename Net>
+  requires IsMCTS<State, Action, Net>
 inline std::vector<std::pair<Action, int32_t>> MCTS<State, Action, Net>::Node::get_action_visits() const {
   std::vector<std::pair<Action, int32_t>> action_visits;
   action_visits.reserve(children.size());
@@ -119,8 +125,8 @@ inline std::vector<std::pair<Action, int32_t>> MCTS<State, Action, Net>::Node::g
 
 template <typename State, typename Action, typename Net>
   requires IsMCTS<State, Action, Net>
-inline MCTS<State, Action, Net>::MCTS(std::convertible_to<State> auto &&state, Net net, Config config)
-    : root_node{std::make_unique<Node>(state, config)}, net{net}, config{config} {}
+inline MCTS<State, Action, Net>::MCTS(std::convertible_to<State> auto &&state, Net net, Config _config)
+    : config{_config}, root_node{std::make_unique<Node>(state, config)}, net{net} {}
 
 template <typename State, typename Action, typename Net>
   requires IsMCTS<State, Action, Net>
@@ -129,15 +135,18 @@ void MCTS<State, Action, Net>::rollout() {
   Node *selected_node{root_node->select()};
 
   // 2. Expansion.
-  auto [policy, value] = net->forward_state(selected_node->get_state());
+  float value{};
   if (const auto score{selected_node->get_state().get_player_score()}) {
-    value = torch::full({1}, *score);
+    // Is terminal
+    value = *score;
   } else {
+    const auto [policy, value_] = net->forward_state(selected_node->get_state());
+    value = value_.template item<float>();
     selected_node->expand(policy);
   }
 
   // 3. Backpropagate the result.
-  selected_node->backprop(1 - value.template item<float>());
+  selected_node->backprop(1 - value);
 }
 
 template <typename State, typename Action, typename Net>
@@ -161,6 +170,18 @@ template <typename State, typename Action, typename Net>
   requires IsMCTS<State, Action, Net>
 inline std::vector<std::pair<Action, int32_t>> MCTS<State, Action, Net>::get_action_visits() const {
   return root_node->get_action_visits();
+}
+
+template <typename State, typename Action, typename Net>
+  requires IsMCTS<State, Action, Net>
+inline const State &MCTS<State, Action, Net>::get_state() const {
+  return root_node->get_state();
+}
+
+template <typename State, typename Action, typename Net>
+  requires IsMCTS<State, Action, Net>
+inline int32_t MCTS<State, Action, Net>::get_visit_count() const {
+  return root_node->get_visit_count();
 }
 
 }  // namespace MCTS

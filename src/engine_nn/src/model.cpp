@@ -5,9 +5,9 @@
 namespace model {
 
 NetImpl::NetImpl() {
-  conv1 = register_module("conv1", torch::nn::Conv2d(torch::nn::Conv2dOptions(input_channels, 8, 3).padding(1)));
-  batch_norm1 = register_module("batch_norm1", torch::nn::BatchNorm2d(8));
-  conv2 = register_module("conv2", torch::nn::Conv2d(torch::nn::Conv2dOptions(8, 4, 3).padding(1)));
+  conv1 = register_module("conv1", torch::nn::Conv2d(torch::nn::Conv2dOptions(input_channels, 6, 3).padding(1)));
+  batch_norm1 = register_module("batch_norm1", torch::nn::BatchNorm2d(6));
+  conv2 = register_module("conv2", torch::nn::Conv2d(torch::nn::Conv2dOptions(6, 4, 3).padding(1)));
 
   // policy_conv1 = register_module("policy_conv1", torch::nn::ConvTranspose2d(6, 16, 3));
   policy_conv1 = register_module("policy_conv1",
@@ -23,9 +23,7 @@ NetImpl::NetImpl() {
 
 std::pair<torch::Tensor, torch::Tensor> NetImpl::forward(torch::Tensor x) {
   auto result = forward_batch(x.unsqueeze(0));
-  result.first = result.first.squeeze(0);
-  result.second = result.second.squeeze(0);
-  return result;
+  return {result.first.squeeze(0), result.second.squeeze(0)};
 }
 
 std::pair<torch::Tensor, torch::Tensor> NetImpl::forward_batch(torch::Tensor x) {
