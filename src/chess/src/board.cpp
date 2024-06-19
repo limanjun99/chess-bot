@@ -264,6 +264,12 @@ std::optional<int32_t> Board::get_score() const {
   else return 1;                         // Black is checkmated.
 }
 
+std::optional<int32_t> Board::get_player_score() const {
+  auto score{get_score()};
+  if (!is_white_turn && score.has_value()) score = -score.value();
+  return score;
+}
+
 bool Board::is_stagnant_draw() const {
   // Check fifty move rule.
   if (halfmove_clock >= 100) return true;

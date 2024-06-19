@@ -85,6 +85,10 @@ public:
   // Else returns the score (-1 if black won, 0 if draw, 1 if white won).
   std::optional<int32_t> get_score() const;
 
+  // Returns std::nullopt if the game has not ended.
+  // Else returns the score of the current player (-1 if current player won, 0 if draw, else 1).
+  std::optional<int32_t> get_player_score() const;
+
 private:
   Player white;
   Player black;

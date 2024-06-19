@@ -1,50 +1,59 @@
 #pragma once
 
+#include <torch/torch.h>
+
 #include <cmath>
 #include <concepts>
 #include <cstdint>
 #include <memory>
-#include <random>
 #include <vector>
 
 namespace MCTS {
 
-template <typename State, typename Action>
-concept StateAction = requires(State state, Action action) {
-                        { state.is_terminal() } -> std::same_as<bool>;
-                        { state.get_transitions() } -> std::same_as<std::vector<std::pair<State, Action>>>;
-                        {
-                          state.get_random_action(std::declval<std::mt19937 &>())
-                        } -> std::same_as<std::optional<Action>>;
-                        { state.apply_action(std::declval<const Action &>()) } -> std::same_as<State>;
-                        { state.get_score() } -> std::same_as<float>;
-                        { std::declval<Action>() == std::declval<Action>() } -> std::same_as<bool>;
-                      };
+template <typename State, typename Action, typename Net>
+concept IsMCTS = requires(State state, Action action, Net net) {
+                   { state.is_terminal() } -> std::convertible_to<bool>;
+
+                   { state.get_transitions() } -> std::same_as<std::vector<std::pair<State, Action>>>;
+
+                   { state.apply_action(action) } -> std::same_as<State>;
+
+                   { state.get_player_score() } -> std::same_as<std::optional<float>>;
+
+                   { action == action } -> std::same_as<bool>;
+
+                   { action.get_density(std::declval<torch::Tensor>()) } -> std::convertible_to<float>;
+
+                   { net->forward_state(state) } -> std::same_as<std::pair<torch::Tensor, torch::Tensor>>;
+                 };
 
 struct Config {
   float C{std::sqrtf(2)};
 };
 
-template <typename State, typename Action>
-  requires StateAction<State, Action>
+template <typename State, typename Action, typename Net>
+  requires IsMCTS<State, Action, Net>
 class MCTS {
 public:
-  MCTS(std::convertible_to<State> auto &&state, Config config = Config{});
-  void train();
+  MCTS(std::convertible_to<State> auto &&state, Net net, Config config = Config{});
+  void rollout();
   Action get_best_action() const;
+  std::vector<std::pair<Action, int32_t>> get_action_visits() const;
   void apply_action(const Action &action);
 
 private:
   class Node {
   public:
-    Node(std::convertible_to<State> auto &&state, Config &config, Node *parent = nullptr);
+    Node(std::convertible_to<State> auto &&state, Config &config, float prior = 0, Node *parent = nullptr);
     float uct(int32_t parent_visit_count) const;
     Node *select();
-    Node *expand();
-    float simulate() const;
+    Node *expand(torch::Tensor policy);
     void backprop(float result);
     Action get_best_action() const;
     Node *apply_action(const Action &action);
+    bool is_expanded() const;
+    const State &get_state() const;
+    std::vector<std::pair<Action, int32_t>> get_action_visits() const;
 
   private:
     State state;
@@ -52,10 +61,12 @@ private:
     Node *parent;
     int32_t visit_count;
     float score;
+    float prior;
     std::vector<std::pair<std::unique_ptr<Node>, Action>> children;
   };
 
   std::unique_ptr<Node> root_node;
+  Net net;
   Config config;
 
   MCTS(std::unique_ptr<Node> node);
