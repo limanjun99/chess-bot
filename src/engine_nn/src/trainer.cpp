@@ -2,6 +2,7 @@
 
 #include <torch/torch.h>
 
+#include <filesystem>
 #include <random>
 #include <ranges>
 
@@ -18,8 +19,8 @@ void Trainer::train() {
   auto optimizer{torch::optim::Adam(net->parameters(), torch::optim::AdamOptions(1e-4))};
 
   constexpr int epochs{100};
-  constexpr int self_play_iterations{8};
-  constexpr int rollout_iterations{200};
+  constexpr int self_play_iterations{1};
+  constexpr int rollout_iterations{50};
   constexpr int max_batch_size{16};
 
   for (int epoch{1}; epoch <= epochs; epoch++) {
@@ -90,6 +91,9 @@ void Trainer::train() {
       loss.backward();
       optimizer.step();
     }
+
+    std::filesystem::create_directory("models/");
+    torch::save(net, "models/model-epoch-" + std::to_string(epoch) + ".pt");
   }
 }
 
