@@ -1,6 +1,7 @@
 #pragma once
 
-#include <torch/torch.h>
+#include <torch/optim.h>
+#include <torch/serialize.h>
 
 #include <cmath>
 #include <concepts>

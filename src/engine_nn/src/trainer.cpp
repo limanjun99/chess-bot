@@ -1,7 +1,5 @@
 #include "trainer.h"
 
-#include <torch/torch.h>
-
 #include <filesystem>
 #include <random>
 #include <ranges>

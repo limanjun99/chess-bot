@@ -1,6 +1,7 @@
 #pragma once
 
-#include <torch/torch.h>
+#include <torch/nn.h>
+#include <torch/serialize/tensor.h>
 
 #include <optional>
 
