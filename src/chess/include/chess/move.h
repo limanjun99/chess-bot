@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <optional>
 #include <string>
 
@@ -10,96 +11,135 @@ namespace chess {
 
 class Board;
 
+// Move information is stored within 24 bits (or three uint8_t), with the following format:
+// 1st uint8_t: index of the moved from square.
+// 2nd uint8_t: index of the moved to square.
+// 3rd uint8_t bits 0~1: the promotion piece (only relevant if moved piece is pawn, to first / last rank).
+// 3rd uint8_t bits 2~4: the captured piece.
+// 3rd uint8_t bits 5~7: the moved piece.
 class Move {
 public:
   // Construct a null move.
-  Move();
+  constexpr explicit Move();
 
-  // Construct a move of the given piece.
-  Move(PieceVariant piece, Bitboard from, Bitboard to);
+  // Construct a null move.
+  static constexpr Move null();
 
-  // Construct a capture that is not a promotion.
-  Move(PieceVariant piece, Bitboard from, Bitboard to, PieceVariant promoted_piece);
+  // Construct a move that is not a promotion.
+  static constexpr Move move(Bitboard from, Bitboard to, PieceVariant from_piece);
+  static constexpr Move move(Bitboard from, Bitboard to, PieceVariant from_piece, PieceVariant captured_piece);
 
-  // Construct a promotion to the given promotion_piece.
-  Move(Bitboard from, Bitboard to, PieceVariant promotion_piece);
+  // Construct a promotion.
+  static constexpr Move promotion(Bitboard from, Bitboard to, PieceVariant promotion_piece);
+  static constexpr Move promotion(Bitboard from, Bitboard to, PieceVariant promotion_piece,
+                                  PieceVariant captured_piece);
 
   // Construct a promotion to the given promotion_piece that is also a capture.
-  Move(Bitboard from, Bitboard to, PieceVariant promotion_piece, PieceVariant captured_piece);
+  static constexpr Move capture_promotion(Bitboard from, Bitboard to, PieceVariant promotion_piece,
+                                          PieceVariant captured_piece);
 
   // Getter for from bitboard.
-  Bitboard get_from() const;
+  constexpr Bitboard get_from() const;
 
   // Getter for to bitboard.
-  Bitboard get_to() const;
+  constexpr Bitboard get_to() const;
 
   // Getter for moved piece.
-  PieceVariant get_piece() const;
+  constexpr PieceVariant get_piece() const;
 
   // Getter for captured piece.
-  PieceVariant get_captured_piece() const;
+  constexpr PieceVariant get_captured_piece() const;
 
-  // Getter for promotion piece.
-  PieceVariant get_promotion_piece() const;
+  // Getter for promotion piece. Is UB if this is not a promotion.
+  constexpr PieceVariant get_promotion_piece() const;
 
   // Whether this move is a capture.
-  bool is_capture() const;
+  constexpr bool is_capture() const;
 
   // Whether this move is a promotion.
-  bool is_promotion() const;
+  constexpr bool is_promotion() const;
 
   // Returns this move in UCI format.
   std::string to_uci() const;
 
   // Returns this move in algebraic notation (e.g. Nf3).
-  std::string to_algebraic(const Board& board) const;
+  std::string to_algebraic() const;
 
   // Check equality between two moves.
-  bool operator==(const Move& move) const;
+  constexpr bool operator==(const Move& other) const;
 
 private:
-  Bitboard from;
-  Bitboard to;
-  PieceVariant piece;
-  PieceVariant captured_piece;
-  PieceVariant promotion_piece;
+  uint8_t from;
+  uint8_t to;
+  uint8_t flag;
+
+  // Note that PieceVariant::None is not required to fit within two bits.
+  // Hence if we only have one constructor that must take a `promotion_piece` as argument,
+  // and we want to construct a non-promotion move, we cannot pass in PieceVariant::None, which is kind of silly.
+  // Hence the need for both constructors below.
+  constexpr explicit Move(Bitboard from, Bitboard to, PieceVariant moved_piece, PieceVariant captured_piece);
+  constexpr explicit Move(Bitboard from, Bitboard to, PieceVariant moved_piece, PieceVariant captured_piece,
+                          PieceVariant promotion_piece);
 };
 
-inline Move::Move() : from{0}, to{0}, piece{PieceVariant::None}, promotion_piece{PieceVariant::None} {}
+// ========== IMPLEMENTATIONS ==========
 
-inline Move::Move(PieceVariant piece, Bitboard from, Bitboard to)
-    : from{from}, to{to}, piece{piece}, captured_piece{PieceVariant::None}, promotion_piece{PieceVariant::None} {}
+// Assert that promotion pieces are < 4 so that it fits within 2 bits.
+static_assert(static_cast<uint8_t>(PieceVariant::Bishop) < 4);
+static_assert(static_cast<uint8_t>(PieceVariant::Knight) < 4);
+static_assert(static_cast<uint8_t>(PieceVariant::Queen) < 4);
+static_assert(static_cast<uint8_t>(PieceVariant::Rook) < 4);
 
-inline Move::Move(PieceVariant piece, Bitboard from, Bitboard to, PieceVariant captured_piece)
-    : from{from}, to{to}, piece{piece}, captured_piece{captured_piece}, promotion_piece{PieceVariant::None} {}
+constexpr Move::Move() : from{0}, to{0}, flag{0} {}
 
-inline Move::Move(Bitboard from, Bitboard to, PieceVariant promotion_piece)
-    : from{from},
-      to{to},
-      piece{PieceVariant::Pawn},
-      captured_piece{PieceVariant::None},
-      promotion_piece{promotion_piece} {}
+constexpr Move::Move(Bitboard from, Bitboard to, PieceVariant moved_piece, PieceVariant captured_piece)
+    : from{static_cast<uint8_t>(from.to_index())},
+      to{static_cast<uint8_t>(to.to_index())},
+      flag{static_cast<uint8_t>(static_cast<uint8_t>(captured_piece) << 3 | static_cast<uint8_t>(moved_piece))} {}
 
-inline Move::Move(Bitboard from, Bitboard to, PieceVariant promotion_piece, PieceVariant captured_piece)
-    : from{from}, to{to}, piece{PieceVariant::Pawn}, captured_piece{captured_piece}, promotion_piece{promotion_piece} {}
+constexpr Move::Move(Bitboard from, Bitboard to, PieceVariant moved_piece, PieceVariant captured_piece,
+                     PieceVariant promotion_piece)
+    : from{static_cast<uint8_t>(from.to_index())},
+      to{static_cast<uint8_t>(to.to_index())},
+      flag{static_cast<uint8_t>(static_cast<uint8_t>(promotion_piece) << 6 | static_cast<uint8_t>(captured_piece) << 3 |
+                                static_cast<uint8_t>(moved_piece))} {}
 
-inline Bitboard Move::get_from() const { return from; }
+constexpr Move Move::null() { return Move{}; }
 
-inline Bitboard Move::get_to() const { return to; }
+constexpr Move Move::move(Bitboard from, Bitboard to, PieceVariant from_piece) {
+  return Move{from, to, from_piece, PieceVariant::None};
+}
 
-inline PieceVariant Move::get_piece() const { return piece; }
+constexpr Move Move::move(Bitboard from, Bitboard to, PieceVariant from_piece, PieceVariant captured_piece) {
+  return Move{from, to, from_piece, captured_piece};
+}
 
-inline PieceVariant Move::get_captured_piece() const { return captured_piece; }
+constexpr Move Move::promotion(Bitboard from, Bitboard to, PieceVariant promotion_piece) {
+  return Move{from, to, PieceVariant::Pawn, PieceVariant::None, promotion_piece};
+}
 
-inline PieceVariant Move::get_promotion_piece() const { return promotion_piece; }
+constexpr Move Move::promotion(Bitboard from, Bitboard to, PieceVariant promotion_piece, PieceVariant captured_piece) {
+  return Move{from, to, PieceVariant::Pawn, captured_piece, promotion_piece};
+}
 
-inline bool Move::is_capture() const { return captured_piece != PieceVariant::None; }
+constexpr Bitboard Move::get_from() const { return Bitboard::from_index(from); }
 
-inline bool Move::is_promotion() const { return promotion_piece != PieceVariant::None; }
+constexpr Bitboard Move::get_to() const { return Bitboard::from_index(to); }
 
-inline bool Move::operator==(const Move& move) const {
-  return from == move.from && to == move.to && piece == move.piece && captured_piece == move.captured_piece &&
-         promotion_piece == move.promotion_piece;
+constexpr PieceVariant Move::get_piece() const { return static_cast<PieceVariant>(flag & 0b111); }
+
+constexpr PieceVariant Move::get_captured_piece() const { return static_cast<PieceVariant>((flag >> 3) & 0b111); }
+
+constexpr PieceVariant Move::get_promotion_piece() const { return static_cast<PieceVariant>(flag >> 6); }
+
+constexpr bool Move::is_capture() const { return get_captured_piece() != PieceVariant::None; }
+
+constexpr bool Move::is_promotion() const {
+  return get_piece() == PieceVariant::Pawn && (Bitboard::from_index(to) & (bitboard::RANK_1 | bitboard::RANK_8));
+}
+
+constexpr bool Move::operator==(const Move& other) const {
+  return from == other.from && to == other.to && flag == other.flag;
 }
 
 }  // namespace chess

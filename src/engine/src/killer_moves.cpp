@@ -19,7 +19,7 @@ void KillerMoves::add(const chess::Move& move, int depth_left) {
 void KillerMoves::clear() {
   for (int i = 0; i < config::max_depth; i++) {
     for (int j = 0; j < config::killer_move_count; j++) {
-      killer_moves[i][j] = chess::Move{};
+      killer_moves[i][j] = chess::Move::null();
     }
   }
 }

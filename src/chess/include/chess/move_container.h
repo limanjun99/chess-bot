@@ -13,9 +13,8 @@ class MoveContainer {
 public:
   MoveContainer();
 
-  // Construct and add a new move.
-  template <class... Args>
-  void emplace_back(Args&&... args);
+  // Add a new move.
+  void push_back(Move move);
 
   // Returns true if there are no moves in the container.
   bool empty() const;
@@ -38,9 +37,8 @@ private:
 
 inline MoveContainer::MoveContainer() : size_{0} {}
 
-template <class... Args>
-inline void MoveContainer::emplace_back(Args&&... args) {
-  new (&moves[size_]) Move(args...);
+inline void MoveContainer::push_back(Move move) {
+  new (&moves[size_]) Move(move);
   size_++;
 }
 

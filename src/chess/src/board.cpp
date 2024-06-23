@@ -155,10 +155,10 @@ Board Board::apply_uci_move(std::string_view uci_move) {
   Bitboard to{Bitboard::from_algebraic(uci_move.substr(2, 2))};
   if (uci_move.size() == 5) {
     PieceVariant promotion_piece = piece_variant::from_char(uci_move[4]);
-    return apply_move(Move{from, to, promotion_piece, opp_player().piece_at(to)});
+    return apply_move(Move::promotion(from, to, promotion_piece, opp_player().piece_at(to)));
   } else {
     PieceVariant piece = cur_player().piece_at(from);
-    return apply_move(Move{piece, from, to, opp_player().piece_at(to)});
+    return apply_move(Move::move(from, to, piece, opp_player().piece_at(to)));
   }
 }
 

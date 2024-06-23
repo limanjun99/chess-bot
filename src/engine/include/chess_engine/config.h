@@ -1,6 +1,10 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+
+#include "chess/piece.h"
+#include "chess/pieces/base_piece.h"
 
 // Configuration for the engine.
 namespace config {
@@ -58,18 +62,42 @@ constexpr int hash_move = 1e6;
 constexpr int capture = 4e5;
 
 // Ordered by most valuable victim, then least valuable attacker. Indexed by [victim][attacker].
-constexpr uint64_t mvv_lva[7][6] = {
-    {33, 30, 34, 35, 31, 32},  // Bishop victim.
-    {0, 0, 0, 0, 0, 0},        // King victim (just filler as king can't be captured).
-    {23, 20, 24, 25, 21, 22},  // Knight victim.
-    {13, 10, 14, 15, 11, 12},  // Pawn victim.
-    {53, 50, 54, 55, 51, 52},  // Queen victim.
-    {43, 40, 44, 45, 41, 42},  // Rook victim.
-    {0, 0, 0, 0, 0, 0},        // None victim (i.e. not a capture).
-};
+constexpr std::array<std::array<uint64_t, 6>, 7> mvv_lva = []() {
+  std::array<std::array<uint64_t, 6>, 7> mvv_lva{};
+  const size_t bishop{static_cast<size_t>(chess::PieceVariant::Bishop)};
+  const size_t king{static_cast<size_t>(chess::PieceVariant::King)};
+  const size_t knight{static_cast<size_t>(chess::PieceVariant::Knight)};
+  const size_t pawn{static_cast<size_t>(chess::PieceVariant::Pawn)};
+  const size_t queen{static_cast<size_t>(chess::PieceVariant::Queen)};
+  const size_t rook{static_cast<size_t>(chess::PieceVariant::Rook)};
+  const size_t none{static_cast<size_t>(chess::PieceVariant::None)};
+  const std::array<uint64_t, 6> piece_by_value{king, queen, rook, bishop, knight, pawn};
+
+  mvv_lva[king] = {0, 0, 0, 0, 0, 0};  // King victim (just filler as king can't be captured).
+  mvv_lva[none] = {0, 0, 0, 0, 0, 0};  // None victim (i.e. not a capture).
+  uint64_t base{50};
+  for (const auto victim : piece_by_value) {
+    if (victim == king) continue;
+    uint64_t increment{0};
+    for (const auto attacker : piece_by_value) {
+      mvv_lva[victim][attacker] = base + increment;
+      increment++;
+    }
+    base -= 10;
+  }
+
+  return mvv_lva;
+}();
 
 constexpr uint64_t promotion = 3e5;
-constexpr int promotion_piece[6] = {2, 0, 1, 0, 4, 3};
+constexpr std::array<int, 6> promotion_piece = []() {
+  std::array<int, 6> promotion_piece{};
+  promotion_piece[static_cast<size_t>(chess::PieceVariant::Knight)] = 1;
+  promotion_piece[static_cast<size_t>(chess::PieceVariant::Bishop)] = 2;
+  promotion_piece[static_cast<size_t>(chess::PieceVariant::Rook)] = 3;
+  promotion_piece[static_cast<size_t>(chess::PieceVariant::Queen)] = 4;
+  return promotion_piece;
+}();
 
 constexpr int killer = 2e5;
 constexpr int killer_index = 1;  // To prioritise more recent killer moves.

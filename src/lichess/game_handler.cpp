@@ -31,7 +31,7 @@ Engine::MoveInfo GameHandler::choose_move(const chess::Board& board) {
 }
 
 bool GameHandler::handle_game_initialization(const json& game) {
-  is_white = game["white"]["id"] == config.get_lichess_bot_name();
+  is_white = game["white"].value("id", "") == config.get_lichess_bot_name();
   board = chess::Board::initial();
   return handle_game_update(game["state"]);
 }
@@ -47,7 +47,7 @@ bool GameHandler::handle_game_update(const json& state) {
 
   Engine::MoveInfo move_info = choose_move(board);
   lichess.send_move(game_id, move_info.move.to_uci());
-  Logger::info() << "Found move " << move_info.move.to_uci() << " for game " << game_id << " in "
+  Logger::info() << "Found move " << move_info.move.to_algebraic() << " for game " << game_id << " in "
                  << move_info.time_spent.count() << "ms (depth " << move_info.search_depth << " reached, "
                  << move_info.debug.normal_node_count / 1000 << "k nodes, "
                  << move_info.debug.quiescence_node_count / 1000 << "k quiescent nodes, "

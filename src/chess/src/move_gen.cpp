@@ -234,11 +234,11 @@ MoveContainer MoveGen<PlayerColor>::generate_quiescence_moves_and_checks() const
         if (Pawn::attacks<PlayerColor>(to) & opp_player[PieceVariant::Pawn]) continue;
         if (Rook::attacks(to, total_occupied) & (opp_player[PieceVariant::Rook] | opp_player[PieceVariant::Queen]))
           continue;
-        moves.emplace_back(piece, from, to, get_opp_piece_at(to));
+        moves.push_back(Move::move(from, to, piece, get_opp_piece_at(to)));
       }
     } else {
       for (const Bitboard to : to_mask.iterate()) {
-        moves.emplace_back(piece, from, to, get_opp_piece_at(to));
+        moves.push_back(Move::move(from, to, piece, get_opp_piece_at(to)));
       }
     }
   };
@@ -328,12 +328,12 @@ Bitboard MoveGen<PlayerColor>::compute_pinned_pieces() const {
 template <Color PlayerColor>
 void MoveGen<PlayerColor>::add_pawn_push(MoveContainer& moves, Bitboard from, Bitboard to) const {
   if (to & (bitboard::RANK_1 | bitboard::RANK_8)) {
-    moves.emplace_back(from, to, PieceVariant::Bishop, PieceVariant::None);
-    moves.emplace_back(from, to, PieceVariant::Knight, PieceVariant::None);
-    moves.emplace_back(from, to, PieceVariant::Queen, PieceVariant::None);
-    moves.emplace_back(from, to, PieceVariant::Rook, PieceVariant::None);
+    moves.push_back(Move::promotion(from, to, PieceVariant::Bishop));
+    moves.push_back(Move::promotion(from, to, PieceVariant::Knight));
+    moves.push_back(Move::promotion(from, to, PieceVariant::Queen));
+    moves.push_back(Move::promotion(from, to, PieceVariant::Rook));
   } else {
-    moves.emplace_back(PieceVariant::Pawn, from, to, PieceVariant::None);
+    moves.push_back(Move::move(from, to, PieceVariant::Pawn));
   }
 }
 
@@ -341,12 +341,12 @@ template <Color PlayerColor>
 void MoveGen<PlayerColor>::add_pawn_capture(MoveContainer& moves, Bitboard from, Bitboard to) const {
   PieceVariant captured = get_opp_piece_at(to);
   if (to & (bitboard::RANK_1 | bitboard::RANK_8)) {
-    moves.emplace_back(from, to, PieceVariant::Bishop, captured);
-    moves.emplace_back(from, to, PieceVariant::Knight, captured);
-    moves.emplace_back(from, to, PieceVariant::Queen, captured);
-    moves.emplace_back(from, to, PieceVariant::Rook, captured);
+    moves.push_back(Move::promotion(from, to, PieceVariant::Bishop, captured));
+    moves.push_back(Move::promotion(from, to, PieceVariant::Knight, captured));
+    moves.push_back(Move::promotion(from, to, PieceVariant::Queen, captured));
+    moves.push_back(Move::promotion(from, to, PieceVariant::Rook, captured));
   } else {
-    moves.emplace_back(PieceVariant::Pawn, from, to, captured);
+    moves.push_back(Move::move(from, to, PieceVariant::Pawn, captured));
   }
 }
 
@@ -389,7 +389,7 @@ void MoveGen<PlayerColor>::generate_unchecked_bishoplike_moves(MoveContainer& mo
     for (const Bitboard from : unpinned_pieces.iterate()) {
       const Bitboard to_bitboard = Bishop::attacks(from, total_occupied) & ~cur_occupied & to_mask;
       for (const Bitboard to : to_bitboard.iterate()) {
-        moves.emplace_back(from_piece, from, to, get_opp_piece_at(to));
+        moves.push_back(Move::move(from, to, from_piece, get_opp_piece_at(to)));
       }
     }
 
@@ -398,7 +398,7 @@ void MoveGen<PlayerColor>::generate_unchecked_bishoplike_moves(MoveContainer& mo
       const Bitboard pinned_by = cur_player[PieceVariant::King].beyond(from) & pinners;
       const Bitboard to_bitboard = (cur_player[PieceVariant::King].until(pinned_by) | pinned_by) & ~from & to_mask;
       for (const Bitboard to : to_bitboard.iterate()) {
-        moves.emplace_back(from_piece, from, to, get_opp_piece_at(to));
+        moves.push_back(Move::move(from, to, from_piece, get_opp_piece_at(to)));
       }
     }
   }
@@ -420,11 +420,11 @@ void MoveGen<PlayerColor>::generate_unchecked_king_moves(MoveContainer& moves) c
   }
   if (cur_player.can_castle_kingside() && !(total_occupied & (king << 1 | king << 2)) && !is_under_attack(king << 1) &&
       !is_under_attack(king << 2) && (rook_to_mask & king << 1)) {
-    moves.emplace_back(PieceVariant::King, king, king << 2);
+    moves.push_back(Move::move(king, king << 2, PieceVariant::King));
   }
   if (cur_player.can_castle_queenside() && !(total_occupied & (king >> 1 | king >> 2 | king >> 3)) &&
       !is_under_attack(king >> 1) && !is_under_attack(king >> 2) && (rook_to_mask & king >> 1)) {
-    moves.emplace_back(PieceVariant::King, king, king >> 2);
+    moves.push_back(Move::move(king, king >> 2, PieceVariant::King));
   }
 }
 
@@ -442,7 +442,7 @@ void MoveGen<PlayerColor>::generate_unchecked_knight_moves(MoveContainer& moves)
   for (const Bitboard from : knights.iterate()) {
     const Bitboard to_bitboard = Knight::attacks(from) & ~cur_occupied & to_mask;
     for (const Bitboard to : to_bitboard.iterate()) {
-      moves.emplace_back(PieceVariant::Knight, from, to, get_opp_piece_at(to));
+      moves.push_back(Move::move(from, to, PieceVariant::Knight, get_opp_piece_at(to)));
     }
   }
 }
@@ -504,7 +504,7 @@ void MoveGen<PlayerColor>::generate_unchecked_pawn_moves(MoveContainer& moves) c
                         total_occupied ^ from ^ captured_pawn ^ board.get_en_passant()) &
           (opp_player[PieceVariant::Rook] | opp_player[PieceVariant::Queen]))
         continue;
-      moves.emplace_back(PieceVariant::Pawn, from, board.get_en_passant(), PieceVariant::Pawn);
+      moves.push_back(Move::move(from, board.get_en_passant(), PieceVariant::Pawn, PieceVariant::Pawn));
     }
   }
 }
@@ -529,7 +529,7 @@ void MoveGen<PlayerColor>::generate_unchecked_rooklike_moves(MoveContainer& move
     for (const Bitboard from : unpinned_pieces.iterate()) {
       const Bitboard to_bitboard = Rook::attacks(from, total_occupied) & ~cur_occupied & to_mask;
       for (const Bitboard to : to_bitboard.iterate()) {
-        moves.emplace_back(from_piece, from, to, get_opp_piece_at(to));
+        moves.push_back(Move::move(from, to, from_piece, get_opp_piece_at(to)));
       }
     }
 
@@ -538,7 +538,7 @@ void MoveGen<PlayerColor>::generate_unchecked_rooklike_moves(MoveContainer& move
       const Bitboard pinned_by = cur_player[PieceVariant::King].beyond(from) & pinners;
       const Bitboard to_bitboard = (cur_player[PieceVariant::King].until(pinned_by) | pinned_by) & ~from & to_mask;
       for (const Bitboard to : to_bitboard.iterate()) {
-        moves.emplace_back(from_piece, from, to, get_opp_piece_at(to));
+        moves.push_back(Move::move(from, to, from_piece, get_opp_piece_at(to)));
       }
     }
   }
@@ -558,12 +558,12 @@ void MoveGen<PlayerColor>::generate_king_single_check_evasions(MoveContainer& mo
   // Capture the attacker with a bishop that is not pinned.
   Bitboard bishop_capturers = attacker_bishop_rays & cur_player[PieceVariant::Bishop] & ~pinned_pieces;
   for (const Bitboard from : bishop_capturers.iterate()) {
-    moves.emplace_back(PieceVariant::Bishop, from, attacker, attacker_piece);
+    moves.push_back(Move::move(from, attacker, PieceVariant::Bishop, attacker_piece));
   }
   // Capture the attacker with a knight that is not pinned.
   Bitboard knight_capturers = Knight::attacks(attacker) & cur_player[PieceVariant::Knight] & ~pinned_pieces;
   for (const Bitboard from : knight_capturers.iterate()) {
-    moves.emplace_back(PieceVariant::Knight, from, attacker, attacker_piece);
+    moves.push_back(Move::move(from, attacker, PieceVariant::Knight, attacker_piece));
   }
   // Capture the attacker with a pawn that is not pinned.
   Bitboard pawn_capturers =
@@ -577,19 +577,19 @@ void MoveGen<PlayerColor>::generate_king_single_check_evasions(MoveContainer& mo
     Bitboard pawn_capturers =
         Pawn::attacks<color::flip(PlayerColor)>(capturing_square) & cur_player[PieceVariant::Pawn] & ~pinned_pieces;
     for (const Bitboard from : pawn_capturers.iterate()) {
-      moves.emplace_back(PieceVariant::Pawn, from, capturing_square, attacker_piece);
+      moves.push_back(Move::move(from, capturing_square, PieceVariant::Pawn, attacker_piece));
     }
   }
   // Capture the attacker with a queen that is not pinned.
   Bitboard queen_capturers =
       (attacker_bishop_rays | attacker_rook_rays) & cur_player[PieceVariant::Queen] & ~pinned_pieces;
   for (const Bitboard from : queen_capturers.iterate()) {
-    moves.emplace_back(PieceVariant::Queen, from, attacker, attacker_piece);
+    moves.push_back(Move::move(from, attacker, PieceVariant::Queen, attacker_piece));
   }
   // Capture the attacker with a rook that is not pinned.
   Bitboard rook_capturers = attacker_rook_rays & cur_player[PieceVariant::Rook] & ~pinned_pieces;
   for (const Bitboard from : rook_capturers.iterate()) {
-    moves.emplace_back(PieceVariant::Rook, from, attacker, attacker_piece);
+    moves.push_back(Move::move(from, attacker, PieceVariant::Rook, attacker_piece));
   }
 
   // 2. King moves to a square that is not attacked. This is the same as evading
@@ -605,12 +605,12 @@ void MoveGen<PlayerColor>::generate_king_single_check_evasions(MoveContainer& mo
       // Block with a bishop that is not pinned.
       Bitboard bishop_blockers = blocker_bishop_rays & cur_player[PieceVariant::Bishop] & ~pinned_pieces;
       for (const Bitboard from : bishop_blockers.iterate()) {
-        moves.emplace_back(PieceVariant::Bishop, from, to);
+        moves.push_back(Move::move(from, to, PieceVariant::Bishop));
       }
       // Block with a knight that is not pinned.
       Bitboard knight_blockers = Knight::attacks(to) & cur_player[PieceVariant::Knight] & ~pinned_pieces;
       for (const Bitboard from : knight_blockers.iterate()) {
-        moves.emplace_back(PieceVariant::Knight, from, to);
+        moves.push_back(Move::move(from, to, PieceVariant::Knight));
       }
       // Block with a pawn that is not pinned.
       Bitboard pawn_blockers = (PlayerColor == Color::White ? to >> 8 : to << 8);
@@ -621,18 +621,18 @@ void MoveGen<PlayerColor>::generate_king_single_check_evasions(MoveContainer& mo
       }
       pawn_blockers = pawn_blockers & cur_player[PieceVariant::Pawn] & ~pinned_pieces;
       for (const Bitboard from : pawn_blockers.iterate()) {
-        moves.emplace_back(PieceVariant::Pawn, from, to);
+        moves.push_back(Move::move(from, to, PieceVariant::Pawn));
       }
       // Block with a queen that is not pinned.
       Bitboard queen_blockers =
           (blocker_bishop_rays | blocker_rook_rays) & cur_player[PieceVariant::Queen] & ~pinned_pieces;
       for (const Bitboard from : queen_blockers.iterate()) {
-        moves.emplace_back(PieceVariant::Queen, from, to);
+        moves.push_back(Move::move(from, to, PieceVariant::Queen));
       }
       // Block with a rook that is not pinned.
       Bitboard rook_blockers = blocker_rook_rays & cur_player[PieceVariant::Rook] & ~pinned_pieces;
       for (const Bitboard from : rook_blockers.iterate()) {
-        moves.emplace_back(PieceVariant::Rook, from, to);
+        moves.push_back(Move::move(from, to, PieceVariant::Rook));
       }
     }
   }
@@ -656,7 +656,7 @@ void MoveGen<PlayerColor>::generate_king_double_check_evasions(MoveContainer& mo
     if (Rook::attacks(to, total_occupied_without_king) &
         (opp_player[PieceVariant::Rook] | opp_player[PieceVariant::Queen]))
       continue;
-    moves.emplace_back(PieceVariant::King, king, to, get_opp_piece_at(to));
+    moves.push_back(Move::move(king, to, PieceVariant::King, get_opp_piece_at(to)));
   }
 }
 

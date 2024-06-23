@@ -4,9 +4,16 @@ using namespace chess;
 
 Player::Player(Bitboard bishop, Bitboard king, Bitboard knight, Bitboard pawn, Bitboard queen, Bitboard rook,
                bool can_castle_kingside, bool can_castle_queenside)
-    : pieces{bishop, king, knight, pawn, queen, rook},
-      can_castle_kingside_{can_castle_kingside},
-      can_castle_queenside_{can_castle_queenside} {}
+    : can_castle_kingside_{can_castle_kingside}, can_castle_queenside_{can_castle_queenside} {
+  //! TODO: This is kinda ugly but necessary because the order of pieces depends on the value of PieceVariant::xxx.
+  //! How to make this less error prone? (e.g. mistyping order of pieces, or when we change PieceVariant:: values)
+  pieces[static_cast<size_t>(PieceVariant::Bishop)] = bishop;
+  pieces[static_cast<size_t>(PieceVariant::King)] = king;
+  pieces[static_cast<size_t>(PieceVariant::Knight)] = knight;
+  pieces[static_cast<size_t>(PieceVariant::Pawn)] = pawn;
+  pieces[static_cast<size_t>(PieceVariant::Queen)] = queen;
+  pieces[static_cast<size_t>(PieceVariant::Rook)] = rook;
+}
 
 Player Player::empty() {
   return Player{bitboard::EMPTY, bitboard::EMPTY, bitboard::EMPTY, bitboard::EMPTY,

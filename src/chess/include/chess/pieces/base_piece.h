@@ -7,7 +7,7 @@
 
 namespace chess {
 
-enum class PieceVariant : int8_t { Bishop = 0, King = 1, Knight = 2, Pawn = 3, Queen = 4, Rook = 5, None = 6 };
+enum class PieceVariant : uint8_t { Queen = 0, Rook = 1, Bishop = 2, Knight = 3, Pawn = 4, King = 5, None = 6 };
 
 template <typename Derived>
 class BasePiece {
