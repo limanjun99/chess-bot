@@ -3,6 +3,8 @@
 #include "pieces/bishop.h"
 #include "pieces/rook.h"
 
-u64 Queen::attacks(u64 square, u64 occupancy) {
+using namespace chess;
+
+Bitboard Queen::attacks(Bitboard square, Bitboard occupancy) {
   return Bishop::attacks(square, occupancy) | Rook::attacks(square, occupancy);
 }

@@ -4,16 +4,16 @@
 
 HistoryHeuristic::HistoryHeuristic() { clear(); }
 
-void HistoryHeuristic::add_move_success(bool is_white, u64 from, u64 to) {
-  const int from_index = bit::to_index(from);
-  const int to_index = bit::to_index(to);
+void HistoryHeuristic::add_move_success(bool is_white, chess::Bitboard from, chess::Bitboard to) {
+  const int from_index = from.to_index();
+  const int to_index = to.to_index();
   successes[is_white][from_index][to_index]++;
   totals[is_white][from_index][to_index]++;
 }
 
-void HistoryHeuristic::add_move_failure(bool is_white, u64 from, u64 to) {
-  const int from_index = bit::to_index(from);
-  const int to_index = bit::to_index(to);
+void HistoryHeuristic::add_move_failure(bool is_white, chess::Bitboard from, chess::Bitboard to) {
+  const int from_index = from.to_index();
+  const int to_index = to.to_index();
   totals[is_white][from_index][to_index]++;
 }
 
@@ -28,9 +28,9 @@ void HistoryHeuristic::clear() {
   }
 }
 
-int HistoryHeuristic::get_score(bool is_white, u64 from, u64 to) {
-  const int from_index = bit::to_index(from);
-  const int to_index = bit::to_index(to);
+int HistoryHeuristic::get_score(bool is_white, chess::Bitboard from, chess::Bitboard to) {
+  const int from_index = from.to_index();
+  const int to_index = to.to_index();
   return successes[is_white][from_index][to_index] * move_priority::history_heuristic_scale /
          (totals[is_white][from_index][to_index] + 1);
 }

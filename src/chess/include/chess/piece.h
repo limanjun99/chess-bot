@@ -8,6 +8,8 @@
 #include "pieces/queen.h"
 #include "pieces/rook.h"
 
+namespace chess {
+
 namespace piece_variant {
 // Returns the corresponding PieceVariant given the piece's character (can be lowercase / uppercase).
 constexpr PieceVariant from_char(char c);
@@ -83,3 +85,5 @@ constexpr char piece_variant::to_char(PieceVariant piece) {
       throw "Unreachable";
   }
 }
+
+}  // namespace chess

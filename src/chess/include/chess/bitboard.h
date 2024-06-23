@@ -2,146 +2,255 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
+#include <utility>
 
-using u64 = uint64_t;
+namespace chess {
 
-// Iterate through all the bits of `bitboard` as `bit` (without modifying `bitboard`).
-// The only(?) alternative to using a macro (besides repeating this code) is a function that takes in a lambda,
-// which is both uglier and slower than this.
-#define BITBOARD_ITERATE(bitboard, bit)                                                 \
-  for (u64 temp_bitboard_e7ab3d7c97fb65c3 = (bitboard), bit = (bitboard) & -(bitboard); \
-       temp_bitboard_e7ab3d7c97fb65c3 != 0;                                             \
-       temp_bitboard_e7ab3d7c97fb65c3 ^= bit, bit = temp_bitboard_e7ab3d7c97fb65c3 & -temp_bitboard_e7ab3d7c97fb65c3)
+struct Bitboard {
+public:
+  uint64_t value;
+
+  // Constructs a bitboard from algberaic notation (e.g. 'a1').
+  static Bitboard from_algebraic(std::string_view algebraic);
+
+  // Constructs a bitboard from a square index (0-63).
+  static constexpr Bitboard from_index(int index) { return Bitboard{uint64_t{1} << index}; }
+
+  // Constructs a bitboard from a (y, x) coordinate.
+  static constexpr Bitboard from_coordinate(int y, int x) { return Bitboard{uint64_t{1} << (y * 8 + x)}; }
+
+  constexpr Bitboard operator|(Bitboard bitboard) const { return Bitboard{value | bitboard.value}; }
+  constexpr Bitboard operator&(Bitboard bitboard) const { return Bitboard{value & bitboard.value}; }
+  constexpr Bitboard operator^(Bitboard bitboard) const { return Bitboard{value ^ bitboard.value}; }
+  constexpr Bitboard operator~() const { return Bitboard{~value}; }
+  constexpr Bitboard operator<<(unsigned int shift) const { return Bitboard{value << shift}; }
+  constexpr Bitboard operator>>(unsigned int shift) const { return Bitboard{value >> shift}; }
+  constexpr Bitboard& operator|=(Bitboard bitboard) {
+    value |= bitboard.value;
+    return *this;
+  }
+  constexpr Bitboard& operator&=(Bitboard bitboard) {
+    value &= bitboard.value;
+    return *this;
+  }
+  constexpr Bitboard& operator^=(Bitboard bitboard) {
+    value ^= bitboard.value;
+    return *this;
+  }
+  constexpr Bitboard& operator<<=(unsigned int shift) {
+    value <<= shift;
+    return *this;
+  }
+  constexpr Bitboard& operator>>=(unsigned int shift) {
+    value >>= shift;
+    return *this;
+  }
+  constexpr bool operator==(Bitboard bitboard) const { return value == bitboard.value; }
+  constexpr bool operator!=(Bitboard bitboard) const { return value != bitboard.value; }
+  constexpr explicit operator bool() const { return value != 0; }
+  constexpr explicit operator uint64_t() const { return value; }
+
+  // Returns a bitboard of squares from this bitboard to the `to` bitboard.
+  // Both bitboards must have exactly one bit set, and be horizontally / vertically / diagonally apart,
+  // otherwise it is undefined behavior.
+  // For example (f = `this`, t = `to`, x = returned bitboard).
+  // ........
+  // .....t..
+  // ....x...
+  // ...x....
+  // ..x.....
+  // .f......
+  // ........
+  // ........
+  Bitboard until(Bitboard to) const;
+
+  // Returns a bitboard of squares beyond the `to` bitboard, from this bitboard.
+  // Both bitboards must have exactly one bit set, and be horizontally / vertically / diagonally apart,
+  // otherwise it is undefined behavior.
+  // For example (f = `this`, t = `to`, x = returned bitboard).
+  // ......x.
+  // .....x..
+  // ....t...
+  // ........
+  // ........
+  // .f......
+  // ........
+  // ........
+  Bitboard beyond(Bitboard to) const;
+
+  // Counts the number of set bits in this bitboard.
+  constexpr int count() const { return __builtin_popcountll(value); }
+
+  // Converts this bitboard into a 8x8 binary string for visualization.
+  std::string to_string() const;
+
+  // Convert this bitboard into its algebraic notation.
+  // This bitboard must have exactly one bit set, otherwise it is undefined behavior.
+  std::string to_algebraic() const;
+
+  // Returns the (y, x) coordinate of the set bit in this bitboard.
+  // This bitboard must have exactly one bit set, otherwise it is undefined behavior.
+  constexpr std::pair<int, int> to_coordinate() const {
+    int index{to_index()};
+    return {index / 8, index % 8};
+  }
+
+  // Returns the index of the set bit in this bitboard.
+  // This bitboard must have exactly one bit set, otherwise it is undefined behavior.
+  constexpr int to_index() const { return __builtin_ctzll(value); }
+
+  // Returns the least significant bit of this bitboard.
+  constexpr Bitboard lsb() const { return Bitboard{value & -value}; }
+
+  // This generator enables ranged-based for loops over bitboards (e.g. for Bitboard::iterate).
+  // Note that Generator::end() is intentionally useless (kinda hacky), because using a More functor to check
+  // for end of generation gives more flexibility (e.g. to allow Bitboard::iterate_subset to terminate
+  // after reaching 0, instead of upon reaching 0).
+  template <typename State, typename Getter, typename Progress, typename More>
+  class Generator {
+  public:
+    static constexpr Getter getter{};
+    static constexpr Progress progress{};
+    static constexpr More more{};
+
+    class Iterator {
+    public:
+      constexpr Iterator(State& state) : state{state} {}
+      constexpr Iterator& operator++() {
+        progress(state);
+        return *this;
+      }
+      constexpr Bitboard operator*() const { return getter(state); }
+      constexpr bool operator!=(const Iterator&) const { return more(state); }
+
+    private:
+      State& state;
+    };
+
+    constexpr Generator(State state) : state{state} {}
+    constexpr Iterator begin() { return Iterator{state}; }
+    constexpr Iterator end() { return Iterator{state}; }
+
+  private:
+    State state;
+  };
+
+  // Iterates over all set bits in this bitboard.
+  // Usage: `for (const Bitboard bit : bitboard.iterate())`.
+  constexpr auto iterate() const {
+    constexpr auto getter{[](const uint64_t& state) { return Bitboard{state & -state}; }};
+    constexpr auto progress{[](uint64_t& state) { state ^= state & -state; }};
+    constexpr auto more{[](const uint64_t& state) { return state; }};
+    return Generator<uint64_t, decltype(getter), decltype(progress), decltype(more)>(value);
+  }
+
+  // Iterates over all subsets (including empty bitboard) of set bits in this bitboard.
+  // Usage: `for (const Bitboard subset : bitboard.iterate_subsets())`.
+  constexpr auto iterate_subsets() const {
+    struct State {
+      uint64_t set;
+      uint64_t current_subset;
+      bool done;
+    };
+    constexpr auto getter{[](const State& state) { return Bitboard{state.current_subset}; }};
+    constexpr auto progress{[](State& state) {
+      if (!state.current_subset) state.done = true;
+      else state.current_subset = (state.current_subset - 1) & state.set;
+    }};
+    constexpr auto more{[](const State& state) { return !state.done; }};
+    return Generator<State, decltype(getter), decltype(progress), decltype(more)>(State{value, value, false});
+  }
+};
 
 namespace bitboard {
-constexpr u64 A1 = u64(1) << 0;
-constexpr u64 B1 = u64(1) << 1;
-constexpr u64 C1 = u64(1) << 2;
-constexpr u64 D1 = u64(1) << 3;
-constexpr u64 E1 = u64(1) << 4;
-constexpr u64 F1 = u64(1) << 5;
-constexpr u64 G1 = u64(1) << 6;
-constexpr u64 H1 = u64(1) << 7;
-constexpr u64 A2 = u64(1) << 8;
-constexpr u64 B2 = u64(1) << 9;
-constexpr u64 C2 = u64(1) << 10;
-constexpr u64 D2 = u64(1) << 11;
-constexpr u64 E2 = u64(1) << 12;
-constexpr u64 F2 = u64(1) << 13;
-constexpr u64 G2 = u64(1) << 14;
-constexpr u64 H2 = u64(1) << 15;
-constexpr u64 A3 = u64(1) << 16;
-constexpr u64 B3 = u64(1) << 17;
-constexpr u64 C3 = u64(1) << 18;
-constexpr u64 D3 = u64(1) << 19;
-constexpr u64 E3 = u64(1) << 20;
-constexpr u64 F3 = u64(1) << 21;
-constexpr u64 G3 = u64(1) << 22;
-constexpr u64 H3 = u64(1) << 23;
-constexpr u64 A4 = u64(1) << 24;
-constexpr u64 B4 = u64(1) << 25;
-constexpr u64 C4 = u64(1) << 26;
-constexpr u64 D4 = u64(1) << 27;
-constexpr u64 E4 = u64(1) << 28;
-constexpr u64 F4 = u64(1) << 29;
-constexpr u64 G4 = u64(1) << 30;
-constexpr u64 H4 = u64(1) << 31;
-constexpr u64 A5 = u64(1) << 32;
-constexpr u64 B5 = u64(1) << 33;
-constexpr u64 C5 = u64(1) << 34;
-constexpr u64 D5 = u64(1) << 35;
-constexpr u64 E5 = u64(1) << 36;
-constexpr u64 F5 = u64(1) << 37;
-constexpr u64 G5 = u64(1) << 38;
-constexpr u64 H5 = u64(1) << 39;
-constexpr u64 A6 = u64(1) << 40;
-constexpr u64 B6 = u64(1) << 41;
-constexpr u64 C6 = u64(1) << 42;
-constexpr u64 D6 = u64(1) << 43;
-constexpr u64 E6 = u64(1) << 44;
-constexpr u64 F6 = u64(1) << 45;
-constexpr u64 G6 = u64(1) << 46;
-constexpr u64 H6 = u64(1) << 47;
-constexpr u64 A7 = u64(1) << 48;
-constexpr u64 B7 = u64(1) << 49;
-constexpr u64 C7 = u64(1) << 50;
-constexpr u64 D7 = u64(1) << 51;
-constexpr u64 E7 = u64(1) << 52;
-constexpr u64 F7 = u64(1) << 53;
-constexpr u64 G7 = u64(1) << 54;
-constexpr u64 H7 = u64(1) << 55;
-constexpr u64 A8 = u64(1) << 56;
-constexpr u64 B8 = u64(1) << 57;
-constexpr u64 C8 = u64(1) << 58;
-constexpr u64 D8 = u64(1) << 59;
-constexpr u64 E8 = u64(1) << 60;
-constexpr u64 F8 = u64(1) << 61;
-constexpr u64 G8 = u64(1) << 62;
-constexpr u64 H8 = u64(1) << 63;
 
-constexpr u64 RANK_1 = u64(0b11111111);
-constexpr u64 RANK_2 = RANK_1 << 8;
-constexpr u64 RANK_3 = RANK_1 << 16;
-constexpr u64 RANK_4 = RANK_1 << 24;
-constexpr u64 RANK_5 = RANK_1 << 32;
-constexpr u64 RANK_6 = RANK_1 << 40;
-constexpr u64 RANK_7 = RANK_1 << 48;
-constexpr u64 RANK_8 = RANK_1 << 56;
+constexpr Bitboard A1{Bitboard::from_index(0)};
+constexpr Bitboard B1{Bitboard::from_index(1)};
+constexpr Bitboard C1{Bitboard::from_index(2)};
+constexpr Bitboard D1{Bitboard::from_index(3)};
+constexpr Bitboard E1{Bitboard::from_index(4)};
+constexpr Bitboard F1{Bitboard::from_index(5)};
+constexpr Bitboard G1{Bitboard::from_index(6)};
+constexpr Bitboard H1{Bitboard::from_index(7)};
+constexpr Bitboard A2{Bitboard::from_index(8)};
+constexpr Bitboard B2{Bitboard::from_index(9)};
+constexpr Bitboard C2{Bitboard::from_index(10)};
+constexpr Bitboard D2{Bitboard::from_index(11)};
+constexpr Bitboard E2{Bitboard::from_index(12)};
+constexpr Bitboard F2{Bitboard::from_index(13)};
+constexpr Bitboard G2{Bitboard::from_index(14)};
+constexpr Bitboard H2{Bitboard::from_index(15)};
+constexpr Bitboard A3{Bitboard::from_index(16)};
+constexpr Bitboard B3{Bitboard::from_index(17)};
+constexpr Bitboard C3{Bitboard::from_index(18)};
+constexpr Bitboard D3{Bitboard::from_index(19)};
+constexpr Bitboard E3{Bitboard::from_index(20)};
+constexpr Bitboard F3{Bitboard::from_index(21)};
+constexpr Bitboard G3{Bitboard::from_index(22)};
+constexpr Bitboard H3{Bitboard::from_index(23)};
+constexpr Bitboard A4{Bitboard::from_index(24)};
+constexpr Bitboard B4{Bitboard::from_index(25)};
+constexpr Bitboard C4{Bitboard::from_index(26)};
+constexpr Bitboard D4{Bitboard::from_index(27)};
+constexpr Bitboard E4{Bitboard::from_index(28)};
+constexpr Bitboard F4{Bitboard::from_index(29)};
+constexpr Bitboard G4{Bitboard::from_index(30)};
+constexpr Bitboard H4{Bitboard::from_index(31)};
+constexpr Bitboard A5{Bitboard::from_index(32)};
+constexpr Bitboard B5{Bitboard::from_index(33)};
+constexpr Bitboard C5{Bitboard::from_index(34)};
+constexpr Bitboard D5{Bitboard::from_index(35)};
+constexpr Bitboard E5{Bitboard::from_index(36)};
+constexpr Bitboard F5{Bitboard::from_index(37)};
+constexpr Bitboard G5{Bitboard::from_index(38)};
+constexpr Bitboard H5{Bitboard::from_index(39)};
+constexpr Bitboard A6{Bitboard::from_index(40)};
+constexpr Bitboard B6{Bitboard::from_index(41)};
+constexpr Bitboard C6{Bitboard::from_index(42)};
+constexpr Bitboard D6{Bitboard::from_index(43)};
+constexpr Bitboard E6{Bitboard::from_index(44)};
+constexpr Bitboard F6{Bitboard::from_index(45)};
+constexpr Bitboard G6{Bitboard::from_index(46)};
+constexpr Bitboard H6{Bitboard::from_index(47)};
+constexpr Bitboard A7{Bitboard::from_index(48)};
+constexpr Bitboard B7{Bitboard::from_index(49)};
+constexpr Bitboard C7{Bitboard::from_index(50)};
+constexpr Bitboard D7{Bitboard::from_index(51)};
+constexpr Bitboard E7{Bitboard::from_index(52)};
+constexpr Bitboard F7{Bitboard::from_index(53)};
+constexpr Bitboard G7{Bitboard::from_index(54)};
+constexpr Bitboard H7{Bitboard::from_index(55)};
+constexpr Bitboard A8{Bitboard::from_index(56)};
+constexpr Bitboard B8{Bitboard::from_index(57)};
+constexpr Bitboard C8{Bitboard::from_index(58)};
+constexpr Bitboard D8{Bitboard::from_index(59)};
+constexpr Bitboard E8{Bitboard::from_index(60)};
+constexpr Bitboard F8{Bitboard::from_index(61)};
+constexpr Bitboard G8{Bitboard::from_index(62)};
+constexpr Bitboard H8{Bitboard::from_index(63)};
 
-constexpr u64 FILE_A = A1 | A2 | A3 | A4 | A5 | A6 | A7 | A8;
-constexpr u64 FILE_B = FILE_A << 1;
-constexpr u64 FILE_C = FILE_A << 2;
-constexpr u64 FILE_D = FILE_A << 3;
-constexpr u64 FILE_E = FILE_A << 4;
-constexpr u64 FILE_F = FILE_A << 5;
-constexpr u64 FILE_G = FILE_A << 6;
-constexpr u64 FILE_H = FILE_A << 7;
+constexpr Bitboard RANK_1{A1 | B1 | C1 | D1 | E1 | F1 | G1 | H1};
+constexpr Bitboard RANK_2{RANK_1 << 8};
+constexpr Bitboard RANK_3{RANK_1 << 16};
+constexpr Bitboard RANK_4{RANK_1 << 24};
+constexpr Bitboard RANK_5{RANK_1 << 32};
+constexpr Bitboard RANK_6{RANK_1 << 40};
+constexpr Bitboard RANK_7{RANK_1 << 48};
+constexpr Bitboard RANK_8{RANK_1 << 56};
 
-constexpr u64 ALL = ~u64(0);
+constexpr Bitboard FILE_A{A1 | A2 | A3 | A4 | A5 | A6 | A7 | A8};
+constexpr Bitboard FILE_B{FILE_A << 1};
+constexpr Bitboard FILE_C{FILE_A << 2};
+constexpr Bitboard FILE_D{FILE_A << 3};
+constexpr Bitboard FILE_E{FILE_A << 4};
+constexpr Bitboard FILE_F{FILE_A << 5};
+constexpr Bitboard FILE_G{FILE_A << 6};
+constexpr Bitboard FILE_H{FILE_A << 7};
 
-// Returns a bitboard of squares between the `from` and `to` squares.
-// This only makes sense for squares that are horizontally / vertically / diagonally apart, and will return 0 otherwise.
-// For example (f = `from`, t = `to`, x = returned bitboard)
-// ........
-// .....t..
-// ....x...
-// ...x....
-// ..x.....
-// .f......
-// ........
-// ........
-u64 between(u64 from, u64 to);
+constexpr Bitboard ALL{~Bitboard{0}};
+constexpr Bitboard EMPTY{Bitboard{0}};
 
-// Returns a bitboard of squares beyond the `to` square, from the `from` square.
-// This only makes sense for squares that are horizontally / vertically / diagonally apart, and will return 0 otherwise.
-// For example (f = from, t = to, x = returned bitboard)
-// ......x.
-// .....x..
-// ....t...
-// ........
-// ........
-// .f......
-// ........
-// ........
-u64 beyond(u64 from, u64 to);
-
-// Counts the number of set bits in the given bitboard.
-inline int count(u64 bitboard) { return __builtin_popcountll(bitboard); }
-
-// A utility function to convert bitboards into a 8x8 binary string for visualization.
-std::string to_string(u64 bitboard);
 }  // namespace bitboard
 
-namespace bit {
-// Given a square in algebraic notation (e.g. 'a1'), return a bitboard with that bit set.
-u64 from_algebraic(std::string_view algebraic);
-
-// Given a square, return the algebraic notation (e.g. 'a1') of it.
-std::string to_algebraic(u64 bit);
-
-// Returns the index of a single set bit.
-inline int to_index(u64 bit) { return __builtin_ctzll(bit); }
-
-// Returns the least significant bit.
-inline u64 lsb(u64 bitboard) { return bitboard & -bitboard; }
-}  // namespace bit
+}  // namespace chess

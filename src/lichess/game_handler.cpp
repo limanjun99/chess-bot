@@ -13,7 +13,7 @@ void GameHandler::listen() {
   lichess.handle_game(game_id, *this);
 }
 
-Engine::MoveInfo GameHandler::choose_move(const Board& board) {
+Engine::MoveInfo GameHandler::choose_move(const chess::Board& board) {
   // The time spent by the engine is equal to (time_left / 60 + increment),
   // and it will be bounded to within min(time_left / 2, 100ms) ~ 10s.
   // Note that for now we -800ms to account for network latency.
@@ -32,7 +32,7 @@ Engine::MoveInfo GameHandler::choose_move(const Board& board) {
 
 bool GameHandler::handle_game_initialization(const json& game) {
   is_white = game["white"]["id"] == config.get_lichess_bot_name();
-  board = Board::initial();
+  board = chess::Board::initial();
   return handle_game_update(game["state"]);
 }
 

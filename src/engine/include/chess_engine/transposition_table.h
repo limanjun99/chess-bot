@@ -22,33 +22,33 @@ enum class NodeType : int8_t {
 class CompactMove {
 public:
   CompactMove();
-  static CompactMove from_move(Move& move);
-  Move to_move() const;
+  static CompactMove from_move(chess::Move& move);
+  chess::Move to_move() const;
 
 private:
   int32_t value;
 
-  CompactMove(int from_index, int to_index, PieceVariant piece, PieceVariant captured_piece,
-              PieceVariant promotion_piece);
+  CompactMove(int from_index, int to_index, chess::PieceVariant piece, chess::PieceVariant captured_piece,
+              chess::PieceVariant promotion_piece);
   int get_from_index() const;
   int get_to_index() const;
-  PieceVariant get_piece() const;
-  PieceVariant get_captured_piece() const;
-  PieceVariant get_promotion_piece() const;
+  chess::PieceVariant get_piece() const;
+  chess::PieceVariant get_captured_piece() const;
+  chess::PieceVariant get_promotion_piece() const;
 };
 
 struct PositionInfo {
-  u64 hash;
+  uint64_t hash;
   CompactMove best_move;
   NodeType node_type;
   int8_t depth_left;
   int16_t score;
 
   PositionInfo();
-  PositionInfo(u64 hash, int depth_left, Move best_move, NodeType node_type, int16_t score);
+  PositionInfo(uint64_t hash, int depth_left, chess::Move best_move, NodeType node_type, int16_t score);
 
   // Reconstruct a Move object from the stored CompactMove object.
-  Move get_best_move() const;
+  chess::Move get_best_move() const;
 };
 
 class TranspositionTable {
@@ -56,10 +56,10 @@ public:
   TranspositionTable();
 
   // Returns a reference to the entry at the given hash.
-  const PositionInfo& get(u64 hash) const;
+  const PositionInfo& get(uint64_t hash) const;
 
   // Update the entry at the given hash.
-  void update(u64 hash, int depth_left, Move best_move, NodeType node_type, int16_t score);
+  void update(uint64_t hash, int depth_left, chess::Move best_move, NodeType node_type, int16_t score);
 
   TranspositionTable(const TranspositionTable&) = delete;
   TranspositionTable(TranspositionTable&&) = delete;

@@ -2,6 +2,8 @@
 
 #include <benchmark/benchmark.h>
 
+using namespace chess;
+
 static void board_initial_position_move_generation(benchmark::State& state) {
   Board board = Board::initial();
   for (auto _ : state) {

@@ -5,6 +5,8 @@
 
 #include "move.h"
 
+namespace chess {
+
 //! TODO: This is literally a vector.
 // A container to store moves in.
 class MoveContainer {
@@ -54,3 +56,5 @@ inline MoveContainer::~MoveContainer() {
   static_assert(std::is_trivially_destructible_v<Move>);
   free(moves);
 }
+
+}  // namespace chess

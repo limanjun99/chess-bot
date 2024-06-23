@@ -4,6 +4,8 @@
 
 #include "doctest.h"
 
+using namespace chess;
+
 TEST_SUITE("board.from_fen") {
   TEST_CASE("castling rights") {
     auto board = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0");
@@ -11,7 +13,7 @@ TEST_SUITE("board.from_fen") {
     REQUIRE(board.get_white().can_castle_queenside());
     REQUIRE(board.get_black().can_castle_kingside());
     REQUIRE(board.get_black().can_castle_queenside());
-    REQUIRE(board.get_en_passant() == 0);
+    REQUIRE(!board.get_en_passant());
   }
 
   TEST_CASE("no castling rights") {
@@ -20,7 +22,7 @@ TEST_SUITE("board.from_fen") {
     REQUIRE(!board.get_white().can_castle_queenside());
     REQUIRE(!board.get_black().can_castle_kingside());
     REQUIRE(!board.get_black().can_castle_queenside());
-    REQUIRE(board.get_en_passant() == 0);
+    REQUIRE(!board.get_en_passant());
   }
 
   TEST_CASE("en passant with castling") {

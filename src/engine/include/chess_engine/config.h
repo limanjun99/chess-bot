@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 // Configuration for the engine.
 namespace config {
 // When searching by iterative deepening, stop the search once this ratio of search time is reached.
@@ -56,7 +58,7 @@ constexpr int hash_move = 1e6;
 constexpr int capture = 4e5;
 
 // Ordered by most valuable victim, then least valuable attacker. Indexed by [victim][attacker].
-constexpr u64 mvv_lva[7][6] = {
+constexpr uint64_t mvv_lva[7][6] = {
     {33, 30, 34, 35, 31, 32},  // Bishop victim.
     {0, 0, 0, 0, 0, 0},        // King victim (just filler as king can't be captured).
     {23, 20, 24, 25, 21, 22},  // Knight victim.
@@ -66,7 +68,7 @@ constexpr u64 mvv_lva[7][6] = {
     {0, 0, 0, 0, 0, 0},        // None victim (i.e. not a capture).
 };
 
-constexpr u64 promotion = 3e5;
+constexpr uint64_t promotion = 3e5;
 constexpr int promotion_piece[6] = {2, 0, 1, 0, 4, 3};
 
 constexpr int killer = 2e5;

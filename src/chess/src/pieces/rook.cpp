@@ -2,6 +2,8 @@
 
 #include "../magic_bitboard.h"
 
+using namespace chess;
+
 // These values are hardcoded because it takes a non-neglible amount of time to generate them.
 // See tools/magic_calculator.cpp.
 MagicBitboard rook_magic{
@@ -36,4 +38,4 @@ MagicBitboard rook_magic{
      1271177184037376U,     144255929860579393U,  18647717483929857U,   9033724977221889U,    92333705699266561U,
      375487688188920898U,   725361169607034881U,  8864837800196U,       2324420908523201538U}};
 
-u64 Rook::attacks(u64 square, u64 occupancy) { return rook_magic.attacks(square, occupancy); }
+Bitboard Rook::attacks(Bitboard square, Bitboard occupancy) { return rook_magic.attacks(square, occupancy); }

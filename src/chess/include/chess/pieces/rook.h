@@ -1,10 +1,12 @@
 #include "../bitboard.h"
 #include "base_piece.h"
 
+namespace chess {
+
 class Rook : public BasePiece<Rook> {
 public:
   // Returns a bitboard of squares attacked by a rook on `square`, with pieces on `occupancy`.
-  static u64 attacks(u64 square, u64 occupancy);
+  static Bitboard attacks(Bitboard square, Bitboard occupancy);
 
 private:
   static constexpr char character{'r'};
@@ -12,3 +14,5 @@ private:
   static constexpr PieceVariant variant{PieceVariant::Rook};
   friend class BasePiece<Rook>;
 };
+
+}  // namespace chess

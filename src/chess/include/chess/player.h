@@ -3,12 +3,16 @@
 #include "bitboard.h"
 #include "piece.h"
 
+namespace chess {
+
 // Stores the bitboards for each piece, and whether the player can still castle.
 class Player {
 public:
-  Player(u64 bishop, u64 king, u64 knight, u64 pawn, u64 rook, u64 queen, bool can_castle_kingside,
-         bool can_castle_queenside);
+  Player(Bitboard bishop, Bitboard king, Bitboard knight, Bitboard pawn, Bitboard rook, Bitboard queen,
+         bool can_castle_kingside, bool can_castle_queenside);
 
+  // A player with no pieces and no castling rights.
+  static Player empty();
   // Starting state for white.
   static Player white_initial();
   // Starting state for black.
@@ -39,20 +43,20 @@ public:
   bool can_castle_queenside() const;
 
   // Returns a reference to the bitboard of the given piece.
-  u64& operator[](PieceVariant piece);
-  const u64& operator[](PieceVariant piece) const;
+  Bitboard& operator[](PieceVariant piece);
+  const Bitboard& operator[](PieceVariant piece) const;
 
   // Returns the piece at the given bit (or PieceVariant::None if no piece is there).
-  PieceVariant piece_at(u64 bit) const;
+  PieceVariant piece_at(Bitboard bit) const;
 
   // Returns the bitwise OR of all pieces.
-  u64 occupied() const;
+  Bitboard occupied() const;
 
   // Applies bitwise AND of the given mask to all pieces except the king.
-  Player& operator&=(u64 mask);
+  Player& operator&=(Bitboard mask);
 
 private:
-  u64 pieces[6];
+  Bitboard pieces[6];
   bool can_castle_kingside_;
   bool can_castle_queenside_;
 };
@@ -73,8 +77,12 @@ inline bool Player::can_castle_kingside() const { return can_castle_kingside_; }
 
 inline bool Player::can_castle_queenside() const { return can_castle_queenside_; }
 
-inline u64& Player::operator[](PieceVariant piece) { return pieces[static_cast<int>(piece)]; }
+inline Bitboard& Player::operator[](PieceVariant piece) { return pieces[static_cast<int>(piece)]; }
 
-inline const u64& Player::operator[](PieceVariant piece) const { return pieces[static_cast<int>(piece)]; }
+inline const Bitboard& Player::operator[](PieceVariant piece) const { return pieces[static_cast<int>(piece)]; }
 
-inline u64 Player::occupied() const { return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5]; }
+inline Bitboard Player::occupied() const {
+  return pieces[0] | pieces[1] | pieces[2] | pieces[3] | pieces[4] | pieces[5];
+}
+
+}  // namespace chess

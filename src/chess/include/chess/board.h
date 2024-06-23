@@ -8,9 +8,11 @@
 #include "move_container.h"
 #include "player.h"
 
+namespace chess {
+
 class Board {
 public:
-  Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn, int16_t halfmove_clock = 0);
+  Board(Player white, Player black, Bitboard en_passant_bit, bool is_white_turn, int16_t halfmove_clock = 0);
 
   // Starting board of a chess game.
   static Board initial();
@@ -48,7 +50,7 @@ public:
   bool is_in_check() const;
 
   // Check if the given square is under attack by the opponent.
-  bool is_under_attack(u64 square) const;
+  bool is_under_attack(Bitboard square) const;
 
   // Return whether it is white to move.
   inline bool is_white_to_move() const { return is_white_turn; }
@@ -67,7 +69,7 @@ public:
   const Player& get_black() const;
 
   // Returns the bitboard for the en passant bit.
-  u64 get_en_passant() const;
+  Bitboard get_en_passant() const;
 
   // Returns a 8x8 newline delimited string represenation of the board.
   std::string to_string() const;
@@ -76,7 +78,7 @@ public:
   Color get_color() const;
 
   // Returns the Zobrist hash of this board.
-  u64 get_hash() const;
+  uint64_t get_hash() const;
 
   // Returns true if the game has ended.
   bool is_game_over() const;
@@ -89,10 +91,10 @@ private:
   Player white;
   Player black;
   // The square that is currently capturable by en passant (if any).
-  u64 en_passant_bit;
+  Bitboard en_passant_bit;
   // Keeps track of board positions (using their Zobrist hash) since the last unrepeatable move.
   //! TODO: Copying all positions for each new Board has terrible performance.
-  std::vector<u64> tracked_positions;
+  std::vector<uint64_t> tracked_positions;
   // Keeps track of number of plies without capture / pawn pushes (for fifty move rule).
   int16_t halfmove_clock;
   bool is_white_turn;
@@ -100,3 +102,5 @@ private:
   // Returns true if the position is a draw based on fifty move rule / threefold repetition.
   bool is_stagnant_draw() const;
 };
+
+}  // namespace chess

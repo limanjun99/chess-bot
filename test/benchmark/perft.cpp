@@ -2,6 +2,8 @@
 
 #include "chess/board.h"
 
+using namespace chess;
+
 void search(const Board& board, size_t current_depth) {
   if (current_depth <= 0) return;
   auto moves = board.generate_moves();

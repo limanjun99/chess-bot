@@ -77,8 +77,8 @@ constexpr std::array<std::array<int, 64>, 6> middlegame_values = ([]() {
              }}}};
 
   int piece_values[6]{365, 0, 337, 82, 1025, 477};
-  for (PieceVariant piece :
-       {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
+  for (chess::PieceVariant piece : {chess::PieceVariant::Bishop, chess::PieceVariant::Knight, chess::PieceVariant::Pawn,
+                                    chess::PieceVariant::Queen, chess::PieceVariant::Rook}) {
     for (int& value : values[static_cast<int>(piece)]) value += piece_values[static_cast<int>(piece)];
   }
   return values;
@@ -157,8 +157,8 @@ constexpr std::array<std::array<int, 64>, 6> endgame_values = ([]() {
              }}}};
 
   int piece_values[6]{297, 0, 281, 94, 936, 512};
-  for (PieceVariant piece :
-       {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
+  for (chess::PieceVariant piece : {chess::PieceVariant::Bishop, chess::PieceVariant::Knight, chess::PieceVariant::Pawn,
+                                    chess::PieceVariant::Queen, chess::PieceVariant::Rook}) {
     for (int& value : values[static_cast<int>(piece)]) value += piece_values[static_cast<int>(piece)];
   }
   return values;
@@ -167,34 +167,34 @@ constexpr std::array<std::array<int, 64>, 6> endgame_values = ([]() {
 constexpr int piece_phase_value[6]{1, 0, 1, 0, 4, 2};
 constexpr int total_phase = []() {
   int value = 0;
-  value += piece_phase_value[static_cast<int>(PieceVariant::Bishop)] * 4;
-  value += piece_phase_value[static_cast<int>(PieceVariant::Knight)] * 4;
-  value += piece_phase_value[static_cast<int>(PieceVariant::Pawn)] * 16;
-  value += piece_phase_value[static_cast<int>(PieceVariant::Queen)] * 2;
-  value += piece_phase_value[static_cast<int>(PieceVariant::Rook)] * 4;
+  value += piece_phase_value[static_cast<int>(chess::PieceVariant::Bishop)] * 4;
+  value += piece_phase_value[static_cast<int>(chess::PieceVariant::Knight)] * 4;
+  value += piece_phase_value[static_cast<int>(chess::PieceVariant::Pawn)] * 16;
+  value += piece_phase_value[static_cast<int>(chess::PieceVariant::Queen)] * 2;
+  value += piece_phase_value[static_cast<int>(chess::PieceVariant::Rook)] * 4;
   return value;
 }();
 
-int pst::evaluate(const Board& board) {
+int pst::evaluate(const chess::Board& board) {
   int game_phase = total_phase;
   int middlegame_evaluation = 0;
   int endgame_evaluation = 0;
 
-  for (const PieceVariant piece :
-       {PieceVariant::Bishop, PieceVariant::Knight, PieceVariant::Pawn, PieceVariant::Queen, PieceVariant::Rook}) {
-    const u64 white_pieces = board.get_white()[piece];
-    const u64 black_pieces = board.get_black()[piece];
-    const u64 piece_index = static_cast<int>(piece);
-    game_phase -=
-        (bitboard::count(white_pieces) + bitboard::count(black_pieces)) * piece_phase_value[static_cast<int>(piece)];
-    BITBOARD_ITERATE(white_pieces, bit) {
-      const int index = bit::to_index(bit);
+  for (const chess::PieceVariant piece :
+       {chess::PieceVariant::Bishop, chess::PieceVariant::Knight, chess::PieceVariant::Pawn, chess::PieceVariant::Queen,
+        chess::PieceVariant::Rook}) {
+    const chess::Bitboard white_pieces = board.get_white()[piece];
+    const chess::Bitboard black_pieces = board.get_black()[piece];
+    const int piece_index = static_cast<int>(piece);
+    game_phase -= (white_pieces.count() + black_pieces.count()) * piece_phase_value[static_cast<int>(piece)];
+    for (const chess::Bitboard bit : white_pieces.iterate()) {
+      const int index = bit.to_index();
       // ^ 56 flips the y-coordinate (e.g. y = 1 -> y = 6).
       middlegame_evaluation += middlegame_values[piece_index][index ^ 56];
       endgame_evaluation += endgame_values[piece_index][index ^ 56];
     }
-    BITBOARD_ITERATE(black_pieces, bit) {
-      const int index = bit::to_index(bit);
+    for (const chess::Bitboard bit : black_pieces.iterate()) {
+      const int index = bit.to_index();
       middlegame_evaluation -= middlegame_values[piece_index][index];
       endgame_evaluation -= endgame_values[piece_index][index];
     }

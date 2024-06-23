@@ -23,15 +23,15 @@ private:
   const Config& config;
   const Lichess& lichess;
   const std::string& game_id;
-  bool is_white;                  // Whether the bot is playing as white.
-  int increment;                  // Amount of increment (in milliseconds) per move.
-  int time_left;                  // Amount of time left (in milliseconds) I have.
-  int ply_count;                  // Number of plys that we received from Lichess API so far.
-  Board board{Board::initial()};  // Current board of the game.
+  bool is_white;                                // Whether the bot is playing as white.
+  int increment;                                // Amount of increment (in milliseconds) per move.
+  int time_left;                                // Amount of time left (in milliseconds) I have.
+  int ply_count;                                // Number of plys that we received from Lichess API so far.
+  chess::Board board{chess::Board::initial()};  // Current board of the game.
   Engine engine{};
 
   // Find the move to make in the given position.
-  Engine::MoveInfo choose_move(const Board& board);
+  Engine::MoveInfo choose_move(const chess::Board& board);
 
   // Refer to Lichess API for shape of `game` object (type "gameFull").
   // Called once at the start of the game. Returns true if we should continue playing.

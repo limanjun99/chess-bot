@@ -5,6 +5,8 @@
 #include "chess/move.h"
 #include "doctest.h"
 
+using namespace chess;
+
 // Perft is a move generation test that checks that the number of nodes in a search tree at each depth are correct.
 // This file contains testcases taken from https://www.chessprogramming.org/Perft_Results
 

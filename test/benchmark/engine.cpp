@@ -9,6 +9,8 @@
 #include "chess/move.h"
 #include "chess_engine/engine.h"
 
+using namespace chess;
+
 static void engine_initial_position_search(benchmark::State& state) {
   Engine engine{};
   Board board = Board::initial();

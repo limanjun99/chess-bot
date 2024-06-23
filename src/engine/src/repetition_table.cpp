@@ -3,11 +3,11 @@
 #include "config.h"
 
 RepetitionTable::RepetitionTable() : size{config::repetition_table_size} {
-  keys = new u64[size];
+  keys = new uint64_t[size];
   counts = new int8_t[size];
 }
 
-void RepetitionTable::add(u64 hash) {
+void RepetitionTable::add(uint64_t hash) {
   int index = hash % size;
   while (true) {
     if (keys[index] == hash) {
@@ -23,7 +23,7 @@ void RepetitionTable::add(u64 hash) {
   }
 }
 
-bool RepetitionTable::is_draw_if_add(u64 hash) {
+bool RepetitionTable::is_draw_if_add(uint64_t hash) {
   int index = hash % size;
   while (true) {
     if (keys[index] == 0) {

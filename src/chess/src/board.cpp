@@ -5,9 +5,12 @@
 #include <random>
 #include <sstream>
 
+#include "bitboard.h"
 #include "move_gen.h"
 
-Board::Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn, int16_t halfmove_clock)
+using namespace chess;
+
+Board::Board(Player white, Player black, Bitboard en_passant_bit, bool is_white_turn, int16_t halfmove_clock)
     : white{white},
       black{black},
       en_passant_bit{en_passant_bit},
@@ -17,11 +20,11 @@ Board::Board(Player white, Player black, u64 en_passant_bit, bool is_white_turn,
   tracked_positions.push_back(get_hash());
 }
 
-Board Board::initial() { return Board(Player::white_initial(), Player::black_initial(), 0, true); }
+Board Board::initial() { return Board(Player::white_initial(), Player::black_initial(), bitboard::EMPTY, true); }
 
 Board Board::from_fen(std::string_view fen) {
-  Player white{0, 0, 0, 0, 0, 0, false, false};
-  Player black{0, 0, 0, 0, 0, 0, false, false};
+  Player white{Player::empty()};
+  Player black{Player::empty()};
 
   // Use stringstream (instead of manually parsing) for clarity,
   // as this function need not be performant.
@@ -43,7 +46,7 @@ Board Board::from_fen(std::string_view fen) {
       bool is_white_piece = std::isupper(ch);
       PieceVariant piece = piece_variant::from_char(ch);
       Player& player = is_white_piece ? white : black;
-      player[piece] |= u64(1) << (y * 8 + x);
+      player[piece] |= Bitboard::from_coordinate(y, x);
       x++;
     }
   }
@@ -64,8 +67,8 @@ Board Board::from_fen(std::string_view fen) {
 
   // En passant target square.
   fen_stream >> buffer;
-  u64 en_passant_bit = 0;
-  if (buffer[0] != '-') en_passant_bit = bit::from_algebraic(buffer);
+  Bitboard en_passant_bit{bitboard::EMPTY};
+  if (buffer[0] != '-') en_passant_bit = Bitboard::from_algebraic(buffer);
 
   // Halfmove clock.
   int16_t halfmove_clock;
@@ -81,8 +84,8 @@ Board Board::apply_move(const Move& move) const {
   Player& cur = board.cur_player();
   Player& opp = board.opp_player();
   const PieceVariant piece = move.get_piece();
-  const u64 from = move.get_from();
-  const u64 to = move.get_to();
+  const Bitboard from = move.get_from();
+  const Bitboard to = move.get_to();
 
   cur[piece] ^= from | to;
 
@@ -117,7 +120,7 @@ Board Board::apply_move(const Move& move) const {
   }
 
   // Update en passant flag.
-  board.en_passant_bit = 0;
+  board.en_passant_bit = bitboard::EMPTY;
   if (piece == PieceVariant::Pawn) {
     if (to == from << 16) {
       board.en_passant_bit = from << 8;
@@ -148,8 +151,8 @@ Board Board::apply_move(const Move& move) const {
 }
 
 Board Board::apply_uci_move(std::string_view uci_move) {
-  u64 from = bit::from_algebraic(uci_move.substr(0, 2));
-  u64 to = bit::from_algebraic(uci_move.substr(2, 2));
+  Bitboard from{Bitboard::from_algebraic(uci_move.substr(0, 2))};
+  Bitboard to{Bitboard::from_algebraic(uci_move.substr(2, 2))};
   if (uci_move.size() == 5) {
     PieceVariant promotion_piece = piece_variant::from_char(uci_move[4]);
     return apply_move(Move{from, to, promotion_piece, opp_player().piece_at(to)});
@@ -180,7 +183,7 @@ bool Board::is_a_check(const Move& move) const {
 
 bool Board::is_in_check() const { return is_under_attack(cur_player()[PieceVariant::King]); }
 
-bool Board::is_under_attack(u64 square) const { return move_gen::is_under_attack(*this, square); }
+bool Board::is_under_attack(Bitboard square) const { return move_gen::is_under_attack(*this, square); }
 
 const Player& Board::get_white() const { return white; }
 
@@ -193,17 +196,17 @@ Player& Board::opp_player() { return is_white_turn ? black : white; }
 Board Board::skip_turn() const {
   Board new_board = *this;
   new_board.is_white_turn = !new_board.is_white_turn;
-  new_board.en_passant_bit = 0;
+  new_board.en_passant_bit = bitboard::EMPTY;
   return new_board;
 }
 
-u64 Board::get_en_passant() const { return en_passant_bit; }
+Bitboard Board::get_en_passant() const { return en_passant_bit; }
 
 std::string Board::to_string() const {
   std::string s;
   for (int y = 7; y >= 0; y--) {
     for (int x = 0; x < 8; x++) {
-      u64 bit = u64(1) << (y * 8 + x);
+      Bitboard bit = Bitboard::from_coordinate(y, x);
       constexpr char piece_char[6] = {'b', 'k', 'n', 'p', 'q', 'r'};
       if (white.occupied() & bit) {
         s += piece_char[static_cast<int>(white.piece_at(bit))] - 32;
@@ -220,12 +223,12 @@ std::string Board::to_string() const {
 
 Color Board::get_color() const { return is_white_turn ? Color::White : Color::Black; }
 
-u64 Board::get_hash() const {
+uint64_t Board::get_hash() const {
   // Implementation follows https://www.chessprogramming.org/Zobrist_Hashing
   static std::mt19937_64 gen64{0};
-  static const std::array<u64, 2> color_rng{gen64(), gen64()};
-  static const std::array<std::array<std::array<u64, 64>, 6>, 2> piece_square_rng = []() {
-    std::array<std::array<std::array<u64, 64>, 6>, 2> piece_square_rng;
+  static const std::array<uint64_t, 2> color_rng{gen64(), gen64()};
+  static const std::array<std::array<std::array<uint64_t, 64>, 6>, 2> piece_square_rng = []() {
+    std::array<std::array<std::array<uint64_t, 64>, 6>, 2> piece_square_rng;
     for (auto& by_color : piece_square_rng) {
       for (auto& by_piece : by_color) {
         for (auto& by_square : by_piece) {
@@ -235,22 +238,24 @@ u64 Board::get_hash() const {
     }
     return piece_square_rng;
   }();
-  static const std::array<u64, 2> castle_kingside_rng{gen64(), gen64()};
-  static const std::array<u64, 2> castle_queenside_rng{gen64(), gen64()};
-  static const std::array<u64, 8> en_passant_file_rng{gen64(), gen64(), gen64(), gen64(),
-                                                      gen64(), gen64(), gen64(), gen64()};
+  static const std::array<uint64_t, 2> castle_kingside_rng{gen64(), gen64()};
+  static const std::array<uint64_t, 2> castle_queenside_rng{gen64(), gen64()};
+  static const std::array<uint64_t, 8> en_passant_file_rng{gen64(), gen64(), gen64(), gen64(),
+                                                           gen64(), gen64(), gen64(), gen64()};
 
-  u64 hash = color_rng[is_white_turn];
+  uint64_t hash = color_rng[is_white_turn];
   for (int is_white = 0; is_white < 2; is_white++) {
     const Player& player = is_white ? get_white() : get_black();
     if (player.can_castle_kingside()) hash ^= castle_kingside_rng[is_white];
     if (player.can_castle_queenside()) hash ^= castle_queenside_rng[is_white];
     for (int piece = 0; piece < 6; piece++) {
-      u64 bitboard = player[static_cast<PieceVariant>(piece)];
-      BITBOARD_ITERATE(bitboard, bit) { hash ^= piece_square_rng[is_white][piece][bit::to_index(bit)]; }
+      Bitboard bitboard = player[static_cast<PieceVariant>(piece)];
+      for (const Bitboard bit : bitboard.iterate()) {
+        hash ^= piece_square_rng[is_white][piece][bit.to_index()];
+      }
     }
   }
-  if (en_passant_bit) hash ^= en_passant_file_rng[bit::to_index(en_passant_bit) % 8];
+  if (en_passant_bit) hash ^= en_passant_file_rng[en_passant_bit.to_index() % 8];
   return hash;
 }
 

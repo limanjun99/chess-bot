@@ -2,6 +2,8 @@
 
 #include "../magic_bitboard.h"
 
+using namespace chess;
+
 // These values are hardcoded because it takes a non-neglible amount of time to generate them.
 // See tools/magic_calculator.cpp.
 MagicBitboard bishop_magic{
@@ -36,4 +38,4 @@ MagicBitboard bishop_magic{
      2254033230242832U,     18577906818260992U,    18702571997248U,       9296625902832722192U, 290271222859776U,
      1442278368674325521U,  297802861889397264U,   292752255194763332U,   2352154507699323140U}};
 
-u64 Bishop::attacks(u64 square, u64 occupancy) { return bishop_magic.attacks(square, occupancy); }
+Bitboard Bishop::attacks(Bitboard square, Bitboard occupancy) { return bishop_magic.attacks(square, occupancy); }

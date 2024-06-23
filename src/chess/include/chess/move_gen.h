@@ -3,6 +3,8 @@
 #include "board.h"
 #include "move_container.h"
 
+namespace chess {
+
 namespace move_gen {
 // Generate a list of all legal moves.
 MoveContainer generate_moves(const Board& board);
@@ -17,5 +19,7 @@ MoveContainer generate_quiescence_moves_and_checks(const Board& board);
 bool has_moves(const Board& board);
 
 // Check if the given square is under attack by the opponent.
-bool is_under_attack(const Board& board, u64 square);
+bool is_under_attack(const Board& board, Bitboard square);
 }  // namespace move_gen
+
+}  // namespace chess

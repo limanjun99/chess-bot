@@ -2,22 +2,20 @@
 
 #include <cstdint>
 
-#include "chess/board.h"
-
 class RepetitionTable {
 public:
   RepetitionTable();
 
   // Add the hash to the list of seen positions.
-  void add(u64 hash);
+  void add(uint64_t hash);
 
   // Check if adding the given hash leads to a draw.
-  bool is_draw_if_add(u64 hash);
+  bool is_draw_if_add(uint64_t hash);
 
   ~RepetitionTable();
 
 private:
   int size;
-  u64* keys;
+  uint64_t* keys;
   int8_t* counts;
 };
