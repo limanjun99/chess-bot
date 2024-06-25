@@ -3,13 +3,12 @@
 #include <array>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "bitboard.h"
-#include "piece.h"
+#include "chess/pieces/base_piece.h"
 
 namespace chess {
-
-class Board;
 
 // Move information is stored within 24 bits (or three uint8_t), with the following format:
 // 1st uint8_t: index of the moved from square.
@@ -34,10 +33,6 @@ public:
   static constexpr Move promotion(Bitboard from, Bitboard to, PieceVariant promotion_piece,
                                   PieceVariant captured_piece);
 
-  // Construct a promotion to the given promotion_piece that is also a capture.
-  static constexpr Move capture_promotion(Bitboard from, Bitboard to, PieceVariant promotion_piece,
-                                          PieceVariant captured_piece);
-
   // Getter for from bitboard.
   constexpr Bitboard get_from() const;
 
@@ -56,8 +51,14 @@ public:
   // Whether this move is a capture.
   constexpr bool is_capture() const;
 
+  // Whether this move is a castle.
+  constexpr bool is_castle() const;
+
   // Whether this move is a promotion.
   constexpr bool is_promotion() const;
+
+  // Whether this is a null move.
+  constexpr bool is_null() const;
 
   // Returns this move in UCI format.
   std::string to_uci() const;
@@ -134,9 +135,18 @@ constexpr PieceVariant Move::get_promotion_piece() const { return static_cast<Pi
 
 constexpr bool Move::is_capture() const { return get_captured_piece() != PieceVariant::None; }
 
+constexpr bool Move::is_castle() const {
+  if (get_piece() != PieceVariant::King) return false;
+  const Bitboard from{get_from()};
+  const Bitboard to{get_to()};
+  return static_cast<bool>(to & (from << 2 | from >> 2));
+}
+
 constexpr bool Move::is_promotion() const {
   return get_piece() == PieceVariant::Pawn && (Bitboard::from_index(to) & (bitboard::RANK_1 | bitboard::RANK_8));
 }
+
+constexpr bool Move::is_null() const { return from == 0 && to == 0 && flag == 0; }
 
 constexpr bool Move::operator==(const Move& other) const {
   return from == other.from && to == other.to && flag == other.flag;

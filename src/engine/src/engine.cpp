@@ -6,124 +6,59 @@
 #include <chrono>
 #include <vector>
 
+#include "chess/stack_repetition_tracker.h"
 #include "config.h"
 #include "evaluation.h"
 
-Engine::Engine() {}
+Engine::Engine() : current_board{chess::Board::initial()} {}
 
-Engine::MoveInfo Engine::choose_move(const chess::Board& board, std::chrono::milliseconds search_time) {
-  auto start_time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now());
-  cutoff_time =
-      start_time + std::chrono::duration_cast<std::chrono::milliseconds>(search_time * config::search_time_lowerbound);
-  search_timeout = false;
-  reset_debug();
-  history_heuristic.clear();
-  int search_depth = 0;
-  chess::MoveContainer moves = board.generate_moves();
-  std::vector<int> move_priorities;
-  move_priorities.reserve(moves.size());
-  chess::Move chosen_move{};
+Engine::Engine(const chess::Board& board) : current_board{board} {}
 
-  // Iterative deepening.
-  while (search_depth < config::max_depth) {
-    soft_reset();
-    int alpha = evaluation::min;
-    chess::Move best_move{};
-    bool finished_evaluation = true;
-    for (size_t i = 0; i < move_priorities.size(); i++) {
-      move_priorities[i] = evaluate_move_priority(moves[i], search_depth, chosen_move, board.is_white_to_move());
-    }
-    for (size_t i = 0; i < moves.size(); i++) {
-      int best_priority = move_priorities[i];
-      size_t best_index = i;
-      for (size_t j = i + 1; j < moves.size(); j++) {
-        if (move_priorities[j] > best_priority) {
-          best_priority = move_priorities[j];
-          best_index = j;
-        }
-      }
-      std::swap(moves[i], moves[best_index]);
-      std::swap(move_priorities[i], move_priorities[best_index]);
-      chess::Board new_board = board.apply_move(moves[i]);
-      int new_board_evaluation = search<true>(new_board, -evaluation::max, -alpha, search_depth);
-      if (-new_board_evaluation > alpha) {
-        alpha = -new_board_evaluation;
-        best_move = moves[i];
-      }
-      if (search_timeout) {
-        finished_evaluation = false;
-        break;
-      }
-    }
-
-    if (finished_evaluation) {
-      chosen_move = best_move;
-      debug.evaluation = alpha;
-    }
-    if (is_out_of_time()) break;
-    search_depth++;
-  }
-
-  auto end_time = std::chrono::steady_clock::now();
-  auto time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-
-  return {chosen_move, time_spent, search_depth, debug};
+void Engine::set_position(const chess::Board& board) {
+  *this = Engine{};
+  current_board = board;
+  repetition_tracker.push(current_board);
 }
 
-Engine::MoveInfo Engine::choose_move(const chess::Board& board, int depth) {
-  auto start_time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now());
-  cutoff_time = start_time + std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::years(1));
-  search_timeout = false;
-  reset_debug();
-  history_heuristic.clear();
-  int search_depth = 0;
-  chess::MoveContainer moves = board.generate_moves();
-  std::vector<int> move_priorities;
-  move_priorities.reserve(moves.size());
-  chess::Move chosen_move{};
-
-  // Iterative deepening.
-  while (search_depth <= depth) {
-    soft_reset();
-    int alpha = evaluation::min;
-    chess::Move best_move{};
-    for (size_t i = 0; i < move_priorities.size(); i++) {
-      move_priorities[i] = evaluate_move_priority(moves[i], search_depth, chosen_move, board.is_white_to_move());
-    }
-    for (size_t i = 0; i < moves.size(); i++) {
-      int best_priority = move_priorities[i];
-      size_t best_index = i;
-      for (size_t j = i + 1; j < moves.size(); j++) {
-        if (move_priorities[j] > best_priority) {
-          best_priority = move_priorities[j];
-          best_index = j;
-        }
-      }
-      std::swap(moves[i], moves[best_index]);
-      std::swap(move_priorities[i], move_priorities[best_index]);
-      chess::Board new_board = board.apply_move(moves[i]);
-      int new_board_evaluation = search<false>(new_board, -evaluation::max, -alpha, search_depth);
-      if (-new_board_evaluation > alpha) {
-        alpha = -new_board_evaluation;
-        best_move = moves[i];
-      }
-    }
-    if (search_depth == depth) {
-      chosen_move = best_move;
-      debug.evaluation = alpha;
-      break;
-    } else {
-      search_depth++;
-    }
-  }
-
-  auto end_time = std::chrono::steady_clock::now();
-  auto time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-
-  return {chosen_move, time_spent, search_depth, debug};
+void Engine::apply_move(const chess::Move& move) {
+  current_board = current_board.apply_move(move);
+  repetition_tracker.push(current_board, move);
 }
 
-void Engine::add_position(const chess::Board& board) { repetition_table.add(board.get_hash()); }
+Engine::MoveInfo Engine::choose_move(std::chrono::milliseconds search_time) {
+  const auto start_time{std::chrono::steady_clock::now()};
+  const auto cutoff_time{start_time + search_time};
+  reset_search();
+  chess::Move chosen_move{chess::Move::null()};
+  DebugInfo debug{};
+
+  int current_depth{1};
+  for (; current_depth < config::max_depth; current_depth++) {
+    const chess::Move best_move{iterative_deepening(current_depth, chosen_move, debug, cutoff_time)};
+    if (best_move.is_null()) break;
+    chosen_move = best_move;
+  }
+
+  const auto time_spent =
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time);
+  return MoveInfo{chosen_move, time_spent, current_depth - 1, debug};
+}
+
+Engine::MoveInfo Engine::choose_move(int search_depth) {
+  auto start_time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now());
+  reset_search();
+  chess::Move chosen_move{chess::Move::null()};
+  DebugInfo debug{};
+
+  for (int current_depth{1}; current_depth < search_depth; current_depth++) {
+    const chess::Move best_move{iterative_deepening(current_depth, chosen_move, debug)};
+    chosen_move = best_move;
+  }
+
+  const auto time_spent =
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time);
+  return MoveInfo{chosen_move, time_spent, search_depth, debug};
+}
 
 int Engine::evaluate_board(const chess::Board& board) { return pst::evaluate(board); }
 
@@ -174,32 +109,25 @@ int Engine::evaluate_quiescence_move_priority(const chess::Move& move) {
   return priority;
 }
 
-template <bool IsTimed>
-int Engine::search(const chess::Board& board, int alpha, int beta, int depth_left) {
+int Engine::search(const chess::Board& board, int alpha, int beta, int depth_left, DebugInfo& debug, bool& timeout_flag,
+                   time_point cutoff_time) {
   if (depth_left <= 0) {
     // Switch to quiescence search
-    return quiescence_search(board, alpha, beta, 0);
+    return quiescence_search(board, alpha, beta, 0, debug);
   }
 
   debug.normal_node_count++;
-  if constexpr (IsTimed) {
-    if (debug.normal_node_count % config::timeout_check_interval == 0 && is_out_of_time()) {
-      search_timeout = true;
-    }
-    if (search_timeout) return 0;
+  if (debug.normal_node_count % config::timeout_check_interval == 0 && std::chrono::steady_clock::now() > cutoff_time) {
+    timeout_flag = true;
+    return 0;
   }
 
-  bool is_in_check = board.is_in_check();
-  if (!board.has_moves()) {
-    if (is_in_check)
-      return evaluation::losing - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
-    else return evaluation::draw;              // Stalemate.
+  if (const auto score{board.get_score(repetition_tracker)}) {
+    if (*score == 0) return evaluation::draw;
+    else return evaluation::losing - depth_left;
   }
 
-  // Don't threefold.
-  const uint64_t board_hash = board.get_hash();
-  if (repetition_table.is_draw_if_add(board_hash)) return evaluation::draw;
-
+  const chess::Board::Hash board_hash = board.get_hash();
   NodeType node_type{NodeType::All};  // Assume all-node unless a good enough move is found.
   chess::Move best_move{};
 
@@ -239,12 +167,13 @@ int Engine::search(const chess::Board& board, int alpha, int beta, int depth_lef
   // 2. There is at least R depth left.
   // 3. Beta is not completely winning.
   // 4. Static evalution of current position is >= beta.
+  const bool is_in_check{board.is_in_check()};
   if (!is_in_check && depth_left >= config::null_move_heuristic_R + 1 && beta < evaluation::winning &&
       evaluate_board(board) >= beta) {
     debug.null_move_total++;
     chess::Board new_board = board.skip_turn();
-    int null_move_evaluation =
-        -search<IsTimed>(new_board, -beta, -beta + 1, depth_left - 1 - config::null_move_heuristic_R);
+    int null_move_evaluation = -search(new_board, -beta, -beta + 1, depth_left - 1 - config::null_move_heuristic_R,
+                                       debug, timeout_flag, cutoff_time);
     if (null_move_evaluation >= beta) {
       debug.null_move_success++;
       return beta;
@@ -291,20 +220,23 @@ int Engine::search(const chess::Board& board, int alpha, int beta, int depth_lef
     }
 
     chess::Board new_board = board.apply_move(moves[i]);
+    repetition_tracker.push(new_board, moves[i]);
     bool is_late_move =
         depth_left >= 2 && !moves[i].is_capture() && !moves[i].is_promotion() && !new_board.is_in_check();
     late_moves_count += is_late_move;
     int late_move_reduction = is_late_move && late_moves_count > 3 ? depth_left / 3 : 0;
     int new_board_evaluation;
     if (late_move_reduction) {
-      new_board_evaluation = -search<IsTimed>(new_board, -alpha - 1, -alpha, depth_left - 1 - late_move_reduction);
+      new_board_evaluation = -search(new_board, -alpha - 1, -alpha, depth_left - 1 - late_move_reduction, debug,
+                                     timeout_flag, cutoff_time);
       if (new_board_evaluation > alpha) {
         // If a late move was found to be good, we should recompute it with full depth.
-        new_board_evaluation = -search<IsTimed>(new_board, -beta, -alpha, depth_left - 1);
+        new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1, debug, timeout_flag, cutoff_time);
       }
     } else {
-      new_board_evaluation = -search<IsTimed>(new_board, -beta, -alpha, depth_left - 1);
+      new_board_evaluation = -search(new_board, -beta, -alpha, depth_left - 1, debug, timeout_flag, cutoff_time);
     }
+    repetition_tracker.pop();
 
     if (new_board_evaluation >= beta) {
       alpha = beta;
@@ -334,12 +266,12 @@ int Engine::search(const chess::Board& board, int alpha, int beta, int depth_lef
   return alpha;
 }
 
-int Engine::quiescence_search(const chess::Board& board, int alpha, int beta, int depth_left) {
+int Engine::quiescence_search(const chess::Board& board, int alpha, int beta, int depth_left, DebugInfo& debug) {
   debug.quiescence_node_count++;
-  if (!board.has_moves()) {
-    if (board.is_in_check())
-      return evaluation::losing - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
-    else return evaluation::draw;              // Stalemate.
+
+  if (const auto score{board.get_score(repetition_tracker)}) {
+    if (*score == 0) return evaluation::draw;
+    return evaluation::losing - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
   }
 
   bool is_in_check = board.is_in_check();
@@ -399,7 +331,9 @@ int Engine::quiescence_search(const chess::Board& board, int alpha, int beta, in
     }
 
     chess::Board new_board = board.apply_move(moves[i]);
-    int new_board_evaluation = -quiescence_search(new_board, -beta, -alpha, depth_left - 1);
+    repetition_tracker.push(new_board, moves[i]);
+    int new_board_evaluation = -quiescence_search(new_board, -beta, -alpha, depth_left - 1, debug);
+    repetition_tracker.pop();
     if (new_board_evaluation >= beta) return beta;
     alpha = std::max(alpha, new_board_evaluation);
   }
@@ -407,11 +341,60 @@ int Engine::quiescence_search(const chess::Board& board, int alpha, int beta, in
   return alpha;
 }
 
-void Engine::soft_reset() { killer_moves.clear(); }
+void Engine::reset_iteration() {
+  // Reset killer moves between each iteration of iterative deepening.
+  killer_moves.clear();
+}
 
-void Engine::reset_debug() { debug = {0, 0, 0, 0, 0, 0, 0, 0, 0}; }
+void Engine::reset_search() {
+  // Reset history heuristic between different boards.
+  history_heuristic.clear();
+}
 
-bool Engine::is_out_of_time() {
-  auto current_time = std::chrono::steady_clock::now();
-  return current_time >= cutoff_time;
+chess::Move Engine::iterative_deepening(int search_depth, chess::Move candidate_best_move, DebugInfo& debug,
+                                        time_point cutoff_time) {
+  reset_iteration();
+
+  chess::MoveContainer moves{current_board.generate_moves()};
+  std::vector<int> move_priorities;
+  move_priorities.reserve(moves.size());
+  for (size_t i{0}; i < move_priorities.size(); i++) {
+    move_priorities[i] =
+        evaluate_move_priority(moves[i], search_depth, candidate_best_move, current_board.is_white_to_move());
+  }
+  int alpha{evaluation::min};
+  chess::Move best_move{chess::Move::null()};
+  bool timed_out{false};
+
+  //! TODO: This should really just be a sort for clarity, since this function is not called often.
+  for (size_t i{0}; i < moves.size(); i++) {
+    // Swap the move with highest priority to index i.
+    int best_priority{move_priorities[i]};
+    size_t best_index{i};
+    for (size_t j{i + 1}; j < moves.size(); j++) {
+      if (move_priorities[j] > best_priority) {
+        best_priority = move_priorities[j];
+        best_index = j;
+      }
+    }
+    std::swap(moves[i], moves[best_index]);
+    std::swap(move_priorities[i], move_priorities[best_index]);
+
+    const chess::Board new_board{current_board.apply_move(moves[i])};
+    repetition_tracker.push(new_board, moves[i]);
+    const int new_board_evaluation{
+        search(new_board, -evaluation::max, -evaluation::min, search_depth - 1, debug, timed_out, cutoff_time)};
+    repetition_tracker.pop();
+    if (-new_board_evaluation > alpha) {
+      alpha = -new_board_evaluation;
+      best_move = moves[i];
+    }
+
+    if (timed_out) {
+      return chess::Move::null();
+    }
+  }
+
+  debug.evaluation = alpha;
+  return best_move;
 }

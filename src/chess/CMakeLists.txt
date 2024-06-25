@@ -9,7 +9,8 @@ add_library(
   src/pieces/knight.cpp
   src/pieces/rook.cpp
   src/pieces/queen.cpp
-  src/player.cpp)
+  src/player.cpp
+  src/stack_repetition_tracker.cpp)
 
 target_compile_features(chess PRIVATE cxx_std_20)
 target_include_directories(chess PRIVATE include/chess)

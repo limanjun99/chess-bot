@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "chess/stack_repetition_tracker.h"
+#include "chess/uci.h"
 #include "doctest.h"
 
 using namespace chess;
@@ -72,38 +74,49 @@ TEST_SUITE("board.get_hash") {
 
 TEST_SUITE("board.get_score") {
   TEST_CASE("draw by repetition") {
+    //! TODO: Test repetition tracker.
     auto board{Board::initial()};
-    board = board.apply_uci_move("b1c3");
-    REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("b8c6");
-    REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("c3b1");
-    REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("c6b8");
-    REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("b1c3");
-    REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("b8c6");
-    REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("c3b1");
-    REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("c6b8");
-    REQUIRE(board.get_score().value() == 0);
+    StackRepetitionTracker tracker{};
+    tracker.push(board);
+    board = board.apply_move(uci::move("b1c3", board));
+    tracker.push(board);
+    REQUIRE(!board.get_score(tracker).has_value());
+    board = board.apply_move(uci::move("b8c6", board));
+    tracker.push(board);
+    REQUIRE(!board.get_score(tracker).has_value());
+    board = board.apply_move(uci::move("c3b1", board));
+    tracker.push(board);
+    REQUIRE(!board.get_score(tracker).has_value());
+    board = board.apply_move(uci::move("c6b8", board));
+    tracker.push(board);
+    REQUIRE(!board.get_score(tracker).has_value());
+    board = board.apply_move(uci::move("b1c3", board));
+    tracker.push(board);
+    REQUIRE(!board.get_score(tracker).has_value());
+    board = board.apply_move(uci::move("b8c6", board));
+    tracker.push(board);
+    REQUIRE(!board.get_score(tracker).has_value());
+    board = board.apply_move(uci::move("c3b1", board));
+    tracker.push(board);
+    REQUIRE(!board.get_score(tracker).has_value());
+    board = board.apply_move(uci::move("c6b8", board));
+    tracker.push(board);
+    REQUIRE(board.get_score(tracker).value() == 0);
   }
 
   TEST_CASE("draw by fifty move rule") {
     auto board{Board::from_fen("8/p7/3k4/8/8/3K4/P7/8 w - - 98 0")};
     REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("d3e3");
+    board = board.apply_move(uci::move("d3e3", board));
     REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("d6e6");
+    board = board.apply_move(uci::move("d6e6", board));
     REQUIRE(board.get_score().value() == 0);
   }
 
   TEST_CASE("white wins") {
     auto board{Board::from_fen("r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4")};
     REQUIRE(!board.get_score().has_value());
-    board = board.apply_uci_move("h5f7");
+    board = board.apply_move(uci::move("h5f7", board));
     REQUIRE(board.get_score().value() == 1);
   }
 }

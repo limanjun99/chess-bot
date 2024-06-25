@@ -4,8 +4,10 @@
 #include <cctype>
 #include <random>
 #include <sstream>
+#include <type_traits>
 
 #include "bitboard.h"
+#include "constants.h"
 #include "move_gen.h"
 
 using namespace chess;
@@ -14,11 +16,8 @@ Board::Board(Player white, Player black, Bitboard en_passant_bit, bool is_white_
     : white{white},
       black{black},
       en_passant_bit{en_passant_bit},
-      tracked_positions{},
       halfmove_clock{halfmove_clock},
-      is_white_turn{is_white_turn} {
-  tracked_positions.push_back(get_hash());
-}
+      is_white_turn{is_white_turn} {}
 
 Board Board::initial() { return Board(Player::white_initial(), Player::black_initial(), bitboard::EMPTY, true); }
 
@@ -45,7 +44,7 @@ Board Board::from_fen(std::string_view fen) {
       }
       bool is_white_piece = std::isupper(ch);
       PieceVariant piece = piece_variant::from_char(ch);
-      Player& player = is_white_piece ? white : black;
+      Player &player = is_white_piece ? white : black;
       player[piece] |= Bitboard::from_coordinate(y, x);
       x++;
     }
@@ -60,7 +59,7 @@ Board Board::from_fen(std::string_view fen) {
   for (char ch : buffer) {
     if (ch == '-') continue;
     bool is_white_piece = std::isupper(ch);
-    Player& player = is_white_piece ? white : black;
+    Player &player = is_white_piece ? white : black;
     if (ch == 'K' || ch == 'k') player.enable_kingside_castling();
     else player.enable_queenside_castling();
   }
@@ -79,10 +78,10 @@ Board Board::from_fen(std::string_view fen) {
   return Board{white, black, en_passant_bit, is_white_turn, halfmove_clock};
 }
 
-Board Board::apply_move(const Move& move) const {
+Board Board::apply_move(const Move &move) const {
   Board board = *this;
-  Player& cur = board.cur_player();
-  Player& opp = board.opp_player();
+  Player &cur = board.cur_player();
+  Player &opp = board.opp_player();
   const PieceVariant piece = move.get_piece();
   const Bitboard from = move.get_from();
   const Bitboard to = move.get_to();
@@ -141,30 +140,12 @@ Board Board::apply_move(const Move& move) const {
 
   board.is_white_turn = !board.is_white_turn;
 
-  // Update tracked positions.
-  if (move.get_piece() == PieceVariant::Pawn || move.is_capture()) board.tracked_positions.clear();
-  // Only keep at most 12 positions to save memory, as threefold is unlikely with positions that occured too early.
-  if (board.tracked_positions.size() >= 12) board.tracked_positions.erase(board.tracked_positions.begin());
-  board.tracked_positions.push_back(board.get_hash());
-
   return board;
 }
 
-Board Board::apply_uci_move(std::string_view uci_move) {
-  Bitboard from{Bitboard::from_algebraic(uci_move.substr(0, 2))};
-  Bitboard to{Bitboard::from_algebraic(uci_move.substr(2, 2))};
-  if (uci_move.size() == 5) {
-    PieceVariant promotion_piece = piece_variant::from_char(uci_move[4]);
-    return apply_move(Move::promotion(from, to, promotion_piece, opp_player().piece_at(to)));
-  } else {
-    PieceVariant piece = cur_player().piece_at(from);
-    return apply_move(Move::move(from, to, piece, opp_player().piece_at(to)));
-  }
-}
+const Player &Board::cur_player() const { return is_white_turn ? white : black; }
 
-const Player& Board::cur_player() const { return is_white_turn ? white : black; }
-
-Player& Board::cur_player() { return is_white_turn ? white : black; }
+Player &Board::cur_player() { return is_white_turn ? white : black; }
 
 MoveContainer Board::generate_quiescence_moves() const { return move_gen::generate_quiescence_moves(*this); }
 
@@ -176,7 +157,7 @@ MoveContainer Board::generate_moves() const { return move_gen::generate_moves(*t
 
 bool Board::has_moves() const { return move_gen::has_moves(*this); }
 
-bool Board::is_a_check(const Move& move) const {
+bool Board::is_a_check(const Move &move) const {
   // This function is not optimized as it should only be called in non-critical code for external interaction.
   return apply_move(move).is_in_check();
 }
@@ -185,13 +166,13 @@ bool Board::is_in_check() const { return is_under_attack(cur_player()[PieceVaria
 
 bool Board::is_under_attack(Bitboard square) const { return move_gen::is_under_attack(*this, square); }
 
-const Player& Board::get_white() const { return white; }
+const Player &Board::get_white() const { return white; }
 
-const Player& Board::get_black() const { return black; }
+const Player &Board::get_black() const { return black; }
 
-const Player& Board::opp_player() const { return is_white_turn ? black : white; }
+const Player &Board::opp_player() const { return is_white_turn ? black : white; }
 
-Player& Board::opp_player() { return is_white_turn ? black : white; }
+Player &Board::opp_player() { return is_white_turn ? black : white; }
 
 Board Board::skip_turn() const {
   Board new_board = *this;
@@ -223,66 +204,34 @@ std::string Board::to_string() const {
 
 Color Board::get_color() const { return is_white_turn ? Color::White : Color::Black; }
 
-uint64_t Board::get_hash() const {
-  // Implementation follows https://www.chessprogramming.org/Zobrist_Hashing
-  static std::mt19937_64 gen64{0};
-  static const std::array<uint64_t, 2> color_rng{gen64(), gen64()};
-  static const std::array<std::array<std::array<uint64_t, 64>, 6>, 2> piece_square_rng = []() {
-    std::array<std::array<std::array<uint64_t, 64>, 6>, 2> piece_square_rng;
-    for (auto& by_color : piece_square_rng) {
-      for (auto& by_piece : by_color) {
-        for (auto& by_square : by_piece) {
-          by_square = gen64();
-        }
-      }
-    }
-    return piece_square_rng;
-  }();
-  static const std::array<uint64_t, 2> castle_kingside_rng{gen64(), gen64()};
-  static const std::array<uint64_t, 2> castle_queenside_rng{gen64(), gen64()};
-  static const std::array<uint64_t, 8> en_passant_file_rng{gen64(), gen64(), gen64(), gen64(),
-                                                           gen64(), gen64(), gen64(), gen64()};
-
-  uint64_t hash = color_rng[is_white_turn];
-  for (int is_white = 0; is_white < 2; is_white++) {
-    const Player& player = is_white ? get_white() : get_black();
-    if (player.can_castle_kingside()) hash ^= castle_kingside_rng[is_white];
-    if (player.can_castle_queenside()) hash ^= castle_queenside_rng[is_white];
-    for (int piece = 0; piece < 6; piece++) {
-      Bitboard bitboard = player[static_cast<PieceVariant>(piece)];
-      for (const Bitboard bit : bitboard.iterate()) {
-        hash ^= piece_square_rng[is_white][piece][bit.to_index()];
-      }
+Board::Hash Board::get_hash() const {
+  // This uses a polynomial rolling hash (modulo 1<<64).
+  // I have no idea if this sufficiently collision resistant, but it is faster than Zobrist hashing.
+  const uint64_t prime{888888877777777};
+  uint64_t hash{0};
+  hash += is_white_turn;
+  hash *= prime;
+  hash += static_cast<uint64_t>(en_passant_bit);
+  hash *= prime;
+  for (const Player &player : {get_white(), get_black()}) {
+    hash += player.can_castle_kingside();
+    hash *= prime;
+    hash += player.can_castle_queenside();
+    hash *= prime;
+    for (int piece{0}; piece < 6; piece++) {
+      hash += static_cast<uint64_t>(player[static_cast<PieceVariant>(piece)]);
+      hash *= prime;
     }
   }
-  if (en_passant_bit) hash ^= en_passant_file_rng[en_passant_bit.to_index() % 8];
-  return hash;
+  return Hash{hash};
 }
 
 bool Board::is_game_over() const { return get_score().has_value(); }
 
 std::optional<int32_t> Board::get_score() const {
-  if (is_stagnant_draw()) return 0;
-  if (has_moves()) return std::nullopt;  // Game not over.
-  if (!is_in_check()) return 0;          // Stalemate.
-  if (is_white_turn) return -1;          // White is checkmated.
-  else return 1;                         // Black is checkmated.
-}
-
-bool Board::is_stagnant_draw() const {
-  // Check fifty move rule.
-  if (halfmove_clock >= 100) return true;
-
-  // Check threefold.
-  if (!tracked_positions.empty()) {
-    const auto& current_position{tracked_positions.back()};
-    int32_t count{0};
-    for (const auto& position : tracked_positions) {
-      if (position != current_position) continue;
-      count++;
-      if (count >= 3) return true;
-    }
-  }
-
-  return false;
+  if (halfmove_clock >= fifty_move_rule_plies) return 0;  // Draw by fifty move rule.
+  if (has_moves()) return std::nullopt;                   // Game not over.
+  if (!is_in_check()) return 0;                           // Stalemate.
+  if (is_white_turn) return -1;                           // White is checkmated.
+  else return 1;                                          // Black is checkmated.
 }

@@ -2,6 +2,7 @@
 
 #include <cpr/cpr.h>
 
+#include "chess/uci.h"
 #include "lichess.h"
 #include "logger.h"
 
@@ -13,7 +14,7 @@ void GameHandler::listen() {
   lichess.handle_game(game_id, *this);
 }
 
-Engine::MoveInfo GameHandler::choose_move(const chess::Board& board) {
+Engine::MoveInfo GameHandler::choose_move() {
   // The time spent by the engine is equal to (time_left / 60 + increment),
   // and it will be bounded to within min(time_left / 2, 100ms) ~ 10s.
   // Note that for now we -800ms to account for network latency.
@@ -27,7 +28,7 @@ Engine::MoveInfo GameHandler::choose_move(const chess::Board& board) {
     // and to prevent the game being aborted from us idling too long.
     engine_time = 1000;
   }
-  return engine.choose_move(board, std::chrono::milliseconds{engine_time});
+  return engine.choose_move(std::chrono::milliseconds{engine_time});
 }
 
 bool GameHandler::handle_game_initialization(const json& game) {
@@ -45,7 +46,7 @@ bool GameHandler::handle_game_update(const json& state) {
 
   if (board.is_white_to_move() != is_white) return true;  // Not my turn.
 
-  Engine::MoveInfo move_info = choose_move(board);
+  Engine::MoveInfo move_info = choose_move();
   lichess.send_move(game_id, move_info.move.to_uci());
   Logger::info() << "Found move " << move_info.move.to_algebraic() << " for game " << game_id << " in "
                  << move_info.time_spent.count() << "ms (depth " << move_info.search_depth << " reached, "
@@ -68,11 +69,12 @@ void GameHandler::handle_game_end(const json& state) {
 
 void GameHandler::update_board(const std::string& moves) {
   std::istringstream moves_stream{moves};
-  std::string move;
-  for (int i = 0; moves_stream >> move; i++) {
+  std::string uci_move;
+  for (int i = 0; moves_stream >> uci_move; i++) {
     if (i < ply_count) continue;
     ply_count++;
-    board = board.apply_uci_move(move);
-    engine.add_position(board);
+    const chess::Move move{chess::uci::move(uci_move, board)};
+    engine.apply_move(move);
+    board = board.apply_move(move);
   }
 }

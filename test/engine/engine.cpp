@@ -11,14 +11,14 @@ constexpr std::chrono::milliseconds ENGINE_SEARCH_TIME{2000};
 
 chess::Move choose_move_for_fen(std::string_view fen) {
   chess::Board board = chess::Board::from_fen(fen);
-  Engine engine{};
-  return engine.choose_move(board, ENGINE_SEARCH_TIME).move;
+  Engine engine{board};
+  return engine.choose_move(ENGINE_SEARCH_TIME).move;
 }
 
 chess::Move choose_move_for_fen(std::string_view fen, int depth) {
   chess::Board board = chess::Board::from_fen(fen);
-  Engine engine{};
-  return engine.choose_move(board, depth).move;
+  Engine engine{board};
+  return engine.choose_move(depth).move;
 }
 
 TEST_SUITE("checkmate") {

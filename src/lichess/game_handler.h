@@ -31,7 +31,7 @@ private:
   Engine engine{};
 
   // Find the move to make in the given position.
-  Engine::MoveInfo choose_move(const chess::Board& board);
+  Engine::MoveInfo choose_move();
 
   // Refer to Lichess API for shape of `game` object (type "gameFull").
   // Called once at the start of the game. Returns true if we should continue playing.
