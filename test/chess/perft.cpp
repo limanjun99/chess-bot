@@ -16,8 +16,8 @@ TEST_SUITE("perft move generation") {
     if (depth + 1 >= node_count.size()) return;
     auto moves = board.generate_moves();
     REQUIRE(board.has_moves() == !moves.empty());
-    for (size_t i = 0; i < moves.size(); i++) {
-      search(node_count, board.apply_move(moves[i]), depth + 1);
+    for (const auto& move : moves) {
+      search(node_count, board.apply_move(move), depth + 1);
     }
   }
 
@@ -74,6 +74,7 @@ TEST_SUITE("perft quiescence move generation") {
   void search_quiescence(const Board& board, size_t depth, size_t max_depth) {
     if (depth >= max_depth) return;
     auto moves = board.generate_moves();
+    REQUIRE(board.has_moves() == !moves.empty());
     if (!board.is_in_check()) {
       auto captures_and_promotions = board.generate_quiescence_moves();
       auto captures_checks_and_promotions = board.generate_quiescence_moves_and_checks();
@@ -81,8 +82,7 @@ TEST_SUITE("perft quiescence move generation") {
       // Verify that correct number of quiescence moves are generated.
       unsigned int captures_and_promotions_cnt = 0;
       unsigned int captures_checks_and_promotions_cnt = 0;
-      for (size_t i = 0; i < moves.size(); i++) {
-        auto& move = moves[i];
+      for (const auto& move : moves) {
         if (move.is_capture() || move.is_promotion()) {
           captures_and_promotions_cnt++;
           captures_checks_and_promotions_cnt++;
@@ -94,8 +94,8 @@ TEST_SUITE("perft quiescence move generation") {
       REQUIRE(captures_checks_and_promotions_cnt == captures_checks_and_promotions.size());
     }
 
-    for (size_t i = 0; i < moves.size(); i++) {
-      search_quiescence(board.apply_move(moves[i]), depth + 1, max_depth);
+    for (const auto& move : moves) {
+      search_quiescence(board.apply_move(move), depth + 1, max_depth);
     }
   }
 

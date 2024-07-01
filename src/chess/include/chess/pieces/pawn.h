@@ -21,7 +21,7 @@ public:
 private:
   static constexpr char character{'p'};
   static constexpr bool slider{false};
-  static constexpr PieceVariant variant{PieceVariant::Pawn};
+  static constexpr PieceType type{PieceType::Pawn};
   friend class BasePiece<Pawn>;
 };
 
@@ -31,30 +31,30 @@ template <>
 inline Bitboard Pawn::attacks<Color::Black>(Bitboard square) {
   const Bitboard left = square >> 9;
   const Bitboard right = square >> 7;
-  return (left & ~bitboard::FILE_H) | (right & ~bitboard::FILE_A);
+  return (left & ~Bitboard::file_H) | (right & ~Bitboard::file_A);
 }
 
 template <>
 inline Bitboard Pawn::attacks<Color::White>(Bitboard square) {
   const Bitboard left = square << 7;
   const Bitboard right = square << 9;
-  return (left & ~bitboard::FILE_H) | (right & ~bitboard::FILE_A);
+  return (left & ~Bitboard::file_H) | (right & ~Bitboard::file_A);
 }
 
 template <>
 inline Bitboard Pawn::pushes<Color::Black>(Bitboard square, Bitboard occupancy) {
-  return ((((square & bitboard::RANK_7) >> 8 & ~occupancy) | square) >> 8) & ~occupancy;
+  return ((((square & Bitboard::rank_7) >> 8 & ~occupancy) | square) >> 8) & ~occupancy;
 }
 
 template <>
 inline Bitboard Pawn::pushes<Color::White>(Bitboard square, Bitboard occupancy) {
-  return ((((square & bitboard::RANK_2) << 8 & ~occupancy) | square) << 8) & ~occupancy;
+  return ((((square & Bitboard::rank_2) << 8 & ~occupancy) | square) << 8) & ~occupancy;
 }
 
 template <Color PieceColor>
 inline constexpr Bitboard Pawn::get_promotion_squares() {
-  if constexpr (PieceColor == Color::White) return bitboard::RANK_8;
-  else return bitboard::RANK_1;
+  if constexpr (PieceColor == Color::White) return Bitboard::rank_8;
+  else return Bitboard::rank_1;
 }
 
 }  // namespace chess

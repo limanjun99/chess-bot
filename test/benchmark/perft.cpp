@@ -7,8 +7,8 @@ using namespace chess;
 void search(const Board& board, size_t current_depth) {
   if (current_depth <= 0) return;
   auto moves = board.generate_moves();
-  for (size_t i = 0; i < moves.size(); i++) {
-    search(board.apply_move(moves[i]), current_depth - 1);
+  for (const auto& move : moves) {
+    search(board.apply_move(move), current_depth - 1);
   }
 }
 

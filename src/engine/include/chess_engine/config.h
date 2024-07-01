@@ -64,13 +64,13 @@ constexpr int capture = 4e5;
 // Ordered by most valuable victim, then least valuable attacker. Indexed by [victim][attacker].
 constexpr std::array<std::array<uint64_t, 6>, 7> mvv_lva = []() {
   std::array<std::array<uint64_t, 6>, 7> mvv_lva{};
-  const size_t bishop{static_cast<size_t>(chess::PieceVariant::Bishop)};
-  const size_t king{static_cast<size_t>(chess::PieceVariant::King)};
-  const size_t knight{static_cast<size_t>(chess::PieceVariant::Knight)};
-  const size_t pawn{static_cast<size_t>(chess::PieceVariant::Pawn)};
-  const size_t queen{static_cast<size_t>(chess::PieceVariant::Queen)};
-  const size_t rook{static_cast<size_t>(chess::PieceVariant::Rook)};
-  const size_t none{static_cast<size_t>(chess::PieceVariant::None)};
+  const size_t bishop{static_cast<size_t>(chess::PieceType::Bishop)};
+  const size_t king{static_cast<size_t>(chess::PieceType::King)};
+  const size_t knight{static_cast<size_t>(chess::PieceType::Knight)};
+  const size_t pawn{static_cast<size_t>(chess::PieceType::Pawn)};
+  const size_t queen{static_cast<size_t>(chess::PieceType::Queen)};
+  const size_t rook{static_cast<size_t>(chess::PieceType::Rook)};
+  const size_t none{static_cast<size_t>(chess::PieceType::None)};
   const std::array<uint64_t, 6> piece_by_value{king, queen, rook, bishop, knight, pawn};
 
   mvv_lva[king] = {0, 0, 0, 0, 0, 0};  // King victim (just filler as king can't be captured).
@@ -92,10 +92,10 @@ constexpr std::array<std::array<uint64_t, 6>, 7> mvv_lva = []() {
 constexpr uint64_t promotion = 3e5;
 constexpr std::array<int, 6> promotion_piece = []() {
   std::array<int, 6> promotion_piece{};
-  promotion_piece[static_cast<size_t>(chess::PieceVariant::Knight)] = 1;
-  promotion_piece[static_cast<size_t>(chess::PieceVariant::Bishop)] = 2;
-  promotion_piece[static_cast<size_t>(chess::PieceVariant::Rook)] = 3;
-  promotion_piece[static_cast<size_t>(chess::PieceVariant::Queen)] = 4;
+  promotion_piece[static_cast<size_t>(chess::PieceType::Knight)] = 1;
+  promotion_piece[static_cast<size_t>(chess::PieceType::Bishop)] = 2;
+  promotion_piece[static_cast<size_t>(chess::PieceType::Rook)] = 3;
+  promotion_piece[static_cast<size_t>(chess::PieceType::Queen)] = 4;
   return promotion_piece;
 }();
 

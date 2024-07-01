@@ -11,7 +11,7 @@ public:
 private:
   static constexpr char character{'k'};
   static constexpr bool slider{false};
-  static constexpr PieceVariant variant{PieceVariant::King};
+  static constexpr PieceType type{PieceType::King};
   friend class BasePiece<King>;
 };
 

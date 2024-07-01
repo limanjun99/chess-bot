@@ -183,8 +183,8 @@ int Engine::search(const chess::Board& board, int alpha, int beta, int depth_lef
   chess::MoveContainer moves = board.generate_moves();
   std::vector<int> move_priorities;
   move_priorities.reserve(moves.size());
-  for (size_t i = 0; i < moves.size(); i++) {
-    move_priorities.push_back(evaluate_move_priority(moves[i], depth_left, hash_move, board.is_white_to_move()));
+  for (const auto& move : moves) {
+    move_priorities.push_back(evaluate_move_priority(move, depth_left, hash_move, board.is_white_to_move()));
   }
 
   // Only used for futility pruning.
@@ -208,10 +208,10 @@ int Engine::search(const chess::Board& board, int alpha, int beta, int depth_lef
     // not worth it to try it out.
     if (depth_left == 1 && !is_in_check && beta <= evaluation::winning / 2 && alpha >= evaluation::losing / 2) {
       int move_value_estimate = 0;
-      if (moves[i].get_captured_piece() != chess::PieceVariant::None) {
+      if (moves[i].get_captured_piece() != chess::PieceType::None) {
         move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_captured_piece())];
       }
-      if (moves[i].get_promotion_piece() != chess::PieceVariant::None) {
+      if (moves[i].get_promotion_piece() != chess::PieceType::None) {
         move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_promotion_piece())];
       }
       if (cur_board_evaluation + move_value_estimate + config::futility_margin <= alpha) {
@@ -284,7 +284,7 @@ int Engine::quiescence_search(const chess::Board& board, int alpha, int beta, in
     // Delta pruning. If the evaluation remains below alpha after capturing a queen, then the position's true evaluation
     // is likely below alpha.
     debug.q_delta_pruning_total++;
-    if (board_evaluation + evaluation::piece[static_cast<int>(chess::PieceVariant::Queen)] +
+    if (board_evaluation + evaluation::piece[static_cast<int>(chess::PieceType::Queen)] +
             config::quiescence_search_delta_pruning_safety <
         alpha) {
       debug.q_delta_pruning_success++;
@@ -302,8 +302,8 @@ int Engine::quiescence_search(const chess::Board& board, int alpha, int beta, in
 
   std::vector<int> move_priorities;
   move_priorities.reserve(moves.size());
-  for (size_t i = 0; i < moves.size(); i++) {
-    move_priorities.push_back(evaluate_quiescence_move_priority(moves[i]));
+  for (const auto& move : moves) {
+    move_priorities.push_back(evaluate_quiescence_move_priority(move));
   }
 
   for (size_t i = 0; i < moves.size(); i++) {
@@ -358,9 +358,9 @@ chess::Move Engine::iterative_deepening(int search_depth, chess::Move candidate_
   chess::MoveContainer moves{current_board.generate_moves()};
   std::vector<int> move_priorities;
   move_priorities.reserve(moves.size());
-  for (size_t i{0}; i < move_priorities.size(); i++) {
-    move_priorities[i] =
-        evaluate_move_priority(moves[i], search_depth, candidate_best_move, current_board.is_white_to_move());
+  for (const auto& move : moves) {
+    move_priorities.push_back(
+        evaluate_move_priority(move, search_depth, candidate_best_move, current_board.is_white_to_move()));
   }
   int alpha{evaluation::min};
   chess::Move best_move{chess::Move::null()};

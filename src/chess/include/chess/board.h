@@ -11,28 +11,31 @@
 
 namespace chess {
 
+// clang-format off
 template <typename T>
 concept IsRepetitionTracker = requires(T repetition_tracker) {
-                                { repetition_tracker.is_repetition_draw() } -> std::convertible_to<bool>;
-                              };
+  { repetition_tracker.is_repetition_draw() } -> std::convertible_to<bool>;
+};
+// clang-format on
 
 class Board {
 public:
-  Board(Player white, Player black, Bitboard en_passant_bit, bool is_white_turn, int16_t halfmove_clock = 0);
+  constexpr explicit Board(Player white, Player black, Bitboard en_passant_bit, bool is_white_turn,
+                           int16_t halfmove_clock = 0);
 
   // Starting board of a chess game.
-  static Board initial();
+  static constexpr Board initial();
 
   // Construct a board from FEN.
   // https://www.chessprogramming.org/Forsyth-Edwards_Notation
   static Board from_fen(std::string_view fen);
 
   // Returns a new board that is the result of applying the given move.
-  Board apply_move(const Move &move) const;
+  constexpr Board apply_move(const Move &move) const;
 
   // Returns a reference to the current player whose turn it is.
-  const Player &cur_player() const;
-  Player &cur_player();
+  constexpr const Player &cur_player() const;
+  constexpr Player &cur_player();
 
   // Generate a list of all legal captures and promotions.
   MoveContainer generate_quiescence_moves() const;
@@ -59,26 +62,23 @@ public:
   inline bool is_white_to_move() const { return is_white_turn; }
 
   // Returns a reference to the opponent of the current player.
-  const Player &opp_player() const;
-  Player &opp_player();
+  constexpr const Player &opp_player() const;
+  constexpr Player &opp_player();
 
   // Return a new board, where the current player skipped their turn.
-  Board skip_turn() const;
+  constexpr Board skip_turn() const;
 
-  // Returns a reference to the white player.
-  const Player &get_white() const;
-
-  // Returns a reference to the black player.
-  const Player &get_black() const;
+  template <Color PlayerColor>
+  constexpr const Player &get_player() const;
 
   // Returns the bitboard for the en passant bit.
-  Bitboard get_en_passant() const;
+  constexpr Bitboard get_en_passant() const;
 
   // Returns a 8x8 newline delimited string represenation of the board.
-  std::string to_string() const;
+  constexpr std::string to_string() const;
 
   // Returns the current turn's player color.
-  Color get_color() const;
+  constexpr Color get_color() const;
 
   struct Hash {
     uint64_t hash;
@@ -91,7 +91,7 @@ public:
     static const Hash null;
   };
   // Returns a hash of this board.
-  Hash get_hash() const;
+  constexpr Hash get_hash() const;
 
   // Returns true if the game has ended.
   bool is_game_over() const;
@@ -124,7 +124,148 @@ private:
 
 // ========== IMPLEMENTATIONS ==========
 
+constexpr Board::Board(Player white, Player black, Bitboard en_passant_bit, bool is_white_turn, int16_t halfmove_clock)
+    : white{white},
+      black{black},
+      en_passant_bit{en_passant_bit},
+      halfmove_clock{halfmove_clock},
+      is_white_turn{is_white_turn} {}
+
+constexpr Board Board::initial() {
+  return Board(Player::white_initial(), Player::black_initial(), Bitboard::empty, true);
+}
+
+constexpr Board Board::apply_move(const Move &move) const {
+  Board board = *this;
+  Player &cur = board.cur_player();
+  Player &opp = board.opp_player();
+  const PieceType piece = move.get_piece();
+  const Bitboard from = move.get_from();
+  const Bitboard to = move.get_to();
+
+  cur[piece] ^= from | to;
+
+  // Update castling flag.
+  if (move.get_captured_piece() == PieceType::Rook) {
+    if (to == (is_white_turn ? Bitboard::H8 : Bitboard::H1)) opp.disable_kingside_castling();
+    if (to == (is_white_turn ? Bitboard::A8 : Bitboard::A1)) opp.disable_queenside_castling();
+  }
+  if (piece == PieceType::King) {
+    cur.disable_castling();
+  } else if (piece == PieceType::Rook) {
+    if (from == (is_white_turn ? Bitboard::H1 : Bitboard::H8)) cur.disable_kingside_castling();
+    if (from == (is_white_turn ? Bitboard::A1 : Bitboard::A8)) cur.disable_queenside_castling();
+  }
+
+  if (move.is_capture()) {
+    opp[move.get_captured_piece()] &= ~to;
+  }
+
+  // Handle castling.
+  if (piece == PieceType::King) {
+    if (to == from << 2) {  // Kingside castling.
+      cur[PieceType::Rook] ^= from << 1 | from << 3;
+    } else if (to == from >> 2) {  // Queenside castling.
+      cur[PieceType::Rook] ^= from >> 1 | from >> 4;
+    }
+  }
+
+  // Handle en passant's capture.
+  if (piece == PieceType::Pawn && to == en_passant_bit) {
+    opp[PieceType::Pawn] ^= is_white_turn ? en_passant_bit >> 8 : en_passant_bit << 8;
+  }
+
+  // Update en passant flag.
+  board.en_passant_bit = Bitboard::empty;
+  if (piece == PieceType::Pawn) {
+    if (to == from << 16) {
+      board.en_passant_bit = from << 8;
+    } else if (to == from >> 16) {
+      board.en_passant_bit = from >> 8;
+    }
+  }
+
+  // Handle promotions.
+  if (move.is_promotion()) {
+    cur[move.get_promotion_piece()] ^= to;
+    cur[PieceType::Pawn] ^= to;
+  }
+
+  // Update halfmove clock.
+  if (move.get_piece() == PieceType::Pawn || move.is_capture()) board.halfmove_clock = 0;
+  else board.halfmove_clock++;
+
+  board.is_white_turn = !board.is_white_turn;
+
+  return board;
+}
+
+constexpr const Player &Board::cur_player() const { return is_white_turn ? white : black; }
+
+constexpr Player &Board::cur_player() { return is_white_turn ? white : black; }
+
+constexpr const Player &Board::opp_player() const { return is_white_turn ? black : white; }
+
+constexpr Player &Board::opp_player() { return is_white_turn ? black : white; }
+
+constexpr Board Board::skip_turn() const {
+  Board new_board = *this;
+  new_board.is_white_turn = !new_board.is_white_turn;
+  new_board.en_passant_bit = Bitboard::empty;
+  return new_board;
+}
+
+template <Color PlayerColor>
+constexpr const Player &Board::get_player() const {
+  if constexpr (PlayerColor == Color::White) return white;
+  else return black;
+}
+
+constexpr Bitboard Board::get_en_passant() const { return en_passant_bit; }
+
+constexpr std::string Board::to_string() const {
+  std::string s;
+  for (int y{7}; y >= 0; y--) {
+    for (int x{0}; x < 8; x++) {
+      Bitboard bit{Bitboard::from_coordinate(y, x)};
+      if (white.occupied() & bit) {
+        s += piece::to_colored_char<Color::White>(white.piece_at(bit));
+      } else if (black.occupied() & bit) {
+        s += piece::to_colored_char<Color::Black>(black.piece_at(bit));
+      } else {
+        s += '.';
+      }
+    }
+    if (y) s += '\n';
+  }
+  return s;
+}
+
+constexpr Color Board::get_color() const { return is_white_turn ? Color::White : Color::Black; }
+
 constexpr Board::Hash Board::Hash::null{0};
+
+constexpr Board::Hash Board::get_hash() const {
+  // This uses a polynomial rolling hash (modulo 1<<64).
+  // I have no idea if this sufficiently collision resistant, but it is faster than Zobrist hashing.
+  const uint64_t prime{888888877777777};
+  uint64_t hash{0};
+  hash += is_white_turn;
+  hash *= prime;
+  hash += static_cast<uint64_t>(en_passant_bit);
+  hash *= prime;
+  for (const Player &player : {get_player<Color::White>(), get_player<Color::Black>()}) {
+    hash += player.can_castle_kingside();
+    hash *= prime;
+    hash += player.can_castle_queenside();
+    hash *= prime;
+    for (int piece{0}; piece < 6; piece++) {
+      hash += static_cast<uint64_t>(player[static_cast<PieceType>(piece)]);
+      hash *= prime;
+    }
+  }
+  return Hash{hash};
+}
 
 template <typename RepetitionTracker>
   requires IsRepetitionTracker<RepetitionTracker>

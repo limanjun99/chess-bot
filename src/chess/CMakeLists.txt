@@ -1,16 +1,12 @@
 add_library(
   chess
-  src/bitboard.cpp
   src/board.cpp
-  src/move.cpp
   src/move_gen.cpp
   src/pieces/bishop.cpp
   src/pieces/king.cpp
   src/pieces/knight.cpp
   src/pieces/rook.cpp
-  src/pieces/queen.cpp
-  src/player.cpp
-  src/stack_repetition_tracker.cpp)
+  src/pieces/queen.cpp)
 
 target_compile_features(chess PRIVATE cxx_std_20)
 target_include_directories(chess PRIVATE include/chess)

@@ -11,7 +11,7 @@ public:
 private:
   static constexpr char character{'r'};
   static constexpr bool slider{true};
-  static constexpr PieceVariant variant{PieceVariant::Rook};
+  static constexpr PieceType type{PieceType::Rook};
   friend class BasePiece<Rook>;
 };
 

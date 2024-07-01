@@ -7,7 +7,7 @@
 
 namespace chess {
 
-enum class PieceVariant : uint8_t { Queen = 0, Rook = 1, Bishop = 2, Knight = 3, Pawn = 4, King = 5, None = 6 };
+enum class PieceType : uint8_t { Queen = 0, Rook = 1, Bishop = 2, Knight = 3, Pawn = 4, King = 5, None = 6 };
 
 template <typename Derived>
 class BasePiece {
@@ -19,8 +19,8 @@ public:
   template <Color PieceColor>
   static constexpr char get_colored_char();
 
-  // Returns the corresponding PieceVariant of the piece.
-  static constexpr PieceVariant get_variant();
+  // Returns the corresponding PieceType of the piece.
+  static constexpr PieceType get_type();
 
   // Returns true if the piece is a sliding piece.
   static constexpr bool is_slider();
@@ -44,8 +44,8 @@ inline constexpr char BasePiece<Derived>::get_colored_char() {
 }
 
 template <typename Derived>
-inline constexpr PieceVariant BasePiece<Derived>::get_variant() {
-  return Derived::variant;
+inline constexpr PieceType BasePiece<Derived>::get_type() {
+  return Derived::type;
 }
 
 template <typename Derived>

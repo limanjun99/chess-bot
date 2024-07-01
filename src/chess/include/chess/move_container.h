@@ -1,58 +1,64 @@
 #pragma once
 
-#include <type_traits>
-#include <vector>
-
 #include "move.h"
 
 namespace chess {
 
-//! TODO: This is literally a vector.
-// A container to store moves in.
 class MoveContainer {
 public:
-  MoveContainer();
+  constexpr explicit MoveContainer();
 
   // Add a new move.
-  void push_back(Move move);
+  constexpr void push_back(Move move);
 
-  // Returns true if there are no moves in the container.
-  bool empty() const;
+  // Returns true if there are no moves.
+  constexpr bool empty() const;
 
-  // Number of moves in the container.
-  size_t size() const;
+  // Returns the number of moves.
+  constexpr size_t size() const;
 
-  // Get the move at the given index.
-  const Move& operator[](size_t index) const;
-  Move& operator[](size_t index);
+  // Returns a reference to the `index` element.
+  constexpr Move& operator[](size_t index);
 
-  ~MoveContainer();
+  // Iterator to beginning of container.
+  constexpr Move* begin();
+
+  // Iterator to end of container.
+  constexpr Move* end();
 
 private:
-  // Use malloc instead of new to avoid overhead of default constructing all Move objects.
-  // Max number of legal moves in any position is probably 218 (https://www.chessprogramming.org/Chess_Position).
-  Move* moves = static_cast<Move*>(malloc(sizeof(Move) * 218));
+  // Maximum number of legal moves in a chess position is 218.
+  // (source: https://www.chessprogramming.org/Chess_Position)
+  static constexpr size_t maximum_moves{218};
+
   size_t size_;
+  // This is intentionally an array of size 218. Even though most positions have less moves,
+  // the following optimization attempts have been benchmarked and are inferior to this implementation.
+  //
+  // 1. Use a smaller array size, and only heap allocate if there are too many moves.
+  // This performed worse even for postions that did not require heap allocation.
+  // (likely because push_back and indexing require checks to see if the index exceeds the array).
+  //
+  // 2. Use some kind of uninitialized memory on the stack (e.g. std::byte[]) to avoid
+  // initializing all 218 moves (which std::array does). The performance turned out to be identical, and
+  // the added code complexity is just not worth it.
+  std::array<Move, maximum_moves> moves;
 };
 
-inline MoveContainer::MoveContainer() : size_{0} {}
+// ========== IMPLEMENTATIONS ==========
 
-inline void MoveContainer::push_back(Move move) {
-  new (&moves[size_]) Move(move);
-  size_++;
-}
+constexpr MoveContainer::MoveContainer() : size_{0} {}
 
-inline bool MoveContainer::empty() const { return size_ == 0; }
+constexpr void MoveContainer::push_back(Move move) { moves[size_++] = move; }
 
-inline size_t MoveContainer::size() const { return size_; }
+constexpr size_t MoveContainer::size() const { return size_; }
 
-inline const Move& MoveContainer::operator[](size_t index) const { return moves[index]; }
-inline Move& MoveContainer::operator[](size_t index) { return moves[index]; }
+constexpr Move& MoveContainer::operator[](size_t index) { return moves[index]; }
 
-inline MoveContainer::~MoveContainer() {
-  // Move is trivially destructible, hence we avoid the overhead of calling the destructor on each object.
-  static_assert(std::is_trivially_destructible_v<Move>);
-  free(moves);
-}
+constexpr bool MoveContainer::empty() const { return size_ == 0; }
+
+constexpr Move* MoveContainer::begin() { return &moves[0]; }
+
+constexpr Move* MoveContainer::end() { return &moves[size_]; }
 
 }  // namespace chess
