@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    "benchmark",
+    "cpr",
+    "doctest",
+    "gtest",
+    "nlohmann-json"
+  ]
+}

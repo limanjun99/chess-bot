@@ -1,10 +1,11 @@
 #include "chess/board.h"
 
+#include <doctest/doctest.h>
+
 #include <iostream>
 
 #include "chess/stack_repetition_tracker.h"
 #include "chess/uci.h"
-#include "doctest.h"
 
 using namespace chess;
 

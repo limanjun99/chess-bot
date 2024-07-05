@@ -1,10 +1,11 @@
 #include "chess/uci.h"
 
+#include <doctest/doctest.h>
+
 #include <iostream>
 
 #include "chess/board.h"
 #include "chess/move.h"
-#include "doctest.h"
 
 using namespace chess;
 

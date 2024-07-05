@@ -1,9 +1,10 @@
+#include <doctest/doctest.h>
+
 #include <functional>
 #include <iostream>
 
 #include "chess/board.h"
 #include "chess/move.h"
-#include "doctest.h"
 
 using namespace chess;
 

@@ -1,11 +1,12 @@
 #include "chess_engine/engine.h"
 
+#include <doctest/doctest.h>
+
 #include <iostream>
 #include <string_view>
 
 #include "chess/board.h"
 #include "chess/move.h"
-#include "doctest.h"
 
 constexpr std::chrono::milliseconds ENGINE_SEARCH_TIME{2000};
 
