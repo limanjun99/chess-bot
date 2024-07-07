@@ -74,7 +74,11 @@ std::optional<std::string> Lichess::issue_challenge(const std::string& username,
                                                  {"variant", "standard"}});
     if (rate_limit_check(response)) continue;
     if (response.status_code != 200) return std::nullopt;
-    return std::optional{json::parse(response.text)["challenge"]["id"]};
+    //! TODO: I think the API has changed to return what used to be in the "challenge" field directly.
+    //! The lichess documentation is still unchanged though. Double check if the api changed.
+    const auto challenge{json::parse(response.text)};
+    if (challenge.contains("challenge")) return std::optional{challenge["challenge"]["id"]};
+    else return std::optional{challenge["id"]};
   }
   throw "Rate limited.";
 }
