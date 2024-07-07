@@ -17,9 +17,9 @@ void GameHandler::listen() {
 Engine::MoveInfo GameHandler::choose_move() {
   // The time spent by the engine is equal to (time_left / 60 + increment),
   // and it will be bounded to within min(time_left / 2, 100ms) ~ 10s.
-  // Note that for now we -800ms to account for network latency.
+  // Note that for now we -1000ms to account for network latency.
   //! TODO: Find a better way to account for network latency.
-  int engine_time = time_left / 60 + increment - 800;
+  int engine_time = time_left / 120 + increment - 1000;
   engine_time = std::min(engine_time, time_left / 2);
   engine_time = std::min(engine_time, 10'000);
   engine_time = std::max(engine_time, 100);

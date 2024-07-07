@@ -54,6 +54,16 @@ private:
   HistoryHeuristic history_heuristic;
   chess::StackRepetitionTracker repetition_tracker;
 
+  struct SearchContext {
+    DebugInfo debug;
+    bool timed_out;
+    time_point cutoff_time;
+    int root_depth;
+
+    // Returns true if the search timed out.
+    bool has_timed_out();
+  };
+
   // Evaluate the current board state, without searching any further.
   int evaluate_board(const chess::Board& board);
 
@@ -63,14 +73,16 @@ private:
   // Evaluate the priority of the given quiescence move. Higher priority moves should be searched first.
   int evaluate_quiescence_move_priority(const chess::Move& move);
 
-  // Continue traversing the search tree. Returns the evaluation of the board for the board's current player.
-  int search(const chess::Board& board, int alpha, int beta, int depth_left, DebugInfo& debug, bool& timed_out,
-             time_point cutoff_time = time_point::max());
+  // Continue traversing the search tree. Returns the evaluation and best move for the current player.
+  // If `timed_out` is true, then the search aborted midway and the results are invalid.
+  // If Move::null was returned as the best move, then it is not known what the best move is (e.g. due to null pruning).
+  std::pair<int, chess::Move> search(const chess::Board& board, int alpha, int beta, int depth_left,
+                                     SearchContext& context);
 
   // Traverse the search tree until a position with no captures or max depth is reached. Returns the evaluation of the
   // current board for the current player. Note that `depth_left` starts from 0 and decreases, so that all `depth_left`
   // in quiescence search is lower than in normal search.
-  int quiescence_search(const chess::Board& board, int alpha, int beta, int depth_left, DebugInfo& debug);
+  int quiescence_search(const chess::Board& board, int alpha, int beta, int depth_left, SearchContext& context);
 
   // Clears outdated information between each search depth in iterative deepening.
   void reset_iteration();
@@ -79,7 +91,5 @@ private:
   void reset_search();
 
   // Search at the given depth. Returns the best move if search completes before end_time, else returns Move::null().
-  // A candidate best move can help guide the search (a good choice is the best move found in the previous iteration).
-  chess::Move iterative_deepening(int search_depth, chess::Move candidate_best_move, DebugInfo& debug,
-                                  time_point end_time = time_point::max());
+  chess::Move iterative_deepening(int search_depth, SearchContext& context);
 };

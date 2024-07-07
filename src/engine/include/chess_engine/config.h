@@ -33,7 +33,7 @@ constexpr int transposition_table_size = 1 << 24;
 constexpr int repetition_table_size = 1 << 14;
 
 // Check for timeout every time this amount of nodes have been searched.
-constexpr int timeout_check_interval = 8192;
+constexpr int timeout_check_interval = 1 << 16;  // Roughly 50k.
 
 // If the expected value of a move does not raise evaluation to within this amount of the alpha, then prune it.
 constexpr int futility_margin = 500;
