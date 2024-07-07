@@ -7,6 +7,5 @@ target_link_libraries(benchmarks PRIVATE doctest::doctest)
 target_compile_features(benchmarks PRIVATE cxx_std_20)
 target_compile_options(benchmarks PRIVATE -Wall -Wextra -Wpedantic)
 
-find_package(GTest CONFIG REQUIRED)
 find_package(benchmark CONFIG REQUIRED)
 target_link_libraries(benchmarks PRIVATE benchmark::benchmark)
