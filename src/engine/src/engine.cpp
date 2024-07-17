@@ -16,7 +16,11 @@ Engine::Engine() : current_board{chess::Board::initial()} {}
 Engine::Engine(const chess::Board& board) : current_board{board} {}
 
 void Engine::set_position(const chess::Board& board) {
-  *this = Engine{};
+  // Reset all cached data.
+  killer_moves = KillerMoves{};
+  transposition_table = TranspositionTable{};
+  history_heuristic = HistoryHeuristic{};
+  repetition_tracker = chess::StackRepetitionTracker{};
   current_board = board;
   repetition_tracker.push(current_board);
 }
@@ -27,11 +31,12 @@ void Engine::apply_move(const chess::Move& move) {
 }
 
 Engine::MoveInfo Engine::choose_move(std::chrono::milliseconds search_time) {
+  const std::scoped_lock search_lock{search_mutex};
   const auto start_time{std::chrono::steady_clock::now()};
   const auto cutoff_time{start_time + search_time};
   reset_search();
   chess::Move chosen_move{chess::Move::null()};
-  SearchContext context{DebugInfo{}, false, time_point::max(), 1};
+  SearchContext context{DebugInfo{}, false, time_point::max(), 1, std::nullopt};
 
   int current_depth{1};
   for (; current_depth < config::max_depth; current_depth++) {
@@ -47,10 +52,11 @@ Engine::MoveInfo Engine::choose_move(std::chrono::milliseconds search_time) {
 }
 
 Engine::MoveInfo Engine::choose_move(int search_depth) {
+  const std::scoped_lock search_lock{search_mutex};
   const auto start_time{std::chrono::steady_clock::now()};
   reset_search();
   chess::Move chosen_move{chess::Move::null()};
-  SearchContext context{DebugInfo{}, false, time_point::max(), 1};
+  SearchContext context{DebugInfo{}, false, time_point::max(), 1, std::nullopt};
 
   for (int current_depth{1}; current_depth <= search_depth; current_depth++) {
     const chess::Move best_move{iterative_deepening(current_depth, context)};
@@ -60,6 +66,46 @@ Engine::MoveInfo Engine::choose_move(int search_depth) {
   const auto time_spent =
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time);
   return MoveInfo{chosen_move, time_spent, search_depth, context.debug};
+}
+
+std::shared_ptr<Engine::SearchControl> Engine::cancellable_search(engine::uci::SearchConfig config) {
+  //! TODO: support time controls (wtime, btime, winc, binc).
+  //! TODO: support nodes <x>
+  //! TODO: support infinite
+  //! TODO: support searchmoves
+  const auto control{std::make_shared<Engine::SearchControl>()};
+  const auto search{[this](std::shared_ptr<Engine::SearchControl> control, engine::uci::SearchConfig config) {
+    const std::scoped_lock search_lock{search_mutex};
+    const auto start_time{std::chrono::steady_clock::now()};
+
+    //! TODO: What is a good way to get an accurate safety_margin that minimizes lost time?
+    const auto safety_margin{[](const auto& movetime) { return movetime - std::chrono::milliseconds{100}; }};
+    const auto add_to_start_time{[&start_time](const auto& movetime) { return start_time + movetime; }};
+    const auto cutoff_time{config.movetime.transform(safety_margin)
+                               .transform(add_to_start_time)
+                               .value_or(std::chrono::steady_clock::time_point::max())};
+
+    SearchContext context{DebugInfo{}, false, cutoff_time, 1, control.get()};
+    chess::Move chosen_move{[this]() {
+      auto moves{current_board.generate_moves()};
+      if (moves.empty()) return chess::Move::null();
+      return moves[0];
+    }()};
+    const int32_t search_depth{config.depth.value_or(config::max_depth)};
+    reset_search();
+
+    int32_t current_depth{1};
+    for (; current_depth <= search_depth; current_depth++) {
+      const chess::Move best_move{iterative_deepening(current_depth, context)};
+      if (best_move.is_null()) break;
+      chosen_move = best_move;
+    }
+
+    control->set_move(chosen_move);
+  }};
+
+  control->run(std::thread{search, control, std::move(config)});
+  return control;
 }
 
 int Engine::evaluate_board(const chess::Board& board) { return pst::evaluate(board); }
@@ -119,7 +165,7 @@ std::pair<int, chess::Move> Engine::search(const chess::Board& board, int alpha,
   }
 
   context.debug.normal_node_count++;
-  if (context.has_timed_out()) {
+  if (context.should_stop()) {
     return {0, chess::Move::null()};
   }
 
@@ -252,7 +298,7 @@ std::pair<int, chess::Move> Engine::search(const chess::Board& board, int alpha,
 
 int Engine::quiescence_search(const chess::Board& board, int alpha, int beta, int depth_left, SearchContext& context) {
   context.debug.quiescence_node_count++;
-  if (context.has_timed_out()) return 0;
+  if (context.should_stop()) return 0;
 
   if (const auto score{board.get_score(repetition_tracker)}) {
     if (*score == 0) return evaluation::draw;
@@ -339,20 +385,55 @@ chess::Move Engine::iterative_deepening(int search_depth, SearchContext& context
   reset_iteration();
   context.root_depth = search_depth;
   const auto [evaluation, best_move] = search(current_board, evaluation::min, evaluation::max, search_depth, context);
-  if (context.has_timed_out()) return chess::Move::null();
+  if (context.should_stop()) return chess::Move::null();
   context.debug.evaluation = evaluation;
   return best_move;
 }
 
-bool Engine::SearchContext::has_timed_out() {
-  if (timed_out) return true;
+bool Engine::SearchContext::should_stop() {
+  if (stopped) return true;
 
   const int visited_nodes_count{debug.normal_node_count + debug.quiescence_node_count};
 
-  // Only check timeout every config::timeout_check_interval nodes visited to reduce overhead of getting current time.
+  // Only check timeout and control every config::timeout_check_interval nodes visited,
+  // to reduce overhead of getting current time and reading an atomic.
   if (visited_nodes_count % config::timeout_check_interval) return false;
-  if (std::chrono::steady_clock::now() < cutoff_time) return false;
 
-  timed_out = true;
-  return true;
+  const bool timed_out{std::chrono::steady_clock::now() >= cutoff_time};
+  const bool control_stopped{control && (*control)->is_stopped()};
+  if (timed_out || control_stopped) stopped = true;
+
+  return stopped;
+}
+
+Engine::SearchControl::SearchControl() : stopped{false}, done{false}, best_move{chess::Move::null()} {}
+
+bool Engine::SearchControl::is_stopped() const { return stopped.load(std::memory_order::acquire); }
+
+void Engine::SearchControl::stop() { stopped.store(true, std::memory_order::release); }
+
+void Engine::SearchControl::wait_for_done() const { done.wait(false, std::memory_order_acquire); }
+
+void Engine::SearchControl::set_move(chess::Move move) {
+  best_move = move;
+  done.store(true, std::memory_order::release);
+  done.notify_all();
+}
+
+void Engine::SearchControl::run(std::thread thread) { search_thread = std::move(thread); }
+
+std::optional<chess::Move> Engine::SearchControl::try_get_move() const {
+  if (done.load(std::memory_order::acquire)) {
+    return std::make_optional(best_move);
+  }
+  return std::nullopt;
+}
+
+chess::Move Engine::SearchControl::wait_and_get_move() const {
+  wait_for_done();
+  return best_move;
+}
+
+Engine::SearchControl::~SearchControl() {
+  if (search_thread.joinable()) search_thread.join();
 }

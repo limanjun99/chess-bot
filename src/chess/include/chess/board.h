@@ -112,6 +112,9 @@ public:
     requires IsRepetitionTracker<RepetitionTracker>
   std::optional<int32_t> get_score(const RepetitionTracker &repetition_tracker) const;
 
+  // Two boards are equal if they have the same position and flags.
+  constexpr bool operator==(const Board &other) const;
+
 private:
   Player white;
   Player black;
@@ -278,6 +281,11 @@ template <typename RepetitionTracker>
 std::optional<int32_t> Board::get_score(const RepetitionTracker &repetition_tracker) const {
   if (repetition_tracker.is_repetition_draw()) return 0;
   return get_score();
+}
+
+constexpr bool Board::operator==(const Board &other) const {
+  return white == other.white && black == other.black && en_passant_bit == other.en_passant_bit &&
+         halfmove_clock == other.halfmove_clock && is_white_turn == other.is_white_turn;
 }
 
 }  // namespace chess

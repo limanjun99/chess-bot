@@ -148,6 +148,7 @@ constexpr bool Move::is_promotion() const {
 constexpr bool Move::is_null() const { return from == 0 && to == 0 && flag == 0; }
 
 constexpr std::string Move::to_uci() const {
+  if (is_null()) return "0000";
   std::string uci{get_from().to_algebraic() + get_to().to_algebraic()};
   if (is_promotion()) uci += piece::to_char(get_promotion_piece());
   return uci;

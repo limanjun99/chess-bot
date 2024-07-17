@@ -58,6 +58,14 @@ public:
   // Applies bitwise AND of the given mask to all pieces except the king.
   constexpr Player& operator&=(Bitboard mask);
 
+  // Two players are equal if their pieces are in the same places, and have the same castling flags.
+  constexpr bool operator==(const Player& other) const {
+    for (size_t i{0}; i < pieces.size(); i++) {
+      if (pieces[i] != other.pieces[i]) return false;
+    }
+    return can_castle_kingside_ == other.can_castle_kingside_ && can_castle_queenside_ == other.can_castle_queenside_;
+  }
+
 private:
   std::array<Bitboard, 6> pieces;
   bool can_castle_kingside_;

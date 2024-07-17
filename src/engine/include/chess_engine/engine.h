@@ -1,6 +1,11 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <thread>
 
 #include "chess/board.h"
 #include "chess/move.h"
@@ -9,6 +14,7 @@
 #include "history_heuristic.h"
 #include "killer_moves.h"
 #include "transposition_table.h"
+#include "uci.h"
 
 class Engine {
 public:
@@ -47,21 +53,26 @@ public:
   // Choose a move to make for the current player of the given board, searching at the given depth.
   MoveInfo choose_move(int search_depth);
 
+  class SearchControl;
+  std::shared_ptr<SearchControl> cancellable_search(engine::uci::SearchConfig config);
+
 private:
   chess::Board current_board;
   KillerMoves killer_moves;
   TranspositionTable transposition_table;
   HistoryHeuristic history_heuristic;
   chess::StackRepetitionTracker repetition_tracker;
+  std::mutex search_mutex;  // Only one search can run at anytime.
 
   struct SearchContext {
     DebugInfo debug;
-    bool timed_out;
+    bool stopped;
     time_point cutoff_time;
     int root_depth;
+    std::optional<SearchControl*> control;
 
-    // Returns true if the search timed out.
-    bool has_timed_out();
+    // Returns true if the search should stop as soon as possible.
+    bool should_stop();
   };
 
   // Evaluate the current board state, without searching any further.
@@ -92,4 +103,50 @@ private:
 
   // Search at the given depth. Returns the best move if search completes before end_time, else returns Move::null().
   chess::Move iterative_deepening(int search_depth, SearchContext& context);
+};
+
+// A threadsafe interface for interacting with a cancellable search.
+class Engine::SearchControl {
+public:
+  explicit SearchControl();
+
+  // Check if the engine should stop searching.
+  [[nodiscard]] bool is_stopped() const;
+
+  // Tells the engine to stop searching as soon as possible.
+  void stop();
+
+  // Waits for the engine to finish searching and store the best move.
+  void wait_for_done() const;
+
+  // Sets the best move found, and signals that the search is done.
+  //! TODO: This should be called exactly once by the Engine. It should also not be a public function available to
+  //! external code. Calling it more than once will result in UB due to concurrent rw to `best_move`.
+  void set_move(chess::Move move);
+
+  // Moves the given thread into this search_thread.
+  //! TODO: This should not be a public function available to external code.
+  void run(std::thread thread);
+
+  // Returns the best move found, or std::nullopt if the search is not finished yet.
+  // This is guaranteed to return a value if `wait_for_done` has been called before this.
+  [[nodiscard]] std::optional<chess::Move> try_get_move() const;
+
+  // Waits until the search is done and returns the best move.
+  [[nodiscard]] chess::Move wait_and_get_move() const;
+
+  SearchControl(const SearchControl&) = delete;
+  SearchControl(SearchControl&&) = delete;
+  SearchControl& operator=(const SearchControl&) = delete;
+  SearchControl& operator=(SearchControl&&) = delete;
+  ~SearchControl();
+
+private:
+  std::atomic<bool> stopped;
+  std::atomic<bool> done;
+  std::thread search_thread;
+  // The variable `done` starts as false, and will be set to true with memory_order::release after a write to
+  // `best_move`. Hence, all reads to `best_move` should be preceeded by a true load of `done` with
+  // memory_order::acquire, to ensure no concurrent access.
+  chess::Move best_move;
 };
