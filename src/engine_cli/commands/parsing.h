@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cctype>
 #include <optional>
 #include <ranges>
