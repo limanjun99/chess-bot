@@ -32,9 +32,6 @@ constexpr int transposition_table_size = 1 << 24;
 // Size of repetition table. Roughly 16k, which is sufficient for longest possible chess game.
 constexpr int repetition_table_size = 1 << 14;
 
-// Check for timeout every time this amount of nodes have been searched.
-constexpr int timeout_check_interval = 1 << 16;  // Roughly 50k.
-
 // If the expected value of a move does not raise evaluation to within this amount of the alpha, then prune it.
 constexpr int futility_margin = 500;
 }  // namespace config

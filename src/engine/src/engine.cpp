@@ -4,8 +4,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <span>
 #include <vector>
 
+#include "chess/board.h"
 #include "chess/move.h"
 #include "chess/stack_repetition_tracker.h"
 #include "config.h"
@@ -15,13 +17,23 @@ Engine::Engine() : current_board{chess::Board::initial()} {}
 
 Engine::Engine(const chess::Board& board) : current_board{board} {}
 
-void Engine::set_position(const chess::Board& board) {
+void Engine::set_position(const chess::Board& board, std::span<chess::Move const> moves) {
+  repetition_tracker = chess::StackRepetitionTracker{};
+  current_board = board;
+  repetition_tracker.push(current_board);
+  for (const auto& move : moves) {
+    current_board = current_board.apply_move(move);
+    repetition_tracker.push(current_board);
+  }
+}
+
+void Engine::reset() {
   // Reset all cached data.
   killer_moves = KillerMoves{};
   transposition_table = TranspositionTable{};
   history_heuristic = HistoryHeuristic{};
   repetition_tracker = chess::StackRepetitionTracker{};
-  current_board = board;
+  current_board = chess::Board::initial();
   repetition_tracker.push(current_board);
 }
 
@@ -36,7 +48,7 @@ Engine::MoveInfo Engine::choose_move(std::chrono::milliseconds search_time) {
   const auto cutoff_time{start_time + search_time};
   reset_search();
   chess::Move chosen_move{chess::Move::null()};
-  SearchContext context{DebugInfo{}, false, time_point::max(), 1, std::nullopt};
+  SearchContext context{time_point::max(), nullptr};
 
   int current_depth{1};
   for (; current_depth < config::max_depth; current_depth++) {
@@ -56,7 +68,7 @@ Engine::MoveInfo Engine::choose_move(int search_depth) {
   const auto start_time{std::chrono::steady_clock::now()};
   reset_search();
   chess::Move chosen_move{chess::Move::null()};
-  SearchContext context{DebugInfo{}, false, time_point::max(), 1, std::nullopt};
+  SearchContext context{time_point::max(), nullptr};
 
   for (int current_depth{1}; current_depth <= search_depth; current_depth++) {
     const chess::Move best_move{iterative_deepening(current_depth, context)};
@@ -78,14 +90,13 @@ std::shared_ptr<Engine::SearchControl> Engine::cancellable_search(engine::uci::S
     const std::scoped_lock search_lock{search_mutex};
     const auto start_time{std::chrono::steady_clock::now()};
 
-    //! TODO: What is a good way to get an accurate safety_margin that minimizes lost time?
-    const auto safety_margin{[](const auto& movetime) { return movetime - std::chrono::milliseconds{100}; }};
+    const auto safety_margin{[](const auto& movetime) { return movetime - std::chrono::milliseconds{2}; }};
     const auto add_to_start_time{[&start_time](const auto& movetime) { return start_time + movetime; }};
     const auto cutoff_time{config.movetime.transform(safety_margin)
                                .transform(add_to_start_time)
                                .value_or(std::chrono::steady_clock::time_point::max())};
 
-    SearchContext context{DebugInfo{}, false, cutoff_time, 1, control.get()};
+    SearchContext context{cutoff_time, control.get()};
     chess::Move chosen_move{[this]() {
       auto moves{current_board.generate_moves()};
       if (moves.empty()) return chess::Move::null();
@@ -390,17 +401,52 @@ chess::Move Engine::iterative_deepening(int search_depth, SearchContext& context
   return best_move;
 }
 
+Engine::SearchContext::SearchContext(time_point cutoff_time, SearchControl* control)
+    : debug{DebugInfo{}},
+      cutoff_time{cutoff_time},
+      stopped{false},
+      timeout_danger{TimeoutDanger::Low},
+      root_depth{1},
+      control{control} {
+  update_timeout_danger();
+}
+
+void Engine::SearchContext::update_timeout_danger(time_point current_time) {
+  if (timeout_danger == TimeoutDanger::Low) {
+    if (current_time + std::chrono::milliseconds{100} >= cutoff_time) timeout_danger = TimeoutDanger::Normal;
+  }
+  if (timeout_danger == TimeoutDanger::Normal) {
+    if (current_time + std::chrono::milliseconds{10} >= cutoff_time) timeout_danger = TimeoutDanger::High;
+  }
+}
+
 bool Engine::SearchContext::should_stop() {
   if (stopped) return true;
 
-  const int visited_nodes_count{debug.normal_node_count + debug.quiescence_node_count};
+  const int64_t visited_nodes_count{debug.normal_node_count + debug.quiescence_node_count};
 
-  // Only check timeout and control every config::timeout_check_interval nodes visited,
-  // to reduce overhead of getting current time and reading an atomic.
-  if (visited_nodes_count % config::timeout_check_interval) return false;
+  // There is no particular reason for these values, other than that they seem to work well enough.
+  // The only notable feature is that they are powers of two for faster modulo checking.
+  // These may need to be adjusted if the engine speed changes.
+  constexpr int64_t low_check_interval{1 << 17};     // 131072
+  constexpr int64_t normal_check_interval{1 << 14};  // 16384
+  constexpr int64_t high_check_interval{1 << 9};     // 512
 
-  const bool timed_out{std::chrono::steady_clock::now() >= cutoff_time};
-  const bool control_stopped{control && (*control)->is_stopped()};
+  // Since checking timeout (requires getting the time) and control (requires reading an atomic) can be expensive,
+  // we only check every certain number of nodes visited.
+  // This number is reduced as we approach `cutoff_time` to prevent us from going past it.
+  const int64_t check_interval{[this]() {
+    if (timeout_danger == TimeoutDanger::High) return high_check_interval;
+    if (timeout_danger == TimeoutDanger::Normal) return normal_check_interval;
+    return low_check_interval;
+  }()};
+  if (visited_nodes_count & (check_interval - 1)) return false;
+
+  const auto current_time{std::chrono::steady_clock::now()};
+  update_timeout_danger(current_time);
+
+  const bool timed_out{current_time >= cutoff_time};
+  const bool control_stopped{control && control->is_stopped()};
   if (timed_out || control_stopped) stopped = true;
 
   return stopped;

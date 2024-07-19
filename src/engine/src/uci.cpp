@@ -15,23 +15,50 @@ SearchConfig::SearchConfig()
 
 SearchConfig::Builder::Builder() : config{} {}
 
-void SearchConfig::Builder::add_search_moves(chess::Move move) { config.search_moves.push_back(move); }
+SearchConfig::Builder& SearchConfig::Builder::add_search_move(chess::Move move) {
+  config.search_moves.push_back(move);
+  return *this;
+}
 
-void SearchConfig::Builder::set_wtime(std::chrono::milliseconds time) { config.wtime = time; }
+SearchConfig::Builder& SearchConfig::Builder::set_wtime(std::chrono::milliseconds time) {
+  config.wtime = time;
+  return *this;
+}
 
-void SearchConfig::Builder::set_winc(std::chrono::milliseconds increment) { config.winc = increment; }
+SearchConfig::Builder& SearchConfig::Builder::set_winc(std::chrono::milliseconds increment) {
+  config.winc = increment;
+  return *this;
+}
 
-void SearchConfig::Builder::set_btime(std::chrono::milliseconds time) { config.btime = time; }
+SearchConfig::Builder& SearchConfig::Builder::set_btime(std::chrono::milliseconds time) {
+  config.btime = time;
+  return *this;
+}
 
-void SearchConfig::Builder::set_binc(std::chrono::milliseconds increment) { config.binc = increment; }
+SearchConfig::Builder& SearchConfig::Builder::set_binc(std::chrono::milliseconds increment) {
+  config.binc = increment;
+  return *this;
+}
 
-void SearchConfig::Builder::set_depth(int depth) { config.depth = depth; }
+SearchConfig::Builder& SearchConfig::Builder::set_depth(int depth) {
+  config.depth = depth;
+  return *this;
+}
 
-void SearchConfig::Builder::set_nodes(int64_t nodes) { config.nodes = nodes; }
+SearchConfig::Builder& SearchConfig::Builder::set_nodes(int64_t nodes) {
+  config.nodes = nodes;
+  return *this;
+}
 
-void SearchConfig::Builder::set_movetime(std::chrono::milliseconds time) { config.movetime = time; }
+SearchConfig::Builder& SearchConfig::Builder::set_movetime(std::chrono::milliseconds time) {
+  config.movetime = time;
+  return *this;
+}
 
-void SearchConfig::Builder::set_infinite(bool infinite) { config.infinite = infinite; }
+SearchConfig::Builder& SearchConfig::Builder::set_infinite(bool infinite) {
+  config.infinite = infinite;
+  return *this;
+}
 
 SearchConfig SearchConfig::Builder::build() { return std::move(config); }
 

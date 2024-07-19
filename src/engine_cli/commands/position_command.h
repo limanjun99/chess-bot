@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "chess/board.h"
 #include "command.h"
@@ -18,10 +19,11 @@ public:
 
   virtual void execute(EngineCli& engine_cli) const override;
 
-  [[nodiscard]] const chess::Board& get_position() const;
+  [[nodiscard]] chess::Board get_position() const;
 
 private:
   chess::Board position;
+  std::vector<chess::Move> moves;
 
-  explicit PositionCommand(std::string input_string, chess::Board position);
+  explicit PositionCommand(std::string input_string, chess::Board position, std::vector<chess::Move> moves);
 };

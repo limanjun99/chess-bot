@@ -36,6 +36,7 @@ add_executable(engine_cli
 
 target_compile_features(engine_cli PRIVATE cxx_std_23)
 target_compile_options(engine_cli PRIVATE -Wall -Wextra -Wpedantic -O3)
+set_target_properties(engine_cli PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${g_binary_output_directory})
 
 target_link_libraries(engine_cli PRIVATE engine_cli_lib)
 target_link_libraries(engine_cli PRIVATE chess_engine)
@@ -68,6 +69,7 @@ target_link_libraries(engine_cli_tests PRIVATE GTest::gtest_main)
 
 target_compile_features(engine_cli_tests PRIVATE cxx_std_23)
 target_compile_options(engine_cli_tests PRIVATE -Wall -Wextra -Wpedantic)
+set_target_properties(engine_cli_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${g_test_output_directory})
 
 include(GoogleTest)
 gtest_discover_tests(engine_cli_tests)

@@ -35,15 +35,15 @@ class SearchConfig::Builder {
 public:
   explicit Builder();
 
-  void add_search_moves(chess::Move move);
-  void set_wtime(std::chrono::milliseconds time);
-  void set_winc(std::chrono::milliseconds increment);
-  void set_btime(std::chrono::milliseconds time);
-  void set_binc(std::chrono::milliseconds increment);
-  void set_depth(int32_t depth);
-  void set_nodes(int64_t nodes);
-  void set_movetime(std::chrono::milliseconds time);
-  void set_infinite(bool infinite);
+  Builder& add_search_move(chess::Move move);
+  Builder& set_wtime(std::chrono::milliseconds time);
+  Builder& set_winc(std::chrono::milliseconds increment);
+  Builder& set_btime(std::chrono::milliseconds time);
+  Builder& set_binc(std::chrono::milliseconds increment);
+  Builder& set_depth(int32_t depth);
+  Builder& set_nodes(int64_t nodes);
+  Builder& set_movetime(std::chrono::milliseconds time);
+  Builder& set_infinite(bool infinite);
 
   // Returns the built configuration object.
   [[nodiscard]] SearchConfig build();

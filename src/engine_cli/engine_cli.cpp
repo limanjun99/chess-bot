@@ -10,6 +10,7 @@ EngineCli::EngineCli(std::istream& input_stream, std::ostream& output_stream)
     : uci_io{input_stream, output_stream},
       output_mutex{},
       position{chess::Board::initial()},
+      moves{},
       debug_mode{false},
       done{false} {}
 
@@ -38,13 +39,14 @@ std::string_view EngineCli::get_author() const { return "placeholderAuthor"; }
 
 std::string_view EngineCli::get_name() const { return "placeholderName"; }
 
-void EngineCli::new_game() {
-  //! TODO: Implement.
-}
+void EngineCli::new_game() { ongoing_search.reset(); }
 
 void EngineCli::set_debug(bool new_debug_mode) { debug_mode = new_debug_mode; }
 
-void EngineCli::set_position(chess::Board new_position) { position = std::move(new_position); }
+void EngineCli::set_position(chess::Board new_position, std::vector<chess::Move> new_moves) {
+  position = std::move(new_position);
+  moves = std::move(new_moves);
+}
 
 void EngineCli::write(const Output& output) {
   std::scoped_lock output_lock{output_mutex};
@@ -52,7 +54,7 @@ void EngineCli::write(const Output& output) {
 }
 
 void EngineCli::go(engine::uci::SearchConfig config) {
-  const bool started{ongoing_search.go(position, std::move(config), *this)};
+  const bool started{ongoing_search.go(position, moves, std::move(config), *this)};
   if (!started) {
     //! TODO (low priority): This write could occur too late, for example if the go command
     //! finishes and outputs before this write is called.
@@ -68,14 +70,16 @@ void EngineCli::quit() { done = true; }
 
 EngineCli::OngoingSearch::OngoingSearch() : engine{}, thread{}, ongoing{false}, search_control{nullptr} {}
 
-bool EngineCli::OngoingSearch::go(chess::Board position, engine::uci::SearchConfig config, EngineCli& engine_cli) {
+bool EngineCli::OngoingSearch::go(chess::Board position, std::vector<chess::Move> moves,
+                                  engine::uci::SearchConfig config, EngineCli& engine_cli) {
   bool currently_ongoing{false};
   ongoing.compare_exchange_strong(currently_ongoing, true, std::memory_order_acq_rel);
   if (currently_ongoing) return false;
 
   if (thread.joinable()) thread.join();
-  const auto handle_search{[this](chess::Board position, engine::uci::SearchConfig config, EngineCli& engine_cli) {
-    engine.set_position(std::move(position));
+  const auto handle_search{[this](chess::Board position, std::vector<chess::Move> moves,
+                                  engine::uci::SearchConfig config, EngineCli& engine_cli) {
+    engine.set_position(std::move(position), moves);
     search_control = engine.cancellable_search(std::move(config));
     const chess::Move best_move{search_control->wait_and_get_move()};
     const BestMoveOutput output{best_move};
@@ -84,11 +88,16 @@ bool EngineCli::OngoingSearch::go(chess::Board position, engine::uci::SearchConf
     ongoing.notify_all();
   }};
 
-  thread = std::thread{handle_search, std::move(position), std::move(config), std::ref(engine_cli)};
+  thread = std::thread{handle_search, std::move(position), std::move(moves), std::move(config), std::ref(engine_cli)};
   return true;
 }
 
 void EngineCli::OngoingSearch::wait() const { ongoing.wait(true, std::memory_order_acquire); }
+
+void EngineCli::OngoingSearch::reset() {
+  wait();
+  engine.reset();
+}
 
 EngineCli::OngoingSearch::~OngoingSearch() {
   if (thread.joinable()) thread.join();

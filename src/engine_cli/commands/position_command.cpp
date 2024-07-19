@@ -23,7 +23,7 @@ std::expected<std::unique_ptr<PositionCommand>, std::string> PositionCommand::fr
   // Is low priority for now as this cli will only be used by correctly implemented uci programs.
 
   // Setup initial position from startpos / given fen.
-  chess::Board position{[&input_string, &words]() {
+  const chess::Board position{[&input_string, &words]() {
     if (words[1] == "startpos") return chess::Board::initial();
 
     const size_t fen_start{input_string.find("fen") + 3};
@@ -33,16 +33,19 @@ std::expected<std::unique_ptr<PositionCommand>, std::string> PositionCommand::fr
     return chess::Board::from_fen(std::string_view{input_string}.substr(fen_start, fen_end - fen_start));
   }()};
 
-  // Apply moves to the given position.
+  // Parse the moves.
+  std::vector<chess::Move> moves;
+  chess::Board current_position{position};
   const auto is_not_move_delimiter{[](const auto& word) { return word != "moves"; }};
   for (const auto& uci_move_string : words | std::views::drop_while(is_not_move_delimiter) | std::views::drop(1)) {
-    chess::Move move{chess::uci::move(uci_move_string, position)};
-    position = position.apply_move(move);
+    chess::Move move{chess::uci::move(uci_move_string, current_position)};
+    moves.push_back(move);
+    current_position = current_position.apply_move(move);
   }
 
   // Using `new` to access private constructor.
-  return expected::make_expected(
-      std::unique_ptr<PositionCommand>{new PositionCommand(std::move(input_string), std::move(position))});
+  return expected::make_expected(std::unique_ptr<PositionCommand>{
+      new PositionCommand(std::move(input_string), std::move(position), std::move(moves))});
 }
 
 std::string_view PositionCommand::get_usage_info() {
@@ -50,9 +53,13 @@ std::string_view PositionCommand::get_usage_info() {
          "Expected: position [fen <fenstring> | startpos ]  moves <move1> .... <movei>";
 }
 
-void PositionCommand::execute(EngineCli& engine_cli) const { engine_cli.set_position(position); }
+void PositionCommand::execute(EngineCli& engine_cli) const { engine_cli.set_position(position, moves); }
 
-const chess::Board& PositionCommand::get_position() const { return position; }
+chess::Board PositionCommand::get_position() const {
+  chess::Board current_position{position};
+  for (const auto& move : moves) current_position = current_position.apply_move(move);
+  return current_position;
+}
 
-PositionCommand::PositionCommand(std::string input_string, chess::Board position)
-    : Command{std::move(input_string)}, position{std::move(position)} {}
+PositionCommand::PositionCommand(std::string input_string, chess::Board position, std::vector<chess::Move> moves)
+    : Command{std::move(input_string)}, position{std::move(position)}, moves{std::move(moves)} {}

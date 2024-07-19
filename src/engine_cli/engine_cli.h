@@ -7,6 +7,7 @@
 #include <ostream>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 #include "chess/board.h"
 #include "chess_engine/engine.h"
@@ -31,7 +32,7 @@ public:
   void set_debug(bool new_debug_mode);
 
   // Update the position.
-  void set_position(chess::Board new_position);
+  void set_position(chess::Board new_position, std::vector<chess::Move> new_moves);
 
   // Write a response to the output stream.
   void write(const Output& output);
@@ -52,6 +53,7 @@ private:
   UciIO uci_io;
   std::mutex output_mutex;  // Controls access to `uci_io.write`
   chess::Board position;
+  std::vector<chess::Move> moves;
   bool debug_mode;
   bool done;
 
@@ -62,13 +64,17 @@ private:
 
     // Returns true if the search starts successfully.
     // Else returns false (i.e. another search is already ongoing).
-    bool go(chess::Board position, engine::uci::SearchConfig config, EngineCli& engine_cli);
+    bool go(chess::Board position, std::vector<chess::Move> moves, engine::uci::SearchConfig config,
+            EngineCli& engine_cli);
 
     // Stops the current search, if any.
     void stop();
 
     // Wait until the current search is done. Returns immediately if there's no ongoing search.
     void wait() const;
+
+    // Resets the engine state.
+    void reset();
 
     ~OngoingSearch();
 

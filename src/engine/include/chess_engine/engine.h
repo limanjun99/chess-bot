@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <span>
 #include <thread>
 
 #include "chess/board.h"
@@ -41,8 +42,11 @@ public:
     DebugInfo debug;
   };
 
-  // Set the board position. This resets all data of the engine.
-  void set_position(const chess::Board& board);
+  // Set the board position based on applying the `moves` to the `board`.
+  void set_position(const chess::Board& board, std::span<chess::Move const> moves);
+
+  // Clears all data about the current game.
+  void reset();
 
   // Apply the given move to the board.
   void apply_move(const chess::Move& move);
@@ -53,6 +57,9 @@ public:
   // Choose a move to make for the current player of the given board, searching at the given depth.
   MoveInfo choose_move(int search_depth);
 
+  // Performs a search with a configurations based on the uci go command.
+  // The search is cancellable through the returned SearchControl object.
+  // If `movetime` is provided, the search will highly likely terminate 1~2 ms before the movetime is used up.
   class SearchControl;
   std::shared_ptr<SearchControl> cancellable_search(engine::uci::SearchConfig config);
 
@@ -66,13 +73,19 @@ private:
 
   struct SearchContext {
     DebugInfo debug;
-    bool stopped;
     time_point cutoff_time;
+    bool stopped;
+    enum class TimeoutDanger { Low, Normal, High } timeout_danger;
     int root_depth;
-    std::optional<SearchControl*> control;
+    SearchControl* control;
+
+    explicit SearchContext(time_point cutoff_time, SearchControl* control);
 
     // Returns true if the search should stop as soon as possible.
     bool should_stop();
+
+  private:
+    void update_timeout_danger(time_point current_time = std::chrono::steady_clock::now());
   };
 
   // Evaluate the current board state, without searching any further.

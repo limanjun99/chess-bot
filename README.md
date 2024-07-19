@@ -33,13 +33,13 @@ ISSUE_CHALLENGES=TRUE/FALSE  # Whether the bot should periodically challenge oth
 Then run the bot:
 
 ```bash
-./build/release/src/lichess/lichess_bot
+./build/release/bin/lichess_bot
 ```
 
 ## Testing
 
 ```bash
 ./build/debug/test/chess/chess_tests          # To test the chess library
-./build/debug/test/engine/chess_engine_tests  # To test the chess engine
+./build/debug/tests/chess_engine_tests        # To test the chess engine
 ./build/release/test/benchmark/benchmarks     # To run performance benchmarks
 ```
