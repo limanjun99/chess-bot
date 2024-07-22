@@ -14,7 +14,7 @@
 chess::Move choose_move_for_fen(std::string_view fen, int depth) {
   const chess::Board board{chess::Board::from_fen(fen)};
   Engine engine{board};
-  return engine.choose_move(depth).move;
+  return engine.search_sync(engine::uci::SearchConfig::from_depth(depth)).first;
 }
 
 TEST(Checkmate, MateInOne) {
@@ -81,11 +81,11 @@ TEST(QuietPositions, Position3) {
 
 void expect_time_management(chess::Board position, std::chrono::milliseconds movetime) {
   Engine engine{position};
-  auto search_config{engine::uci::SearchConfig::Builder{}.set_movetime(movetime).build()};
+  auto search_config{engine::uci::SearchConfig{}.set_movetime(movetime)};
 
   const auto start_time{std::chrono::steady_clock::now()};
-  std::shared_ptr<Engine::SearchControl> search_control{engine.cancellable_search(std::move(search_config))};
-  std::ignore = search_control->wait_and_get_move();
+  std::shared_ptr<engine::Search> search{engine.search(std::move(search_config))};
+  std::ignore = search->get_move();
   const auto end_time{std::chrono::steady_clock::now()};
   const std::chrono::duration<double, std::milli> time_taken{end_time - start_time};
 

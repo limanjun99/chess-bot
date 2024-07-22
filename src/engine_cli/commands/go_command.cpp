@@ -23,7 +23,7 @@ std::expected<std::unique_ptr<GoCommand>, std::string> GoCommand::from_string(st
   }
 
   // Using `new` to access private constructor.
-  engine::uci::SearchConfig::Builder config_builder{};
+  engine::uci::SearchConfig config{};
 
   constexpr std::array has_integer_argument{"wtime", "btime", "winc", "binc", "depth", "nodes", "movetime"};
   for (size_t i{1}; i < words.size(); i++) {
@@ -43,20 +43,20 @@ std::expected<std::unique_ptr<GoCommand>, std::string> GoCommand::from_string(st
             "Invalid argument '{0}' for option '{1}' of go command. Expected: {1} <integer>", arg_string, option));
       }
 
-      if (option == "wtime") config_builder.set_wtime(std::chrono::milliseconds{*argument});
-      else if (option == "btime") config_builder.set_btime(std::chrono::milliseconds{*argument});
-      else if (option == "winc") config_builder.set_winc(std::chrono::milliseconds{*argument});
-      else if (option == "binc") config_builder.set_binc(std::chrono::milliseconds{*argument});
-      else if (option == "depth") config_builder.set_depth(*argument);
-      else if (option == "nodes") config_builder.set_nodes(*argument);
-      else /* if (option == "movetime") */ config_builder.set_movetime(std::chrono::milliseconds{*argument});
+      if (option == "wtime") config.set_wtime(std::chrono::milliseconds{*argument});
+      else if (option == "btime") config.set_btime(std::chrono::milliseconds{*argument});
+      else if (option == "winc") config.set_winc(std::chrono::milliseconds{*argument});
+      else if (option == "binc") config.set_binc(std::chrono::milliseconds{*argument});
+      else if (option == "depth") config.set_depth(*argument);
+      else if (option == "nodes") config.set_nodes(*argument);
+      else /* if (option == "movetime") */ config.set_movetime(std::chrono::milliseconds{*argument});
 
     } else if (option == "searchmoves") {
       //! TODO: Implement.
       return expected::make_unexpected(
           std::format("The option '{}' for go command is not currently supported.", option));
     } else if (option == "infinite") {
-      config_builder.set_infinite(true);
+      config.set_infinite(true);
     } else if (option == "ponder" || option == "movestogo" || option == "mate") {
       return expected::make_unexpected(
           std::format("The option '{}' for go command is not currently supported.", option));
@@ -65,8 +65,7 @@ std::expected<std::unique_ptr<GoCommand>, std::string> GoCommand::from_string(st
     }
   }
 
-  return expected::make_expected(
-      std::unique_ptr<GoCommand>{new GoCommand(std::move(input_string), config_builder.build())});
+  return expected::make_expected(std::unique_ptr<GoCommand>{new GoCommand(std::move(input_string), std::move(config))});
 }
 
 std::string_view GoCommand::get_usage_info() {

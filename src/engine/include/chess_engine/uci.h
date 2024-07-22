@@ -9,11 +9,17 @@
 
 namespace engine::uci {
 
-class SearchConfig {
-public:
+struct SearchConfig {
   //! TODO: What is the `ponder` option?
   //! TODO: `movestogo` is ignored for now. Check again if it is something that should be added.
   //! TODO: `mate` is ignored for now.
+
+  explicit SearchConfig();
+
+  // A wrapper for `SearchConfig{}.set_depth(depth)`.
+  static SearchConfig from_depth(int32_t depth);
+  // A wrapper for `SearchConfig{}.set_movetime(time)`.
+  static SearchConfig from_movetime(std::chrono::milliseconds time);
 
   std::vector<chess::Move> search_moves;
   std::optional<std::chrono::milliseconds> wtime;
@@ -25,31 +31,15 @@ public:
   std::optional<std::chrono::milliseconds> movetime;
   bool infinite;
 
-  class Builder;
-
-private:
-  explicit SearchConfig();
-};
-
-class SearchConfig::Builder {
-public:
-  explicit Builder();
-
-  Builder& add_search_move(chess::Move move);
-  Builder& set_wtime(std::chrono::milliseconds time);
-  Builder& set_winc(std::chrono::milliseconds increment);
-  Builder& set_btime(std::chrono::milliseconds time);
-  Builder& set_binc(std::chrono::milliseconds increment);
-  Builder& set_depth(int32_t depth);
-  Builder& set_nodes(int64_t nodes);
-  Builder& set_movetime(std::chrono::milliseconds time);
-  Builder& set_infinite(bool infinite);
-
-  // Returns the built configuration object.
-  [[nodiscard]] SearchConfig build();
-
-private:
-  SearchConfig config;
+  SearchConfig& add_search_move(chess::Move move);
+  SearchConfig& set_wtime(std::chrono::milliseconds time);
+  SearchConfig& set_winc(std::chrono::milliseconds increment);
+  SearchConfig& set_btime(std::chrono::milliseconds time);
+  SearchConfig& set_binc(std::chrono::milliseconds increment);
+  SearchConfig& set_depth(int32_t depth);
+  SearchConfig& set_nodes(int64_t nodes);
+  SearchConfig& set_movetime(std::chrono::milliseconds time);
+  SearchConfig& set_infinite(bool infinite);
 };
 
 }  // namespace engine::uci

@@ -3,6 +3,7 @@
 #include <cpr/cpr.h>
 
 #include "chess/uci.h"
+#include "chess_engine/uci.h"
 #include "lichess.h"
 #include "logger.h"
 
@@ -14,12 +15,12 @@ void GameHandler::listen() {
   lichess.handle_game(game_id, *this);
 }
 
-Engine::MoveInfo GameHandler::choose_move() {
-  // The time spent by the engine is equal to (time_left / 60 + increment),
+std::pair<chess::Move, engine::Search::DebugInfo> GameHandler::choose_move() {
+  // The time spent by the engine is equal to (time_left / 120 + increment),
   // and it will be bounded to within min(time_left / 2, 100ms) ~ 10s.
-  // Note that for now we -1000ms to account for network latency.
+  // Note that for now we -1200ms to account for network latency.
   //! TODO: Find a better way to account for network latency.
-  int engine_time = time_left / 120 + increment - 1000;
+  int engine_time = time_left / 120 + increment - 1200;
   engine_time = std::min(engine_time, time_left / 2);
   engine_time = std::min(engine_time, 10'000);
   engine_time = std::max(engine_time, 100);
@@ -28,7 +29,7 @@ Engine::MoveInfo GameHandler::choose_move() {
     // and to prevent the game being aborted from us idling too long.
     engine_time = 1000;
   }
-  return engine.choose_move(std::chrono::milliseconds{engine_time});
+  return engine.search_sync(engine::uci::SearchConfig::from_movetime(std::chrono::milliseconds{engine_time}));
 }
 
 bool GameHandler::handle_game_initialization(const json& game) {
@@ -46,18 +47,15 @@ bool GameHandler::handle_game_update(const json& state) {
 
   if (board.is_white_to_move() != is_white) return true;  // Not my turn.
 
-  Engine::MoveInfo move_info = choose_move();
-  lichess.send_move(game_id, move_info.move.to_uci());
-  Logger::info() << "Found move " << move_info.move.to_algebraic() << " for game " << game_id << " in "
-                 << move_info.time_spent.count() << "ms (depth " << move_info.search_depth << " reached, "
-                 << move_info.debug.normal_node_count / 1000 << "k nodes, "
-                 << move_info.debug.quiescence_node_count / 1000 << "k quiescent nodes, "
-                 << move_info.debug.transposition_table_success / 1000 << "/"
-                 << move_info.debug.transposition_table_total / 1000 << "k TT, "
-                 << move_info.debug.null_move_success / 1000 << "/" << move_info.debug.null_move_total / 1000
-                 << "k NM, " << move_info.debug.q_delta_pruning_success / 1000 << "/"
-                 << move_info.debug.q_delta_pruning_total / 1000 << "k QDP, " << move_info.debug.evaluation
-                 << " eval)\n";
+  const auto [move, debug] = choose_move();
+  lichess.send_move(game_id, move.to_uci());
+  Logger::info() << "Found move " << move.to_algebraic() << " for game " << game_id << " in "
+                 << debug.time_spent.count() << "ms (depth " << debug.search_depth << " reached, "
+                 << debug.normal_node_count / 1000 << "k nodes, " << debug.quiescence_node_count / 1000
+                 << "k quiescent nodes, " << debug.transposition_table_success / 1000 << "/"
+                 << debug.transposition_table_total / 1000 << "k TT, " << debug.null_move_success / 1000 << "/"
+                 << debug.null_move_total / 1000 << "k NM, " << debug.q_delta_pruning_success / 1000 << "/"
+                 << debug.q_delta_pruning_total / 1000 << "k QDP, " << debug.evaluation << " eval)\n";
   Logger::flush();
   return true;
 }

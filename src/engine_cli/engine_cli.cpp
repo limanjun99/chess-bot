@@ -80,8 +80,8 @@ bool EngineCli::OngoingSearch::go(chess::Board position, std::vector<chess::Move
   const auto handle_search{[this](chess::Board position, std::vector<chess::Move> moves,
                                   engine::uci::SearchConfig config, EngineCli& engine_cli) {
     engine.set_position(std::move(position), moves);
-    search_control = engine.cancellable_search(std::move(config));
-    const chess::Move best_move{search_control->wait_and_get_move()};
+    search_control = engine.search(std::move(config));
+    const chess::Move best_move{search_control->get_move()};
     const BestMoveOutput output{best_move};
     engine_cli.write(output);
     ongoing.store(false, std::memory_order_release);

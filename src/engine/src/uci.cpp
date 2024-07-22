@@ -13,53 +13,55 @@ SearchConfig::SearchConfig()
       movetime{std::nullopt},
       infinite{false} {}
 
-SearchConfig::Builder::Builder() : config{} {}
+SearchConfig SearchConfig::from_depth(int32_t new_depth) { return SearchConfig{}.set_depth(new_depth); }
 
-SearchConfig::Builder& SearchConfig::Builder::add_search_move(chess::Move move) {
-  config.search_moves.push_back(move);
+SearchConfig SearchConfig::from_movetime(std::chrono::milliseconds new_time) {
+  return SearchConfig{}.set_movetime(new_time);
+}
+
+SearchConfig& SearchConfig::add_search_move(chess::Move new_move) {
+  search_moves.push_back(new_move);
   return *this;
 }
 
-SearchConfig::Builder& SearchConfig::Builder::set_wtime(std::chrono::milliseconds time) {
-  config.wtime = time;
+SearchConfig& SearchConfig::set_wtime(std::chrono::milliseconds new_time) {
+  wtime = new_time;
   return *this;
 }
 
-SearchConfig::Builder& SearchConfig::Builder::set_winc(std::chrono::milliseconds increment) {
-  config.winc = increment;
+SearchConfig& SearchConfig::set_winc(std::chrono::milliseconds new_increment) {
+  winc = new_increment;
   return *this;
 }
 
-SearchConfig::Builder& SearchConfig::Builder::set_btime(std::chrono::milliseconds time) {
-  config.btime = time;
+SearchConfig& SearchConfig::set_btime(std::chrono::milliseconds new_time) {
+  btime = new_time;
   return *this;
 }
 
-SearchConfig::Builder& SearchConfig::Builder::set_binc(std::chrono::milliseconds increment) {
-  config.binc = increment;
+SearchConfig& SearchConfig::set_binc(std::chrono::milliseconds new_increment) {
+  binc = new_increment;
   return *this;
 }
 
-SearchConfig::Builder& SearchConfig::Builder::set_depth(int depth) {
-  config.depth = depth;
+SearchConfig& SearchConfig::set_depth(int new_depth) {
+  depth = new_depth;
   return *this;
 }
 
-SearchConfig::Builder& SearchConfig::Builder::set_nodes(int64_t nodes) {
-  config.nodes = nodes;
+SearchConfig& SearchConfig::set_nodes(int64_t new_nodes) {
+  nodes = new_nodes;
   return *this;
 }
 
-SearchConfig::Builder& SearchConfig::Builder::set_movetime(std::chrono::milliseconds time) {
-  config.movetime = time;
+SearchConfig& SearchConfig::set_movetime(std::chrono::milliseconds new_time) {
+  movetime = new_time;
   return *this;
 }
 
-SearchConfig::Builder& SearchConfig::Builder::set_infinite(bool infinite) {
-  config.infinite = infinite;
+SearchConfig& SearchConfig::set_infinite(bool new_infinite) {
+  infinite = new_infinite;
   return *this;
 }
-
-SearchConfig SearchConfig::Builder::build() { return std::move(config); }
 
 }  // namespace engine::uci

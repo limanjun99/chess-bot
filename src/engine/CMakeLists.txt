@@ -2,10 +2,13 @@
 
 add_library(
   chess_engine
+  src/engine_impl.cpp
   src/engine.cpp
   src/evaluation.cpp
   src/history_heuristic.cpp
   src/killer_moves.cpp
+  src/search_impl.cpp
+  src/search.cpp
   src/transposition_table.cpp
   src/uci.cpp
 )

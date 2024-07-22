@@ -82,7 +82,7 @@ private:
     Engine engine;
     std::thread thread;
     std::atomic<bool> ongoing;
-    std::shared_ptr<Engine::SearchControl> search_control;
+    std::shared_ptr<engine::Search> search_control;
   };
   OngoingSearch ongoing_search;
 };
