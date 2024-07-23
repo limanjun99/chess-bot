@@ -4,8 +4,8 @@ This application provides a Command Line Interface over our chess engine. It cur
 
 - [x] `position` and `stop` commands.
 - [x] Partial support for `go` command.
-  - [x] If `movetime` is provided, then the search will (highly likely) complete within that time, and also complete no earlier than 2ms before the deadline.
-  - [ ] Implement time management when `wtime, btime, winc, binc` are provided.
+  - [x] If `movetime` is provided, then the search will complete within that time.
+  - [x] If `wtime, btime, winc, binc` are provided, then the engine will spend an appropriate amount of time searching.
 - [ ] `isready` currently has a wrong implementation that blocks all incoming commands (e.g. `go`, `isready`, `stop` will hang as the `stop` command is never read).
 - [ ] `quit` command doesn't work if in the middle of a search.
 - [ ] Debug information (when debug mode is enabled through `debug on`, our engine should return information through `info`).

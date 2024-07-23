@@ -20,10 +20,8 @@ engine::Search::Impl::Impl(chess::Board position_, chess::StackRepetitionTracker
       search_thread{},
       best_move{chess::Move::null()},
       debug_info{},
-      start_time{},
-      cutoff_time{},
-      timeout_danger{TimeoutDanger::Low},
-      root_depth{1} {
+      root_depth{1},
+      time_management{config, starting_position.get_color()} {
   //! TODO: support time controls (wtime, btime, winc, binc).
   //! TODO: support nodes <x>
   //! TODO: support searchmoves
@@ -34,15 +32,6 @@ engine::Search::Impl::Impl(chess::Board position_, chess::StackRepetitionTracker
   //! TODO: What if acquiring the lock takes a long time due to another ongoing search?
   //! Ideally there should be some API to try_search() that returns immediately on failing to lock,
   //! or some mechanism in the Engine to prevent concurrent searches.
-
-  start_time = std::chrono::steady_clock::now();
-  cutoff_time = [&]() {
-    const auto movetime{time_management::decide(config, starting_position.get_color())};
-    if (!movetime) return std::chrono::steady_clock::time_point::max();
-    // 2ms is a safety buffer to ensure we do not exceed the actual cutoff time.
-    return start_time + movetime.value() - std::chrono::milliseconds{2};
-  }();
-  update_timeout_danger();
 
   // Set the best move to any move in case we timeout before searching.
   best_move = [&]() {
@@ -88,20 +77,11 @@ void engine::Search::Impl::go(std::unique_lock<std::mutex>) {
     debug_info.search_depth = root_depth;
     best_move = std::move(found_move);
     root_depth++;
+    if (!time_management.can_continue_iteration()) break;
   }
-  const auto end_time{std::chrono::steady_clock::now()};
-  debug_info.time_spent = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+  debug_info.time_spent = time_management.time_spent();
   done.store(true, std::memory_order::release);
   done.notify_all();
-}
-
-void engine::Search::Impl::update_timeout_danger(std::chrono::steady_clock::time_point current_time) {
-  if (timeout_danger == TimeoutDanger::Low) {
-    if (current_time + std::chrono::milliseconds{100} >= cutoff_time) timeout_danger = TimeoutDanger::Normal;
-  }
-  if (timeout_danger == TimeoutDanger::Normal) {
-    if (current_time + std::chrono::milliseconds{10} >= cutoff_time) timeout_danger = TimeoutDanger::High;
-  }
 }
 
 chess::Move engine::Search::Impl::iterative_deepening() {
@@ -337,28 +317,9 @@ bool engine::Search::Impl::should_stop() {
   if (stopped) return true;
 
   const int64_t visited_nodes_count{debug_info.normal_node_count + debug_info.quiescence_node_count};
+  if (visited_nodes_count & (time_management.check_interval() - 1)) return false;
 
-  // There is no particular reason for these values, other than that they seem to work well enough.
-  // The only notable feature is that they are powers of two for faster modulo checking.
-  // These may need to be adjusted if the engine speed changes.
-  constexpr int64_t low_check_interval{1 << 17};     // 131072
-  constexpr int64_t normal_check_interval{1 << 14};  // 16384
-  constexpr int64_t high_check_interval{1 << 9};     // 512
-
-  // Since checking timeout (requires getting the time) and control (requires reading an atomic) can be expensive,
-  // we only check every certain number of nodes visited.
-  // This number is reduced as we approach `cutoff_time` to prevent us from going past it.
-  const int64_t check_interval{[&]() {
-    if (timeout_danger == TimeoutDanger::High) return high_check_interval;
-    if (timeout_danger == TimeoutDanger::Normal) return normal_check_interval;
-    return low_check_interval;
-  }()};
-  if (visited_nodes_count & (check_interval - 1)) return false;
-
-  const auto current_time{std::chrono::steady_clock::now()};
-  update_timeout_danger(current_time);
-
-  const bool timed_out{current_time >= cutoff_time};
+  const bool timed_out{time_management.has_timed_out()};
   const bool stop_signalled{stop_signal.load(std::memory_order::acquire)};
   if (timed_out || stop_signalled) stopped = true;
 

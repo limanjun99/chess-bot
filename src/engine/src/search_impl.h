@@ -1,5 +1,4 @@
 #include <atomic>
-#include <chrono>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -8,6 +7,7 @@
 #include "chess/stack_repetition_tracker.h"
 #include "heuristics.h"
 #include "search.h"
+#include "time_management.h"
 #include "uci.h"
 
 class engine::Search::Impl {
@@ -54,18 +54,11 @@ private:
   std::thread search_thread;
   chess::Move best_move;
   DebugInfo debug_info;
-  std::chrono::steady_clock::time_point start_time;
-  std::chrono::steady_clock::time_point cutoff_time;
-  enum class TimeoutDanger { Low, Normal, High } timeout_danger;
   int32_t root_depth;
+  TimeManagement time_management;
 
   // Begin searching.
   void go(std::unique_lock<std::mutex> search_lock);
-
-  // Update how close we are to hitting cutoff_time.
-  // Takes an optional `current_time` parameter, to avoid an extra call to steady_clock::now() if
-  // we already obtained the current time beforehand.
-  void update_timeout_danger(std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now());
 
   // Evaluate the current board state, without searching any further.
   int evaluate_board(const chess::Board& board);
@@ -84,11 +77,9 @@ private:
   void reset_iteration();
 
   // Search with depth of `root_depth`.
-  // Returns the best move if search completes before `cutoff_time`, else returns Move::null().
+  // Returns the best move if search completes in time, else returns Move::null().
   chess::Move iterative_deepening();
 
   // Returns true if the search should stop as soon as possible.
-  // Note that actual checks against `stop_signal` and `cutoff_time` are only carried out
-  // periodically after certain number of nodes are visited.
   bool should_stop();
 };
