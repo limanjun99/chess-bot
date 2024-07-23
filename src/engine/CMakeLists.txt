@@ -7,8 +7,10 @@ add_library(
   src/evaluation.cpp
   src/history_heuristic.cpp
   src/killer_moves.cpp
+  src/move_priority.cpp
   src/search_impl.cpp
   src/search.cpp
+  src/time_management.cpp
   src/transposition_table.cpp
   src/uci.cpp
 )

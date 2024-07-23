@@ -13,7 +13,7 @@ add_executable(
   main.cpp
   ndjson.cpp)
 
-target_compile_features(lichess_bot PRIVATE cxx_std_20)
+target_compile_features(lichess_bot PRIVATE cxx_std_23)
 target_compile_options(lichess_bot PRIVATE -Wall -Wextra -Wpedantic -O3)
 set_target_properties(lichess_bot PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${g_binary_output_directory})
 

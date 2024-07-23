@@ -1,12 +1,11 @@
 #pragma once
 
-#include <cstdint>
-
 #include "chess/bitboard.h"
+#include "chess/color.h"
 
 class HistoryHeuristic {
 public:
-  HistoryHeuristic();
+  explicit HistoryHeuristic();
 
   // Add a move that caused a beta-cutoff.
   void add_move_success(bool is_white, chess::Bitboard from, chess::Bitboard to);
@@ -17,8 +16,8 @@ public:
   // Reset scores of all moves.
   void clear();
 
-  // Returns the move priority scoring of the given move.
-  int get_score(bool is_white, chess::Bitboard from, chess::Bitboard to);
+  // Returns the ratio of successes (in the range [0, 1]).
+  double get_ratio(chess::Color player_color, chess::Bitboard from, chess::Bitboard to);
 
 private:
   uint64_t successes[2][64][64];

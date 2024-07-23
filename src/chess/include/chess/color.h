@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 namespace chess {
 
 struct Color {
@@ -12,6 +14,8 @@ public:
   constexpr bool operator!=(const Color& other) const;
 
   constexpr Color flip() const;
+
+  constexpr size_t to_index() const;
 
 private:
   constexpr explicit Color(bool color);
@@ -28,5 +32,7 @@ constexpr bool Color::operator==(const Color& other) const { return color == oth
 constexpr bool Color::operator!=(const Color& other) const { return color != other.color; }
 
 constexpr Color Color::flip() const { return Color{!color}; }
+
+constexpr size_t Color::to_index() const { return color; }
 
 }  // namespace chess

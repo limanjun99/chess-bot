@@ -1,8 +1,8 @@
 #pragma once
 
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include <string>
-#include <string_view>
 
 #include "chess/board.h"
 #include "chess_engine/engine.h"
@@ -24,8 +24,10 @@ private:
   const Lichess& lichess;
   const std::string& game_id;
   bool is_white;                                // Whether the bot is playing as white.
-  int increment;                                // Amount of increment (in milliseconds) per move.
-  int time_left;                                // Amount of time left (in milliseconds) I have.
+  std::chrono::milliseconds wtime;              // Amount of time left for white player.
+  std::chrono::milliseconds winc;               // Amount of increment per move for white player.
+  std::chrono::milliseconds btime;              // Amount of time left for black player.
+  std::chrono::milliseconds binc;               // Amount of increment per move for black player.
   int ply_count;                                // Number of plys that we received from Lichess API so far.
   chess::Board board{chess::Board::initial()};  // Current board of the game.
   Engine engine{};

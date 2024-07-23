@@ -1,6 +1,6 @@
 #include "history_heuristic.h"
 
-#include "config.h"
+#include "chess/piece.h"
 
 HistoryHeuristic::HistoryHeuristic() { clear(); }
 
@@ -28,9 +28,9 @@ void HistoryHeuristic::clear() {
   }
 }
 
-int HistoryHeuristic::get_score(bool is_white, chess::Bitboard from, chess::Bitboard to) {
+double HistoryHeuristic::get_ratio(chess::Color player_color, chess::Bitboard from, chess::Bitboard to) {
   const int from_index = from.to_index();
   const int to_index = to.to_index();
-  return successes[is_white][from_index][to_index] * move_priority::history_heuristic_scale /
-         (totals[is_white][from_index][to_index] + 1);
+  return static_cast<double>(successes[player_color.to_index()][from_index][to_index]) /
+         (totals[player_color.to_index()][from_index][to_index] + 1);
 }

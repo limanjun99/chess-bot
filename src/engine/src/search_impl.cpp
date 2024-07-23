@@ -1,10 +1,11 @@
 #include "search_impl.h"
 
 #include <chrono>
-#include <limits>
 #include <mutex>
 
 #include "evaluation.h"
+#include "move_priority.h"
+#include "time_management.h"
 #include "uci.h"
 
 engine::Search::Impl::Impl(chess::Board position_, chess::StackRepetitionTracker repetition_tracker_,
@@ -36,9 +37,10 @@ engine::Search::Impl::Impl(chess::Board position_, chess::StackRepetitionTracker
 
   start_time = std::chrono::steady_clock::now();
   cutoff_time = [&]() {
-    if (!config.movetime) return std::chrono::steady_clock::time_point::max();
+    const auto movetime{time_management::decide(config, starting_position.get_color())};
+    if (!movetime) return std::chrono::steady_clock::time_point::max();
     // 2ms is a safety buffer to ensure we do not exceed the actual cutoff time.
-    return start_time + config.movetime.value() - std::chrono::milliseconds{2};
+    return start_time + movetime.value() - std::chrono::milliseconds{2};
   }();
   update_timeout_danger();
 
@@ -112,53 +114,6 @@ chess::Move engine::Search::Impl::iterative_deepening() {
 
 int engine::Search::Impl::evaluate_board(const chess::Board& board) { return pst::evaluate(board); }
 
-int engine::Search::Impl::evaluate_move_priority(const chess::Move& move, int depth_left, const chess::Move& hash_move,
-                                                 bool is_white) {
-  if (move == hash_move) return move_priority::hash_move;
-
-  int priority = 0;
-
-  if (move.is_capture()) {
-    // MVV LVA priority.
-    priority +=
-        move_priority::capture +
-        move_priority::mvv_lva[static_cast<size_t>(move.get_captured_piece())][static_cast<size_t>(move.get_piece())];
-  }
-
-  if (move.is_promotion()) {
-    priority += move_priority::promotion + move_priority::promotion_piece[static_cast<int>(move.get_promotion_piece())];
-  }
-
-  if (!move.is_capture()) {
-    bool is_killer = false;
-    for (size_t i = 0; i < config::killer_move_count; i++) {
-      // Killer move priority.
-      if (heuristics->killer_moves.get(depth_left, i) == move) {
-        priority += move_priority::killer - move_priority::killer_index * i;
-        is_killer = true;
-        break;
-      }
-    }
-
-    if (!is_killer) {
-      priority += heuristics->history_heuristic.get_score(is_white, move.get_from(), move.get_to());
-    }
-  }
-
-  return priority;
-}
-
-int engine::Search::Impl::evaluate_quiescence_move_priority(const chess::Move& move) {
-  int priority = 0;
-  if (move.is_capture()) {
-    // MVV LVA priority.
-    priority += move_priority::capture;
-    priority +=
-        move_priority::mvv_lva[static_cast<size_t>(move.get_captured_piece())][static_cast<size_t>(move.get_piece())];
-  }
-  return priority;
-}
-
 std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& board, int alpha, int beta,
                                                          int depth_left) {
   if (depth_left <= 0) {
@@ -229,10 +184,10 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
   }
 
   chess::MoveContainer moves = board.generate_moves();
-  std::vector<int> move_priorities;
+  std::vector<MovePriority> move_priorities;
   move_priorities.reserve(moves.size());
   for (const auto& move : moves) {
-    move_priorities.push_back(evaluate_move_priority(move, depth_left, hash_move, board.is_white_to_move()));
+    move_priorities.push_back(MovePriority::evaluate(move, depth_left, hash_move, board.get_color(), *heuristics));
   }
 
   // Only used for futility pruning.
@@ -240,7 +195,7 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
   if (depth_left == 1) cur_board_evaluation = evaluate_board(board);
 
   for (size_t i = 0; i < moves.size(); i++) {
-    int best_priority = move_priorities[i];
+    MovePriority best_priority = move_priorities[i];
     size_t best_index = i;
     for (size_t j = i + 1; j < moves.size(); j++) {
       if (move_priorities[j] > best_priority) {
@@ -332,14 +287,14 @@ int engine::Search::Impl::quiescence_search(const chess::Board& board, int alpha
     return board.generate_quiescence_moves();
   }()};
 
-  std::vector<int> move_priorities;
+  std::vector<MovePriority> move_priorities;
   move_priorities.reserve(moves.size());
   for (const auto& move : moves) {
-    move_priorities.push_back(evaluate_quiescence_move_priority(move));
+    move_priorities.push_back(MovePriority::evaluate_quiescence(move));
   }
 
   for (size_t i = 0; i < moves.size(); i++) {
-    int best_priority = std::numeric_limits<int>::min();
+    MovePriority best_priority = move_priorities[i];
     size_t best_index = i;
     for (size_t j = i; j < moves.size(); j++) {
       if (move_priorities[j] > best_priority) {

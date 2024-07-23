@@ -70,12 +70,6 @@ private:
   // Evaluate the current board state, without searching any further.
   int evaluate_board(const chess::Board& board);
 
-  // Evaluate the priority of the given move. Higher priority moves should be searched first.
-  int evaluate_move_priority(const chess::Move& move, int depth_left, const chess::Move& hash_move, bool is_white);
-
-  // Evaluate the priority of the given quiescence move. Higher priority moves should be searched first.
-  int evaluate_quiescence_move_priority(const chess::Move& move);
-
   // Continue traversing the search tree. Returns the evaluation and best move for the current player.
   // If `timed_out` is true, then the search aborted midway and the results are invalid.
   // If Move::null was returned as the best move, then it is not known what the best move is (e.g. due to null pruning).

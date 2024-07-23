@@ -2,6 +2,9 @@
 
 #include <cpr/cpr.h>
 
+#include <algorithm>
+#include <ostream>
+
 #include "chess/uci.h"
 #include "chess_engine/uci.h"
 #include "lichess.h"
@@ -16,20 +19,36 @@ void GameHandler::listen() {
 }
 
 std::pair<chess::Move, engine::Search::DebugInfo> GameHandler::choose_move() {
-  // The time spent by the engine is equal to (time_left / 120 + increment),
-  // and it will be bounded to within min(time_left / 2, 100ms) ~ 10s.
-  // Note that for now we -1200ms to account for network latency.
+  engine::uci::SearchConfig search_config{};
+  search_config.set_wtime(wtime);
+  search_config.set_winc(winc);
+  search_config.set_btime(btime);
+  search_config.set_binc(binc);
+
   //! TODO: Find a better way to account for network latency.
-  int engine_time = time_left / 120 + increment - 1200;
-  engine_time = std::min(engine_time, time_left / 2);
-  engine_time = std::min(engine_time, 10'000);
-  engine_time = std::max(engine_time, 100);
-  if (ply_count <= 1) {
-    // Spend only 1 second on the first move, as it is not important,
-    // and to prevent the game being aborted from us idling too long.
-    engine_time = 1000;
+  std::chrono::milliseconds latency_compensation{1000};
+  auto my_time{is_white ? wtime : btime};
+  auto my_inc{is_white ? winc : binc};
+  std::chrono::milliseconds inc_compensation{std::min(my_inc, latency_compensation)};
+  my_inc -= inc_compensation;
+  latency_compensation -= inc_compensation;
+  my_time = std::max(std::chrono::milliseconds{0}, my_time - latency_compensation);
+  if (is_white) {
+    search_config.set_wtime(my_time);
+    search_config.set_winc(my_inc);
+  } else {
+    search_config.set_btime(my_time);
+    search_config.set_binc(my_inc);
   }
-  return engine.search_sync(engine::uci::SearchConfig::from_movetime(std::chrono::milliseconds{engine_time}));
+
+  if (ply_count <= 1) {
+    // Our clock only starts ticking after the first move.
+    // Hence, we spend a fixed time of 1 second on the first move,
+    // as thinking longer probably does not help.
+    search_config.set_movetime(std::chrono::seconds{1});
+  }
+
+  return engine.search_sync(std::move(search_config));
 }
 
 bool GameHandler::handle_game_initialization(const json& game) {
@@ -42,13 +61,16 @@ bool GameHandler::handle_game_update(const json& state) {
   // Update the board.
   update_board(state["moves"]);
   // Update the timers.
-  increment = state[is_white ? "winc" : "binc"];
-  time_left = state[is_white ? "wtime" : "btime"];
+  wtime = std::chrono::milliseconds{state["wtime"]};
+  winc = std::chrono::milliseconds{state["winc"]};
+  btime = std::chrono::milliseconds{state["btime"]};
+  binc = std::chrono::milliseconds{state["binc"]};
 
   if (board.is_white_to_move() != is_white) return true;  // Not my turn.
 
   const auto [move, debug] = choose_move();
   lichess.send_move(game_id, move.to_uci());
+
   Logger::info() << "Found move " << move.to_algebraic() << " for game " << game_id << " in "
                  << debug.time_spent.count() << "ms (depth " << debug.search_depth << " reached, "
                  << debug.normal_node_count / 1000 << "k nodes, " << debug.quiescence_node_count / 1000
