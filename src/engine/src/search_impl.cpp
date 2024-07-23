@@ -1,6 +1,7 @@
 #include "search_impl.h"
 
 #include <chrono>
+#include <limits>
 #include <mutex>
 
 #include "evaluation.h"
@@ -338,7 +339,7 @@ int engine::Search::Impl::quiescence_search(const chess::Board& board, int alpha
   }
 
   for (size_t i = 0; i < moves.size(); i++) {
-    int best_priority = INT_MIN;
+    int best_priority = std::numeric_limits<int>::min();
     size_t best_index = i;
     for (size_t j = i; j < moves.size(); j++) {
       if (move_priorities[j] > best_priority) {

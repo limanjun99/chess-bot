@@ -1,7 +1,6 @@
 #include "transposition_table.h"
 
-#include <array>
-#include <random>
+#include <utility>
 
 #include "config.h"
 
@@ -25,6 +24,8 @@ std::pair<int, int> PositionInfo::get_score_bounds() const {
       return std::pair{score, evaluation::max};
     case NodeType::All:
       return std::pair{evaluation::min, score};
+    default:
+      std::unreachable();
   }
 }
 

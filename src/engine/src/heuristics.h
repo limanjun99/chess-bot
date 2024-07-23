@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "history_heuristic.h"
 #include "killer_moves.h"
 #include "transposition_table.h"

@@ -243,15 +243,72 @@ private:
 
 // ========== IMPLEMENTATIONS ==========
 
-constexpr Bitboard Bitboard::from_algebraic(std::string_view algebraic) {
-  int x{static_cast<int>(algebraic[0] - 'a')};
-  int y{static_cast<int>(algebraic[1] - '1')};
-  return Bitboard{uint64_t{1} << (y * 8 + x)};
-}
-
 constexpr Bitboard Bitboard::from_index(int index) { return Bitboard{uint64_t{1} << index}; }
 
-constexpr Bitboard Bitboard::from_coordinate(int y, int x) { return Bitboard{uint64_t{1} << (y * 8 + x)}; }
+constexpr Bitboard Bitboard::A1{Bitboard::from_index(0)};
+constexpr Bitboard Bitboard::B1{Bitboard::from_index(1)};
+constexpr Bitboard Bitboard::C1{Bitboard::from_index(2)};
+constexpr Bitboard Bitboard::D1{Bitboard::from_index(3)};
+constexpr Bitboard Bitboard::E1{Bitboard::from_index(4)};
+constexpr Bitboard Bitboard::F1{Bitboard::from_index(5)};
+constexpr Bitboard Bitboard::G1{Bitboard::from_index(6)};
+constexpr Bitboard Bitboard::H1{Bitboard::from_index(7)};
+constexpr Bitboard Bitboard::A2{Bitboard::from_index(8)};
+constexpr Bitboard Bitboard::B2{Bitboard::from_index(9)};
+constexpr Bitboard Bitboard::C2{Bitboard::from_index(10)};
+constexpr Bitboard Bitboard::D2{Bitboard::from_index(11)};
+constexpr Bitboard Bitboard::E2{Bitboard::from_index(12)};
+constexpr Bitboard Bitboard::F2{Bitboard::from_index(13)};
+constexpr Bitboard Bitboard::G2{Bitboard::from_index(14)};
+constexpr Bitboard Bitboard::H2{Bitboard::from_index(15)};
+constexpr Bitboard Bitboard::A3{Bitboard::from_index(16)};
+constexpr Bitboard Bitboard::B3{Bitboard::from_index(17)};
+constexpr Bitboard Bitboard::C3{Bitboard::from_index(18)};
+constexpr Bitboard Bitboard::D3{Bitboard::from_index(19)};
+constexpr Bitboard Bitboard::E3{Bitboard::from_index(20)};
+constexpr Bitboard Bitboard::F3{Bitboard::from_index(21)};
+constexpr Bitboard Bitboard::G3{Bitboard::from_index(22)};
+constexpr Bitboard Bitboard::H3{Bitboard::from_index(23)};
+constexpr Bitboard Bitboard::A4{Bitboard::from_index(24)};
+constexpr Bitboard Bitboard::B4{Bitboard::from_index(25)};
+constexpr Bitboard Bitboard::C4{Bitboard::from_index(26)};
+constexpr Bitboard Bitboard::D4{Bitboard::from_index(27)};
+constexpr Bitboard Bitboard::E4{Bitboard::from_index(28)};
+constexpr Bitboard Bitboard::F4{Bitboard::from_index(29)};
+constexpr Bitboard Bitboard::G4{Bitboard::from_index(30)};
+constexpr Bitboard Bitboard::H4{Bitboard::from_index(31)};
+constexpr Bitboard Bitboard::A5{Bitboard::from_index(32)};
+constexpr Bitboard Bitboard::B5{Bitboard::from_index(33)};
+constexpr Bitboard Bitboard::C5{Bitboard::from_index(34)};
+constexpr Bitboard Bitboard::D5{Bitboard::from_index(35)};
+constexpr Bitboard Bitboard::E5{Bitboard::from_index(36)};
+constexpr Bitboard Bitboard::F5{Bitboard::from_index(37)};
+constexpr Bitboard Bitboard::G5{Bitboard::from_index(38)};
+constexpr Bitboard Bitboard::H5{Bitboard::from_index(39)};
+constexpr Bitboard Bitboard::A6{Bitboard::from_index(40)};
+constexpr Bitboard Bitboard::B6{Bitboard::from_index(41)};
+constexpr Bitboard Bitboard::C6{Bitboard::from_index(42)};
+constexpr Bitboard Bitboard::D6{Bitboard::from_index(43)};
+constexpr Bitboard Bitboard::E6{Bitboard::from_index(44)};
+constexpr Bitboard Bitboard::F6{Bitboard::from_index(45)};
+constexpr Bitboard Bitboard::G6{Bitboard::from_index(46)};
+constexpr Bitboard Bitboard::H6{Bitboard::from_index(47)};
+constexpr Bitboard Bitboard::A7{Bitboard::from_index(48)};
+constexpr Bitboard Bitboard::B7{Bitboard::from_index(49)};
+constexpr Bitboard Bitboard::C7{Bitboard::from_index(50)};
+constexpr Bitboard Bitboard::D7{Bitboard::from_index(51)};
+constexpr Bitboard Bitboard::E7{Bitboard::from_index(52)};
+constexpr Bitboard Bitboard::F7{Bitboard::from_index(53)};
+constexpr Bitboard Bitboard::G7{Bitboard::from_index(54)};
+constexpr Bitboard Bitboard::H7{Bitboard::from_index(55)};
+constexpr Bitboard Bitboard::A8{Bitboard::from_index(56)};
+constexpr Bitboard Bitboard::B8{Bitboard::from_index(57)};
+constexpr Bitboard Bitboard::C8{Bitboard::from_index(58)};
+constexpr Bitboard Bitboard::D8{Bitboard::from_index(59)};
+constexpr Bitboard Bitboard::E8{Bitboard::from_index(60)};
+constexpr Bitboard Bitboard::F8{Bitboard::from_index(61)};
+constexpr Bitboard Bitboard::G8{Bitboard::from_index(62)};
+constexpr Bitboard Bitboard::H8{Bitboard::from_index(63)};
 
 constexpr Bitboard Bitboard::operator|(const Bitboard& bitboard) const { return Bitboard{value | bitboard.value}; }
 constexpr Bitboard Bitboard::operator&(const Bitboard& bitboard) const { return Bitboard{value & bitboard.value}; }
@@ -284,6 +341,69 @@ constexpr bool Bitboard::operator!=(const Bitboard& bitboard) const { return val
 constexpr Bitboard::operator bool() const { return value != 0; }
 constexpr Bitboard::operator uint64_t() const { return value; }
 
+constexpr Bitboard Bitboard::rank_1{A1 | B1 | C1 | D1 | E1 | F1 | G1 | H1};
+constexpr Bitboard Bitboard::rank_2{rank_1 << 8};
+constexpr Bitboard Bitboard::rank_3{rank_1 << 16};
+constexpr Bitboard Bitboard::rank_4{rank_1 << 24};
+constexpr Bitboard Bitboard::rank_5{rank_1 << 32};
+constexpr Bitboard Bitboard::rank_6{rank_1 << 40};
+constexpr Bitboard Bitboard::rank_7{rank_1 << 48};
+constexpr Bitboard Bitboard::rank_8{rank_1 << 56};
+
+constexpr Bitboard Bitboard::file_A{A1 | A2 | A3 | A4 | A5 | A6 | A7 | A8};
+constexpr Bitboard Bitboard::file_B{file_A << 1};
+constexpr Bitboard Bitboard::file_C{file_A << 2};
+constexpr Bitboard Bitboard::file_D{file_A << 3};
+constexpr Bitboard Bitboard::file_E{file_A << 4};
+constexpr Bitboard Bitboard::file_F{file_A << 5};
+constexpr Bitboard Bitboard::file_G{file_A << 6};
+constexpr Bitboard Bitboard::file_H{file_A << 7};
+
+constexpr Bitboard Bitboard::rank[8]{rank_1, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8};
+constexpr Bitboard Bitboard::file[8]{file_A, file_B, file_C, file_D, file_E, file_F, file_G, file_H};
+
+constexpr Bitboard Bitboard::forward_slash_diagonal[15]{A8,
+                                                        A7 | B8,
+                                                        A6 | B7 | C8,
+                                                        A5 | B6 | C7 | D8,
+                                                        A4 | B5 | C6 | D7 | E8,
+                                                        A3 | B4 | C5 | D6 | E7 | F8,
+                                                        A2 | B3 | C4 | D5 | E6 | F7 | G8,
+                                                        A1 | B2 | C3 | D4 | E5 | F6 | G7 | H8,
+                                                        B1 | C2 | D3 | E4 | F5 | G6 | H7,
+                                                        C1 | D2 | E3 | F4 | G5 | H6,
+                                                        D1 | E2 | F3 | G4 | H5,
+                                                        E1 | F2 | G3 | H4,
+                                                        F1 | G2 | H3,
+                                                        G1 | H2,
+                                                        H1};
+constexpr Bitboard Bitboard::backward_slash_diagonal[15]{A1,
+                                                         A2 | B1,
+                                                         A3 | B2 | C1,
+                                                         A4 | B3 | C2 | D1,
+                                                         A5 | B4 | C3 | D2 | E1,
+                                                         A6 | B5 | C4 | D3 | E2 | F1,
+                                                         A7 | B6 | C5 | D4 | E3 | F2 | G1,
+                                                         A8 | B7 | C6 | D5 | E4 | F3 | G2 | H1,
+                                                         B8 | C7 | D6 | E5 | F4 | G3 | H2,
+                                                         C8 | D7 | E6 | F5 | G4 | H3,
+                                                         D8 | E7 | F6 | G5 | H4,
+                                                         E8 | F7 | G6 | H5,
+                                                         F8 | G7 | H6,
+                                                         G8 | H7,
+                                                         H8};
+
+constexpr Bitboard Bitboard::full{~Bitboard{0}};
+constexpr Bitboard Bitboard::empty{Bitboard{0}};
+
+constexpr Bitboard Bitboard::from_algebraic(std::string_view algebraic) {
+  int x{static_cast<int>(algebraic[0] - 'a')};
+  int y{static_cast<int>(algebraic[1] - '1')};
+  return Bitboard{uint64_t{1} << (y * 8 + x)};
+}
+
+constexpr Bitboard Bitboard::from_coordinate(int y, int x) { return Bitboard{uint64_t{1} << (y * 8 + x)}; }
+
 namespace detail::bitboard {
 constexpr std::array<std::array<Bitboard, 64>, 64> between_array = []() {
   std::array<std::array<Bitboard, 64>, 64> between_array{};
@@ -307,7 +427,7 @@ constexpr std::array<std::array<Bitboard, 64>, 64> between_array = []() {
   }
   return between_array;
 }();
-}
+}  // namespace detail::bitboard
 constexpr Bitboard Bitboard::until(Bitboard to) const {
   const int from_index{to_index()};
   const int to_index{to.to_index()};
@@ -337,7 +457,7 @@ constexpr std::array<std::array<Bitboard, 64>, 64> beyond_array = []() {
   }
   return beyond_array;
 }();
-}
+}  // namespace detail::bitboard
 constexpr Bitboard Bitboard::beyond(Bitboard to) const {
   const int from_index{to_index()};
   const int to_index{to.to_index()};
@@ -409,125 +529,5 @@ constexpr auto Bitboard::iterate_subsets() const {
   constexpr auto more{[](const State& state) { return !state.done; }};
   return Generator<State, decltype(getter), decltype(progress), decltype(more)>(State{value, value, false});
 }
-
-constexpr Bitboard Bitboard::A1{Bitboard::from_index(0)};
-constexpr Bitboard Bitboard::B1{Bitboard::from_index(1)};
-constexpr Bitboard Bitboard::C1{Bitboard::from_index(2)};
-constexpr Bitboard Bitboard::D1{Bitboard::from_index(3)};
-constexpr Bitboard Bitboard::E1{Bitboard::from_index(4)};
-constexpr Bitboard Bitboard::F1{Bitboard::from_index(5)};
-constexpr Bitboard Bitboard::G1{Bitboard::from_index(6)};
-constexpr Bitboard Bitboard::H1{Bitboard::from_index(7)};
-constexpr Bitboard Bitboard::A2{Bitboard::from_index(8)};
-constexpr Bitboard Bitboard::B2{Bitboard::from_index(9)};
-constexpr Bitboard Bitboard::C2{Bitboard::from_index(10)};
-constexpr Bitboard Bitboard::D2{Bitboard::from_index(11)};
-constexpr Bitboard Bitboard::E2{Bitboard::from_index(12)};
-constexpr Bitboard Bitboard::F2{Bitboard::from_index(13)};
-constexpr Bitboard Bitboard::G2{Bitboard::from_index(14)};
-constexpr Bitboard Bitboard::H2{Bitboard::from_index(15)};
-constexpr Bitboard Bitboard::A3{Bitboard::from_index(16)};
-constexpr Bitboard Bitboard::B3{Bitboard::from_index(17)};
-constexpr Bitboard Bitboard::C3{Bitboard::from_index(18)};
-constexpr Bitboard Bitboard::D3{Bitboard::from_index(19)};
-constexpr Bitboard Bitboard::E3{Bitboard::from_index(20)};
-constexpr Bitboard Bitboard::F3{Bitboard::from_index(21)};
-constexpr Bitboard Bitboard::G3{Bitboard::from_index(22)};
-constexpr Bitboard Bitboard::H3{Bitboard::from_index(23)};
-constexpr Bitboard Bitboard::A4{Bitboard::from_index(24)};
-constexpr Bitboard Bitboard::B4{Bitboard::from_index(25)};
-constexpr Bitboard Bitboard::C4{Bitboard::from_index(26)};
-constexpr Bitboard Bitboard::D4{Bitboard::from_index(27)};
-constexpr Bitboard Bitboard::E4{Bitboard::from_index(28)};
-constexpr Bitboard Bitboard::F4{Bitboard::from_index(29)};
-constexpr Bitboard Bitboard::G4{Bitboard::from_index(30)};
-constexpr Bitboard Bitboard::H4{Bitboard::from_index(31)};
-constexpr Bitboard Bitboard::A5{Bitboard::from_index(32)};
-constexpr Bitboard Bitboard::B5{Bitboard::from_index(33)};
-constexpr Bitboard Bitboard::C5{Bitboard::from_index(34)};
-constexpr Bitboard Bitboard::D5{Bitboard::from_index(35)};
-constexpr Bitboard Bitboard::E5{Bitboard::from_index(36)};
-constexpr Bitboard Bitboard::F5{Bitboard::from_index(37)};
-constexpr Bitboard Bitboard::G5{Bitboard::from_index(38)};
-constexpr Bitboard Bitboard::H5{Bitboard::from_index(39)};
-constexpr Bitboard Bitboard::A6{Bitboard::from_index(40)};
-constexpr Bitboard Bitboard::B6{Bitboard::from_index(41)};
-constexpr Bitboard Bitboard::C6{Bitboard::from_index(42)};
-constexpr Bitboard Bitboard::D6{Bitboard::from_index(43)};
-constexpr Bitboard Bitboard::E6{Bitboard::from_index(44)};
-constexpr Bitboard Bitboard::F6{Bitboard::from_index(45)};
-constexpr Bitboard Bitboard::G6{Bitboard::from_index(46)};
-constexpr Bitboard Bitboard::H6{Bitboard::from_index(47)};
-constexpr Bitboard Bitboard::A7{Bitboard::from_index(48)};
-constexpr Bitboard Bitboard::B7{Bitboard::from_index(49)};
-constexpr Bitboard Bitboard::C7{Bitboard::from_index(50)};
-constexpr Bitboard Bitboard::D7{Bitboard::from_index(51)};
-constexpr Bitboard Bitboard::E7{Bitboard::from_index(52)};
-constexpr Bitboard Bitboard::F7{Bitboard::from_index(53)};
-constexpr Bitboard Bitboard::G7{Bitboard::from_index(54)};
-constexpr Bitboard Bitboard::H7{Bitboard::from_index(55)};
-constexpr Bitboard Bitboard::A8{Bitboard::from_index(56)};
-constexpr Bitboard Bitboard::B8{Bitboard::from_index(57)};
-constexpr Bitboard Bitboard::C8{Bitboard::from_index(58)};
-constexpr Bitboard Bitboard::D8{Bitboard::from_index(59)};
-constexpr Bitboard Bitboard::E8{Bitboard::from_index(60)};
-constexpr Bitboard Bitboard::F8{Bitboard::from_index(61)};
-constexpr Bitboard Bitboard::G8{Bitboard::from_index(62)};
-constexpr Bitboard Bitboard::H8{Bitboard::from_index(63)};
-
-constexpr Bitboard Bitboard::rank_1{A1 | B1 | C1 | D1 | E1 | F1 | G1 | H1};
-constexpr Bitboard Bitboard::rank_2{rank_1 << 8};
-constexpr Bitboard Bitboard::rank_3{rank_1 << 16};
-constexpr Bitboard Bitboard::rank_4{rank_1 << 24};
-constexpr Bitboard Bitboard::rank_5{rank_1 << 32};
-constexpr Bitboard Bitboard::rank_6{rank_1 << 40};
-constexpr Bitboard Bitboard::rank_7{rank_1 << 48};
-constexpr Bitboard Bitboard::rank_8{rank_1 << 56};
-
-constexpr Bitboard Bitboard::file_A{A1 | A2 | A3 | A4 | A5 | A6 | A7 | A8};
-constexpr Bitboard Bitboard::file_B{file_A << 1};
-constexpr Bitboard Bitboard::file_C{file_A << 2};
-constexpr Bitboard Bitboard::file_D{file_A << 3};
-constexpr Bitboard Bitboard::file_E{file_A << 4};
-constexpr Bitboard Bitboard::file_F{file_A << 5};
-constexpr Bitboard Bitboard::file_G{file_A << 6};
-constexpr Bitboard Bitboard::file_H{file_A << 7};
-
-constexpr Bitboard Bitboard::rank[8]{rank_1, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8};
-constexpr Bitboard Bitboard::file[8]{file_A, file_B, file_C, file_D, file_E, file_F, file_G, file_H};
-
-constexpr Bitboard Bitboard::forward_slash_diagonal[15]{A8,
-                                                        A7 | B8,
-                                                        A6 | B7 | C8,
-                                                        A5 | B6 | C7 | D8,
-                                                        A4 | B5 | C6 | D7 | E8,
-                                                        A3 | B4 | C5 | D6 | E7 | F8,
-                                                        A2 | B3 | C4 | D5 | E6 | F7 | G8,
-                                                        A1 | B2 | C3 | D4 | E5 | F6 | G7 | H8,
-                                                        B1 | C2 | D3 | E4 | F5 | G6 | H7,
-                                                        C1 | D2 | E3 | F4 | G5 | H6,
-                                                        D1 | E2 | F3 | G4 | H5,
-                                                        E1 | F2 | G3 | H4,
-                                                        F1 | G2 | H3,
-                                                        G1 | H2,
-                                                        H1};
-constexpr Bitboard Bitboard::backward_slash_diagonal[15]{A1,
-                                                         A2 | B1,
-                                                         A3 | B2 | C1,
-                                                         A4 | B3 | C2 | D1,
-                                                         A5 | B4 | C3 | D2 | E1,
-                                                         A6 | B5 | C4 | D3 | E2 | F1,
-                                                         A7 | B6 | C5 | D4 | E3 | F2 | G1,
-                                                         A8 | B7 | C6 | D5 | E4 | F3 | G2 | H1,
-                                                         B8 | C7 | D6 | E5 | F4 | G3 | H2,
-                                                         C8 | D7 | E6 | F5 | G4 | H3,
-                                                         D8 | E7 | F6 | G5 | H4,
-                                                         E8 | F7 | G6 | H5,
-                                                         F8 | G7 | H6,
-                                                         G8 | H7,
-                                                         H8};
-
-constexpr Bitboard Bitboard::full{~Bitboard{0}};
-constexpr Bitboard Bitboard::empty{Bitboard{0}};
 
 }  // namespace chess

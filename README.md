@@ -10,7 +10,7 @@ The Lichess bot can be found [here](https://lichess.org/@/penguin_bot). It accep
 
 Vcpkg is required for package management. Set `VCPKG_ROOT` to its installation folder.
 
-```
+```bash
 # Release builds
 cmake --preset=release
 cmake --build --preset=release
@@ -19,6 +19,9 @@ cmake --build --preset=release
 cmake --preset=debug
 cmake --build --preset=debug
 ```
+
+This project uses C++23 features such as the `<expected>` library. It has been tested to compile on gcc version >= 13. If the build commands fail with your default compiler, please try with a newer compiler version. For example, to use gcc-14, run: `CC=gcc-14 CXX=g++-14 cmake --preset=release -DCMAKE_CXX_COMPILER=g++-14`.
+
 
 ## Running
 

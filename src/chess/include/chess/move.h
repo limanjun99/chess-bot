@@ -155,7 +155,8 @@ constexpr std::string Move::to_uci() const {
 }
 
 constexpr std::string Move::to_algebraic() const {
-  char piece_char{static_cast<char>(std::toupper(piece::to_char(get_piece())))};
+  char piece_char{piece::to_char(get_piece())};
+  piece_char += 'A' - 'a';  // std::toupper is not constexpr
   std::string uci{piece_char + get_from().to_algebraic() + get_to().to_algebraic()};
   if (is_promotion()) uci += piece::to_char(get_promotion_piece());
   return uci;

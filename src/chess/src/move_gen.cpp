@@ -345,19 +345,15 @@ template <Color PlayerColor>
 template <PieceType PT, typename MoveGen<PlayerColor>::MoveType MT>
 void MoveGen<PlayerColor>::generate_unchecked_piece_moves(MoveContainer& moves) const {
   // A piece can only move to certain squares to satisfy MoveType.
-  const Bitboard to_mask = [=]() {
-    if constexpr (MT == MoveType::All) return Bitboard::full;
-    if constexpr (MT == MoveType::CapturesAndPromotionsOnly) {
-      Bitboard mask{opp_occupied};
-      if constexpr (PT == PieceType::Pawn) mask |= Pawn::get_promotion_squares<PlayerColor>();
-      return mask;
-    }
-    if constexpr (MT == MoveType::CapturesChecksAndPromotionsOnly) {
-      Bitboard mask{opp_occupied | get_opp_piece_attacks<PT>(opp_player[PieceType::King])};
-      if constexpr (PT == PieceType::Pawn) mask |= Pawn::get_promotion_squares<PlayerColor>();
-      return mask;
-    }
-  }();
+  Bitboard to_mask{Bitboard::full};
+  if constexpr (MT == MoveType::CapturesAndPromotionsOnly) {
+    to_mask = opp_occupied;
+    if constexpr (PT == PieceType::Pawn) to_mask |= Pawn::get_promotion_squares<PlayerColor>();
+  }
+  if constexpr (MT == MoveType::CapturesChecksAndPromotionsOnly) {
+    to_mask = opp_occupied | get_opp_piece_attacks<PT>(opp_player[PieceType::King]);
+    if constexpr (PT == PieceType::Pawn) to_mask |= Pawn::get_promotion_squares<PlayerColor>();
+  }
 
   // Iterate through all pieces of the given type.
   for (const Bitboard from : cur_player[PT].iterate()) {
