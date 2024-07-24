@@ -1,0 +1,12 @@
+[
+  {
+    "command": "./engine_builds/engine_cli_v0.0.1",
+    "name": "engine_cli_v0.0.1",
+    "protocol": "uci"
+  },
+  {
+    "command": "./engine_builds/engine_cli_current",
+    "name": "engine_cli_current",
+    "protocol": "uci"
+  }
+]

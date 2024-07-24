@@ -16,7 +16,7 @@ cd ../
 # Build.
 rm -rf build/
 cmake --preset=release
-cmake --build --preset=release
+cmake --build --preset=release --target=engine_cli
 
 # Copy binary.
 mkdir -p engine_builds/
