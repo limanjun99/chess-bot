@@ -20,7 +20,7 @@ cmake --preset=debug
 cmake --build --preset=debug
 ```
 
-This project uses C++23 features such as the `<expected>` library. It has been tested to compile on gcc version >= 13. If the build commands fail with your default compiler, please try with a newer compiler version. For example, to use gcc-14, run: `CC=gcc-14 CXX=g++-14 cmake --preset=release -DCMAKE_CXX_COMPILER=g++-14`.
+This project uses C++23 features such as the `<expected>` library. It has been tested to compile on gcc version >= 13. If the build commands fail with your default compiler, please try with a newer compiler version. For example, to use gcc-14, run: `CC=gcc-14 CXX=g++-14 cmake --preset=release`.
 
 
 ## Running
@@ -46,3 +46,11 @@ Then run the bot:
 ./build/debug/tests/chess_engine_tests        # To test the chess engine
 ./build/release/test/benchmark/benchmarks     # To run performance benchmarks
 ```
+
+## Strength Testing
+
+TODO: Instructions for how to test this engine against other engines / older versions of itself.
+
+Development is done in the `dev` branch. Once a new version (typically with better strength) is ready, it will be merged into `main`, and tagged with `vx.y.z`.
+
+To build older versions (tagged with some `vx.y.z`) of the engine_cli binary, use the script `./scripts/build_engine_version.sh` (run it for usage info). Remember to set the environment variables `CC` and `CXX` if you need to use a different compiler.
