@@ -1,5 +1,6 @@
 #include "evaluation.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 
