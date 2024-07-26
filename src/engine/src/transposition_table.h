@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "chess/board.h"
+#include "evaluation.h"
 
 enum class NodeType : int8_t {
   PV,   // Nodes with score within [alpha, beta].
@@ -17,14 +18,15 @@ struct PositionInfo {
   chess::Move best_move;
   NodeType node_type;
   int8_t depth_left;
-  int16_t score;
+  Evaluation score;
 
   PositionInfo();
-  PositionInfo(chess::Board::Hash hash, int depth_left, chess::Move best_move, NodeType node_type, int16_t score);
+  explicit PositionInfo(chess::Board::Hash hash, int depth_left, chess::Move best_move, NodeType node_type,
+                        Evaluation score);
 
   chess::Move get_best_move() const;
 
-  std::pair<int, int> get_score_bounds() const;
+  std::pair<Evaluation, Evaluation> get_score_bounds() const;
 };
 
 class TranspositionTable {
@@ -36,7 +38,7 @@ public:
 
   // Try to update the entry at the given hash. Only succeeds if this new entry is analyzed to a greater depth than the
   // existing entry.
-  void try_update(chess::Board::Hash hash, int depth_left, chess::Move best_move, NodeType node_type, int16_t score);
+  void try_update(chess::Board::Hash hash, int depth_left, chess::Move best_move, NodeType node_type, Evaluation score);
 
 private:
   std::vector<PositionInfo> table;

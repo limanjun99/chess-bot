@@ -9,18 +9,18 @@
 // Higher priority moves should be searched first.
 class MovePriority {
 public:
-  explicit constexpr MovePriority(int32_t priority);
-
-  constexpr auto operator<=>(const MovePriority& other) const;
+  constexpr auto operator<=>(const MovePriority& other) const = default;
 
   // Returns the priority level of a move.
-  static MovePriority evaluate(const chess::Move& move, int32_t depth_left, const chess::Move& hash_move,
-                               chess::Color player_color, Heuristics& heuristics);
+  [[nodiscard]] static MovePriority evaluate(const chess::Move& move, int32_t depth_left, const chess::Move& hash_move,
+                                             chess::Color player_color, Heuristics& heuristics);
 
   // Returns the priority level of a quiescence move.
-  static MovePriority evaluate_quiescence(const chess::Move& move);
+  [[nodiscard]] static MovePriority evaluate_quiescence(const chess::Move& move);
 
 private:
+  explicit constexpr MovePriority(int32_t priority);
+
   int32_t priority;
 };
 
@@ -29,5 +29,3 @@ private:
 // ===============================================
 
 constexpr MovePriority::MovePriority(int32_t priority) : priority{priority} {}
-
-constexpr auto MovePriority::operator<=>(const MovePriority& other) const { return priority <=> other.priority; }

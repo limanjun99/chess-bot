@@ -86,16 +86,14 @@ void engine::Search::Impl::go(std::unique_lock<std::mutex>) {
 
 chess::Move engine::Search::Impl::iterative_deepening() {
   reset_iteration();
-  const auto [evaluation, best_move] = search(starting_position, evaluation::min, evaluation::max, root_depth);
+  const auto [evaluation, best_move] = search(starting_position, Evaluation::min, Evaluation::max, root_depth);
   if (should_stop()) return chess::Move::null();
-  debug_info.evaluation = evaluation;
+  debug_info.evaluation = evaluation.to_centipawns();
   return best_move;
 }
 
-int engine::Search::Impl::evaluate_board(const chess::Board& board) { return pst::evaluate(board); }
-
-std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& board, int alpha, int beta,
-                                                         int depth_left) {
+std::pair<Evaluation, chess::Move> engine::Search::Impl::search(const chess::Board& board, Evaluation alpha,
+                                                                Evaluation beta, int32_t depth_left) {
   if (depth_left <= 0) {
     // Switch to quiescence search
     return {quiescence_search(board, alpha, beta, 0), chess::Move::null()};
@@ -103,12 +101,12 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
 
   debug_info.normal_node_count++;
   if (should_stop()) {
-    return {0, chess::Move::null()};
+    return {Evaluation::draw, chess::Move::null()};
   }
 
   if (const auto score{board.get_score(repetition_tracker)}) {
-    if (*score == 0) return {evaluation::draw, chess::Move::null()};
-    else return {evaluation::losing - depth_left, chess::Move::null()};
+    if (*score == 0) return {Evaluation::draw, chess::Move::null()};
+    else return {Evaluation::losing(depth_left), chess::Move::null()};
   }
 
   const chess::Board::Hash board_hash = board.get_hash();
@@ -131,7 +129,7 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
         debug_info.transposition_table_success++;
         if (score_lowerbound >= beta) return {beta, chess::Move::null()};
         if (score_upperbound <= alpha) return {alpha, chess::Move::null()};
-        const int score{std::max(alpha, std::min(beta, score_lowerbound))};  // Bound score to [alpha, beta].
+        const Evaluation score{std::max(alpha, std::min(beta, score_lowerbound))};  // Bound score to [alpha, beta].
         return {score, chess::Move::null()};
       }
 
@@ -152,11 +150,11 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
   // 4. Static evalution of current position is >= beta.
   const bool is_in_check{board.is_in_check()};
   if (depth_left < root_depth && !is_in_check && depth_left >= config::null_move_heuristic_R + 1 &&
-      beta < evaluation::winning && evaluate_board(board) >= beta) {
+      !beta.is_winning() && Evaluation::evaluate(board) >= beta) {
     debug_info.null_move_total++;
     chess::Board new_board{board.skip_turn()};
-    int null_move_evaluation =
-        -search(new_board, -beta, -beta + 1, depth_left - 1 - config::null_move_heuristic_R).first;
+    Evaluation null_move_evaluation =
+        -search(new_board, -beta, (-beta).succ(), depth_left - 1 - config::null_move_heuristic_R).first;
     if (null_move_evaluation >= beta) {
       debug_info.null_move_success++;
       return {beta, chess::Move::null()};
@@ -171,8 +169,8 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
   }
 
   // Only used for futility pruning.
-  int cur_board_evaluation = 0;
-  if (depth_left == 1) cur_board_evaluation = evaluate_board(board);
+  Evaluation cur_board_evaluation{};
+  if (depth_left == 1) cur_board_evaluation = Evaluation::evaluate(board);
 
   for (size_t i = 0; i < moves.size(); i++) {
     MovePriority best_priority = move_priorities[i];
@@ -188,13 +186,13 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
 
     // Futility pruning. If the expected value of this move does not raise the evaluation above alpha, then it is
     // likely not worth it to try it out.
-    if (depth_left == 1 && !is_in_check && beta <= evaluation::winning / 2 && alpha >= evaluation::losing / 2) {
-      int move_value_estimate = 0;
+    if (depth_left == 1 && !is_in_check && !beta.is_winning() && !alpha.is_losing()) {
+      Evaluation move_value_estimate{};
       if (moves[i].get_captured_piece() != chess::PieceType::None) {
-        move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_captured_piece())];
+        move_value_estimate += Evaluation::piece[static_cast<size_t>(moves[i].get_captured_piece())];
       }
       if (moves[i].get_promotion_piece() != chess::PieceType::None) {
-        move_value_estimate += evaluation::piece[static_cast<int>(moves[i].get_promotion_piece())];
+        move_value_estimate += Evaluation::piece[static_cast<size_t>(moves[i].get_promotion_piece())];
       }
       if (cur_board_evaluation + move_value_estimate + config::futility_margin <= alpha) {
         continue;
@@ -205,7 +203,7 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
     repetition_tracker.push(new_board, moves[i]);
     //! TODO: Late Move Reduction was removed because it was pruning good lines and causing testcases to fail.
     //! Figure out how to implement it correctly.
-    const int new_board_evaluation{-search(new_board, -beta, -alpha, depth_left - 1).first};
+    const Evaluation new_board_evaluation{-search(new_board, -beta, -alpha, depth_left - 1).first};
     repetition_tracker.pop();
 
     if (new_board_evaluation >= beta) {
@@ -233,26 +231,27 @@ std::pair<int, chess::Move> engine::Search::Impl::search(const chess::Board& boa
   return {alpha, best_move};
 }
 
-int engine::Search::Impl::quiescence_search(const chess::Board& board, int alpha, int beta, int depth_left) {
+Evaluation engine::Search::Impl::quiescence_search(const chess::Board& board, Evaluation alpha, Evaluation beta,
+                                                   int32_t depth_left) {
   debug_info.quiescence_node_count++;
-  if (should_stop()) return 0;
+  if (should_stop()) return Evaluation::draw;
 
   if (const auto score{board.get_score(repetition_tracker)}) {
-    if (*score == 0) return evaluation::draw;
-    return evaluation::losing - depth_left;  // Checkmate, minus depth_left so that shorter mates are preferred.
+    if (*score == 0) return Evaluation::draw;
+    return Evaluation::losing(depth_left);  // Checkmate, minus depth_left so that shorter mates are preferred.
   }
 
   bool is_in_check{board.is_in_check()};
-  if (!is_in_check && depth_left <= -config::quiescence_search_depth) return evaluate_board(board);
+  if (!is_in_check && depth_left <= -config::quiescence_search_depth) return Evaluation::evaluate(board);
 
-  int board_evaluation{evaluate_board(board)};
+  const Evaluation board_evaluation{Evaluation::evaluate(board)};
   if (!is_in_check) {
     if (board_evaluation >= beta) return beta;
 
     // Delta pruning. If the evaluation remains below alpha after capturing a queen, then the position's true
     // evaluation is likely below alpha.
     debug_info.q_delta_pruning_total++;
-    if (board_evaluation + evaluation::piece[static_cast<size_t>(chess::PieceType::Queen)] +
+    if (board_evaluation + Evaluation::piece[static_cast<size_t>(chess::PieceType::Queen)] +
             config::quiescence_search_delta_pruning_safety <
         alpha) {
       debug_info.q_delta_pruning_success++;
@@ -289,7 +288,7 @@ int engine::Search::Impl::quiescence_search(const chess::Board& board, int alpha
     // likely no point in checking this move at all.
     if (!is_in_check && moves[i].is_capture()) {
       debug_info.q_delta_pruning_total++;
-      if (board_evaluation + evaluation::piece[static_cast<size_t>(moves[i].get_captured_piece())] +
+      if (board_evaluation + Evaluation::piece[static_cast<size_t>(moves[i].get_captured_piece())] +
               config::quiescence_search_delta_pruning_safety <
           alpha) {
         debug_info.q_delta_pruning_success++;
@@ -299,7 +298,7 @@ int engine::Search::Impl::quiescence_search(const chess::Board& board, int alpha
 
     chess::Board new_board = board.apply_move(moves[i]);
     repetition_tracker.push(new_board, moves[i]);
-    int new_board_evaluation = -quiescence_search(new_board, -beta, -alpha, depth_left - 1);
+    Evaluation new_board_evaluation = -quiescence_search(new_board, -beta, -alpha, depth_left - 1);
     repetition_tracker.pop();
     if (new_board_evaluation >= beta) return beta;
     alpha = std::max(alpha, new_board_evaluation);

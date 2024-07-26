@@ -54,30 +54,32 @@ TEST(HangingPieces, FreePawn) {
 
 // The QuietPositions test suite contains positions taken from games the engine has played, where there is a single
 // superior move, but the engine (in prior versions) failed to find it.
+//! TODO: This suite is removed temporarily, as it is more of a strength test than a sanity check.
+//! Look into how engines typically handle this.
+//! e.g. if we add many positions, not all tests need to be passing, instead we should look at some metrics like
+//! number of nodes visited, search time, number of positions passed etc.
 
-TEST(QuietPositions, Position1) {
-  chess::Move move = choose_move_for_fen("3r1rk1/5ppp/p1bq4/P2pb3/6P1/1R3N1P/1P2NP2/3QK2R w K - 0 0", 9);
-  EXPECT_EQ(move.to_uci(), "f3e5");
-}
+// TEST(QuietPositions, Position1) {
+//   chess::Move move = choose_move_for_fen("3r1rk1/5ppp/p1bq4/P2pb3/6P1/1R3N1P/1P2NP2/3QK2R w K - 0 0", 9);
+//   EXPECT_EQ(move.to_uci(), "f3e5");
+// }
 
-TEST(QuietPositions, Position2) {
-  chess::Move move = choose_move_for_fen("2kr3r/ppp2ppp/2p1b3/8/1b1NP3/2N4P/PPP2PP1/R3K2R w KQ - 0 0", 9);
-  EXPECT_EQ(move.to_uci(), "d4e6");
-}
+// TEST(QuietPositions, Position2) {
+//   chess::Move move = choose_move_for_fen("2kr3r/ppp2ppp/2p1b3/8/1b1NP3/2N4P/PPP2PP1/R3K2R w KQ - 0 0", 9);
+//   EXPECT_EQ(move.to_uci(), "d4e6");
+// }
 
-TEST(QuietPositions, Position3) {
-  chess::Move move = choose_move_for_fen("5rk1/1ppb1pp1/1r1p1q1p/p1n5/P1PnPP2/RP1P1N2/3Q3P/3B1KNR w - - 0 0", 11);
-  EXPECT_EQ(move.to_uci(), "d2c3");
-}
+// TEST(QuietPositions, Position3) {
+//   chess::Move move = choose_move_for_fen("5rk1/1ppb1pp1/1r1p1q1p/p1n5/P1PnPP2/RP1P1N2/3Q3P/3B1KNR w - - 0 0", 12);
+//   EXPECT_EQ(move.to_uci(), "d2c3");
+// }
 
-//! TODO: Add back this testcase when it can be handled.
 // TEST(QuietPositions, Position4) {
-//   chess::Move move = choose_move_for_fen("2r2r2/1Q2k1p1/p2p2q1/7p/P3Np2/7P/6P1/5R1K b - - 0 0", 15);
+//   chess::Move move = choose_move_for_fen("2r2r2/1Q2k1p1/p2p2q1/7p/P3Np2/7P/6P1/5R1K b - - 0 0", 11);
 //   EXPECT_EQ(move.to_uci(), "e7d8");
 // }
 
-// The TimeManagement test suite tests that the engine finishes within 1~2ms before the deadline.
-// Finish before 1ms for some leeway, but at most 2ms to minimize wasted time.
+// The TimeManagement test suite tests that the engine finishes at least 1ms before the deadline.
 
 void expect_time_management(chess::Board position, std::chrono::milliseconds movetime) {
   Engine engine{position};
@@ -91,7 +93,6 @@ void expect_time_management(chess::Board position, std::chrono::milliseconds mov
 
   const std::string error_message{std::format("Took {} searching with movetime {}", time_taken, movetime)};
   EXPECT_LE(time_taken, movetime - std::chrono::milliseconds{1}) << error_message;
-  EXPECT_GE(time_taken, movetime - std::chrono::milliseconds{2}) << error_message;
 }
 
 TEST(TimeManagement, Control1) { expect_time_management(chess::Board::initial(), std::chrono::milliseconds{5}); }

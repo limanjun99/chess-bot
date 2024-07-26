@@ -12,7 +12,7 @@ namespace engine {
 class Search {
 public:
   struct DebugInfo {
-    int evaluation;                        // Evaluation of the board position after playing the chosen move.
+    int16_t evaluation;                    // Evaluation of the board position (in centipawns).
     int64_t normal_node_count;             // Number of nodes in the main search tree.
     int64_t quiescence_node_count;         // Number of nodes in quiescence search.
     int64_t null_move_success;             // Nodes that returned after a null move search.

@@ -3,11 +3,12 @@
 #include <utility>
 
 #include "config.h"
+#include "evaluation.h"
 
 PositionInfo::PositionInfo() : hash{chess::Board::Hash::null} {}
 
 PositionInfo::PositionInfo(chess::Board::Hash hash, int depth_left, chess::Move best_move, NodeType node_type,
-                           int16_t score)
+                           Evaluation score)
     : hash{hash},
       best_move{best_move},
       node_type{node_type},
@@ -16,14 +17,14 @@ PositionInfo::PositionInfo(chess::Board::Hash hash, int depth_left, chess::Move 
 
 chess::Move PositionInfo::get_best_move() const { return best_move; }
 
-std::pair<int, int> PositionInfo::get_score_bounds() const {
+std::pair<Evaluation, Evaluation> PositionInfo::get_score_bounds() const {
   switch (node_type) {
     case NodeType::PV:
-      return std::pair{score, score};
+      return std::make_pair(score, score);
     case NodeType::Cut:
-      return std::pair{score, evaluation::max};
+      return std::make_pair(score, Evaluation::max);
     case NodeType::All:
-      return std::pair{evaluation::min, score};
+      return std::make_pair(Evaluation::min, score);
     default:
       std::unreachable();
   }
@@ -38,7 +39,7 @@ const PositionInfo* TranspositionTable::get(chess::Board::Hash hash) const {
 }
 
 void TranspositionTable::try_update(chess::Board::Hash hash, int depth_left, chess::Move best_move, NodeType node_type,
-                                    int16_t score) {
+                                    Evaluation score) {
   const size_t index{hash.to_index(config::transposition_table_size)};
   if (table[index].depth_left > depth_left + 1) return;  // Existing entry is much superior.
   if (table[index].hash == hash) return;                 // Same entry already exists.

@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "chess/stack_repetition_tracker.h"
+#include "evaluation.h"
 #include "heuristics.h"
 #include "search.h"
 #include "time_management.h"
@@ -60,18 +61,16 @@ private:
   // Begin searching.
   void go(std::unique_lock<std::mutex> search_lock);
 
-  // Evaluate the current board state, without searching any further.
-  int evaluate_board(const chess::Board& board);
-
   // Continue traversing the search tree. Returns the evaluation and best move for the current player.
   // If `timed_out` is true, then the search aborted midway and the results are invalid.
   // If Move::null was returned as the best move, then it is not known what the best move is (e.g. due to null pruning).
-  std::pair<int, chess::Move> search(const chess::Board& board, int alpha, int beta, int depth_left);
+  std::pair<Evaluation, chess::Move> search(const chess::Board& board, Evaluation alpha, Evaluation beta,
+                                            int32_t depth_left);
 
   // Traverse the search tree until a position with no captures or max depth is reached. Returns the evaluation of the
   // current board for the current player. Note that `depth_left` starts from 0 and decreases, so that all `depth_left`
   // in quiescence search is lower than in normal search.
-  int quiescence_search(const chess::Board& board, int alpha, int beta, int depth_left);
+  Evaluation quiescence_search(const chess::Board& board, Evaluation alpha, Evaluation beta, int32_t depth_left);
 
   // Clears outdated information between each search depth in iterative deepening.
   void reset_iteration();
