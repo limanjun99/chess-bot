@@ -1,6 +1,7 @@
 #pragma once
 
 #include <expected>
+#include <type_traits>
 
 namespace util {
 
@@ -25,6 +26,19 @@ public:
 };
 
 }  // namespace util
+
+// Usage: `auto value = TRY_EXPECTED(compute_value());`
+// where `compute_value()` returns a `std::expected`.
+// This macro makes error propagation easier, similar to Rust's ? operator.
+// If the expression errors, then we return early with that error.
+#define TRY_EXPECTED(expression)                         \
+  ({                                                     \
+    auto result{expression};                             \
+    if (!result) {                                       \
+      return std::unexpected{std::move(result).error()}; \
+    }                                                    \
+    *std::move(result);                                  \
+  })
 
 // ===============================================
 // =============== IMPLEMENTATIONS ===============

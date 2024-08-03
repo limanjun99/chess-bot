@@ -103,3 +103,20 @@ TEST(TimeManagement, Control5) { expect_time_management(chess::Board::initial(),
 TEST(TimeManagement, Control6) { expect_time_management(chess::Board::initial(), std::chrono::milliseconds{200}); }
 TEST(TimeManagement, Control7) { expect_time_management(chess::Board::initial(), std::chrono::milliseconds{500}); }
 TEST(TimeManagement, Control8) { expect_time_management(chess::Board::initial(), std::chrono::milliseconds{1000}); }
+
+// The EngineTimedOut test suite tests that the engine correctly reports the search ending due to timeout or reaching
+// the target depth.
+
+TEST(EngineTimedOut, ReachedTargetDepth) {
+  Engine engine{chess::Board::initial()};
+  auto [_, data] =
+      engine.search_sync(engine::uci::SearchConfig{}.set_depth(2).set_movetime(std::chrono::milliseconds{1000}));
+  EXPECT_FALSE(data.timed_out);
+}
+
+TEST(EngineTimedOut, TimedOut) {
+  Engine engine{chess::Board::initial()};
+  auto [_, data] =
+      engine.search_sync(engine::uci::SearchConfig{}.set_depth(30).set_movetime(std::chrono::milliseconds{20}));
+  EXPECT_TRUE(data.timed_out);
+}

@@ -6,6 +6,7 @@ add_library(engine_cli_lib
   commands/debug_command.cpp
   commands/go_command.cpp
   commands/new_game_command.cpp
+  commands/parameterless_command.h
   commands/parsing.cpp
   commands/position_command.cpp
   commands/quit_command.cpp
@@ -23,10 +24,11 @@ add_library(engine_cli_lib
 )
 
 target_compile_features(engine_cli_lib PRIVATE cxx_std_23)
-target_compile_options(engine_cli_lib PRIVATE -Wall -Wextra -Wpedantic -O3)
+target_compile_options(engine_cli_lib PRIVATE -Wall -Wextra -O3)
 
 target_link_libraries(engine_cli_lib PRIVATE chess_engine)
 target_link_libraries(engine_cli_lib PRIVATE chess)
+target_link_libraries(engine_cli_lib PRIVATE util)
 
 # Main executable
 
@@ -35,12 +37,13 @@ add_executable(engine_cli
 )
 
 target_compile_features(engine_cli PRIVATE cxx_std_23)
-target_compile_options(engine_cli PRIVATE -Wall -Wextra -Wpedantic -O3)
+target_compile_options(engine_cli PRIVATE -Wall -Wextra -O3)
 set_target_properties(engine_cli PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${g_binary_output_directory})
 
 target_link_libraries(engine_cli PRIVATE engine_cli_lib)
 target_link_libraries(engine_cli PRIVATE chess_engine)
 target_link_libraries(engine_cli PRIVATE chess)
+target_link_libraries(engine_cli PRIVATE util)
 
 # Testing
 
@@ -58,7 +61,6 @@ add_executable(engine_cli_tests
   commands/uci_command.test.cpp
   engine_cli.test.cpp
   uci_io.test.cpp
-  util.test.cpp
 )
 
 find_package(GTest CONFIG REQUIRED)
@@ -66,9 +68,10 @@ target_link_libraries(engine_cli_tests PRIVATE engine_cli_lib)
 target_link_libraries(engine_cli_tests PRIVATE chess_engine)
 target_link_libraries(engine_cli_tests PRIVATE chess)
 target_link_libraries(engine_cli_tests PRIVATE GTest::gtest_main)
+target_link_libraries(engine_cli_tests PRIVATE util)
 
 target_compile_features(engine_cli_tests PRIVATE cxx_std_23)
-target_compile_options(engine_cli_tests PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(engine_cli_tests PRIVATE -Wall -Wextra)
 set_target_properties(engine_cli_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${g_test_output_directory})
 
 include(GoogleTest)

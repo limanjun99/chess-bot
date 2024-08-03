@@ -9,6 +9,7 @@
 #include "bitboard.h"
 #include "constants.h"
 #include "move_gen.h"
+#include "piece.h"
 
 using namespace chess;
 
@@ -96,4 +97,60 @@ std::optional<int32_t> Board::get_score() const {
   if (!is_in_check()) return 0;                                      // Stalemate.
   if (is_white_turn) return -1;                                      // White is checkmated.
   else return 1;                                                     // Black is checkmated.
+}
+
+std::string Board::to_fen() const {
+  auto fen = std::string{};
+
+  // Pieces.
+  for (auto y = 7; y >= 0; y--) {
+    auto empty_count = 0;
+    for (auto x = 0; x < 8; x++) {
+      const auto bit = Bitboard::from_coordinate(y, x);
+      const auto white_piece = get_player<Color::White>().piece_at(bit);
+      const auto black_piece = get_player<Color::Black>().piece_at(bit);
+
+      if (white_piece == PieceType::None && black_piece == PieceType::None) {
+        empty_count++;
+        continue;
+      }
+
+      if (empty_count > 0) {
+        fen += std::to_string(empty_count);
+        empty_count = 0;
+      }
+
+      const auto piece_char = [&]() {
+        if (white_piece != PieceType::None) return piece::to_colored_char<Color::White>(white_piece);
+        return piece::to_colored_char<Color::Black>(black_piece);
+      }();
+      fen += piece_char;
+    }
+
+    if (empty_count) fen += std::to_string(empty_count);
+    if (y) fen += "/";
+  }
+
+  // Side to move.
+  fen += " ";
+  fen += is_white_turn ? "w" : "b";
+
+  // Castling rights.
+  fen += " ";
+  if (get_player<Color::White>().can_castle_kingside()) fen += "K";
+  if (get_player<Color::White>().can_castle_queenside()) fen += "Q";
+  if (get_player<Color::Black>().can_castle_kingside()) fen += "k";
+  if (get_player<Color::Black>().can_castle_queenside()) fen += "q";
+  if (fen.ends_with(' ')) fen += "-";
+
+  // En passant target square.
+  fen += " ";
+  if (en_passant_bit) fen += en_passant_bit.to_algebraic();
+  else fen += "-";
+
+  // Halfmove clock.
+  fen += " ";
+  fen += std::to_string(halfmove_clock);
+
+  return fen;
 }

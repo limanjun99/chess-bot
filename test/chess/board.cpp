@@ -120,3 +120,30 @@ TEST_SUITE("board.get_score") {
     REQUIRE(board.get_score().value() == 1);
   }
 }
+
+TEST_SUITE("board.to_fen") {
+  TEST_CASE("from initial board") {
+    auto board = chess::Board::initial();
+    REQUIRE(board.to_fen() == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0");
+    board = board.apply_move(chess::uci::move("e2e4", board));
+    REQUIRE(board.to_fen() == "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0");
+  }
+
+  TEST_CASE("partial castling") {
+    auto board = chess::Board::initial();
+    board = board.apply_move(chess::uci::move("h2h4", board));
+    board = board.apply_move(chess::uci::move("a7a5", board));
+    board = board.apply_move(chess::uci::move("h1h3", board));
+    board = board.apply_move(chess::uci::move("a8a6", board));
+    REQUIRE(board.to_fen() == "1nbqkbnr/1ppppppp/r7/p7/7P/7R/PPPPPPP1/RNBQKBN1 w Qk - 2");
+  }
+
+  TEST_CASE("no castling") {
+    auto board = chess::Board::initial();
+    board = board.apply_move(chess::uci::move("e2e4", board));
+    board = board.apply_move(chess::uci::move("e7e5", board));
+    board = board.apply_move(chess::uci::move("e1e2", board));
+    board = board.apply_move(chess::uci::move("e8e7", board));
+    REQUIRE(board.to_fen() == "rnbq1bnr/ppppkppp/8/4p3/4P3/8/PPPPKPPP/RNBQ1BNR w - - 2");
+  }
+}

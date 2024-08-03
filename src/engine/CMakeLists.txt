@@ -19,7 +19,7 @@ target_compile_features(chess_engine PRIVATE cxx_std_23)
 target_include_directories(chess_engine PRIVATE include/chess_engine)
 target_include_directories(chess_engine PUBLIC include)
 
-target_compile_options(chess_engine PRIVATE -Wall -Wextra -Wpedantic -O3)
+target_compile_options(chess_engine PRIVATE -Wall -Wextra -O3)
 
 target_link_libraries(chess_engine PUBLIC chess)
 
@@ -39,7 +39,7 @@ target_link_libraries(chess_engine_tests PRIVATE chess)
 target_link_libraries(chess_engine_tests PRIVATE GTest::gtest_main)
 
 target_compile_features(chess_engine_tests PRIVATE cxx_std_23)
-target_compile_options(chess_engine_tests PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(chess_engine_tests PRIVATE -Wall -Wextra)
 set_target_properties(chess_engine_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${g_test_output_directory})
 
 include(GoogleTest)

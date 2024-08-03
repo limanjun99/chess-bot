@@ -3,9 +3,9 @@
 #include <utility>
 
 #include "../engine_cli.h"
-#include "../util.h"
 #include "command.h"
 #include "parsing.h"
+#include "util/expected.h"
 
 std::expected<std::unique_ptr<DebugCommand>, std::string> DebugCommand::from_string(std::string input_string) {
   using expected = util::expected<std::unique_ptr<DebugCommand>, std::string>;

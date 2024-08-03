@@ -73,11 +73,17 @@ void engine::Search::Impl::go(std::unique_lock<std::mutex>) {
   const int32_t max_search_depth{config.depth.value_or(config::max_depth)};
   while (root_depth <= max_search_depth) {
     chess::Move found_move{iterative_deepening()};
-    if (found_move.is_null()) break;
+    if (found_move.is_null()) {
+      debug_info.timed_out = true;
+      break;
+    }
     debug_info.search_depth = root_depth;
     best_move = std::move(found_move);
     root_depth++;
-    if (!time_management.can_continue_iteration()) break;
+    if (!time_management.can_continue_iteration()) {
+      if (root_depth <= max_search_depth) debug_info.timed_out = true;
+      break;
+    }
   }
   debug_info.time_spent = time_management.time_spent();
   done.store(true, std::memory_order::release);

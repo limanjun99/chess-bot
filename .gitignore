@@ -1,4 +1,5 @@
 build/
+dataset/puzzles/new_statistics.csv
 engine_builds/
 engines.json
 .cache/

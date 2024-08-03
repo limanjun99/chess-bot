@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "util.h"
+#include "util/expected.h"
 
 UciIO::UciIO(std::istream& input_stream, std::ostream& output_stream)
     : input_stream{input_stream}, output_stream{output_stream} {}

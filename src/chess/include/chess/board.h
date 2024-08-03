@@ -115,6 +115,9 @@ public:
   // Two boards are equal if they have the same position and flags.
   constexpr bool operator==(const Board &other) const;
 
+  // Returns the FEN of this board. Note that fullmove number is not included.
+  std::string to_fen() const;
+
 private:
   Player white;
   Player black;

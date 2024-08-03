@@ -2,7 +2,6 @@
 
 #include <cctype>
 
-#include "../util.h"
 #include "debug_command.h"
 #include "go_command.h"
 #include "new_game_command.h"

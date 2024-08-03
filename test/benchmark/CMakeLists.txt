@@ -5,7 +5,7 @@ target_link_libraries(benchmarks PRIVATE chess)
 target_link_libraries(benchmarks PRIVATE doctest::doctest)
 
 target_compile_features(benchmarks PRIVATE cxx_std_20)
-target_compile_options(benchmarks PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(benchmarks PRIVATE -Wall -Wextra)
 
 find_package(benchmark CONFIG REQUIRED)
 target_link_libraries(benchmarks PRIVATE benchmark::benchmark)

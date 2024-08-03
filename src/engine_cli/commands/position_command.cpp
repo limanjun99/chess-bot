@@ -5,10 +5,10 @@
 #include <utility>
 
 #include "../engine_cli.h"
-#include "../util.h"
 #include "chess/uci.h"
 #include "command.h"
 #include "parsing.h"
+#include "util/expected.h"
 
 std::expected<std::unique_ptr<PositionCommand>, std::string> PositionCommand::from_string(std::string input_string) {
   using expected = util::expected<std::unique_ptr<PositionCommand>, std::string>;

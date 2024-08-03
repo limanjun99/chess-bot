@@ -23,6 +23,7 @@ public:
     int64_t q_delta_pruning_total;         // Nodes that tried to delta prune.
     int32_t search_depth;                  // Maximum depth reached during search.
     std::chrono::milliseconds time_spent;  // Time in milliseconds spent searching.
+    bool timed_out;                        // True if search could have reached a higher depth with more time.
   };
 
   //! TODO: This really should be a private class, but I can't

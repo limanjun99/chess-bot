@@ -14,7 +14,7 @@ add_executable(
   ndjson.cpp)
 
 target_compile_features(lichess_bot PRIVATE cxx_std_23)
-target_compile_options(lichess_bot PRIVATE -Wall -Wextra -Wpedantic -O3)
+target_compile_options(lichess_bot PRIVATE -Wall -Wextra -O3)
 set_target_properties(lichess_bot PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${g_binary_output_directory})
 
 target_link_libraries(lichess_bot PRIVATE chess_engine)
