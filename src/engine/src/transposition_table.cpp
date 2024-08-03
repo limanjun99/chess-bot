@@ -41,7 +41,7 @@ const PositionInfo* TranspositionTable::get(chess::Board::Hash hash) const {
 void TranspositionTable::try_update(chess::Board::Hash hash, int depth_left, chess::Move best_move, NodeType node_type,
                                     Evaluation score) {
   const size_t index{hash.to_index(config::transposition_table_size)};
-  if (table[index].depth_left > depth_left + 1) return;  // Existing entry is much superior.
-  if (table[index].hash == hash) return;                 // Same entry already exists.
+  if (table[index].depth_left > depth_left + 1) return;                            // Existing entry is much superior.
+  if (table[index].hash == hash && table[index].depth_left >= depth_left) return;  // Same entry already exists.
   table[index] = PositionInfo{hash, depth_left, best_move, node_type, score};
 }

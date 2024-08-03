@@ -3,6 +3,7 @@
 #include <chrono>
 #include <mutex>
 
+#include "config.h"
 #include "evaluation.h"
 #include "move_priority.h"
 #include "time_management.h"
@@ -294,9 +295,12 @@ Evaluation engine::Search::Impl::quiescence_search(const chess::Board& board, Ev
     // likely no point in checking this move at all.
     if (!is_in_check && moves[i].is_capture()) {
       debug_info.q_delta_pruning_total++;
-      if (board_evaluation + Evaluation::piece[static_cast<size_t>(moves[i].get_captured_piece())] +
-              config::quiescence_search_delta_pruning_safety <
-          alpha) {
+      const auto best_improvement =
+          Evaluation::piece[static_cast<size_t>(moves[i].get_captured_piece())] +
+          (moves[i].is_promotion() ? Evaluation::piece[static_cast<size_t>(moves[i].get_promotion_piece())]
+                                   : Evaluation{0}) +
+          config::quiescence_search_delta_pruning_safety;
+      if (board_evaluation + best_improvement < alpha) {
         debug_info.q_delta_pruning_success++;
         continue;
       }
