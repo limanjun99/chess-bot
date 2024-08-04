@@ -16,8 +16,8 @@ constexpr int null_move_heuristic_R = 2;
 // Maximum depth the engine searches to.
 constexpr int max_depth = 64;
 
-// Size of transposition table. Roughly 16 million.
-constexpr int transposition_table_size = 1 << 24;
+// Size of transposition table. Roughly 4 million.
+constexpr int transposition_table_size = 1 << 22;
 
 // If the expected value of a move does not raise evaluation to within this amount of the alpha, then prune it.
 constexpr Evaluation futility_margin{500};

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "chess/move.h"
 #include "config.h"
 
@@ -19,5 +21,5 @@ public:
   const chess::Move& get(int depth_left, int index) const;
 
 private:
-  chess::Move killer_moves[config::max_depth][KillerMoves::count];
+  std::array<std::array<chess::Move, KillerMoves::count>, config::max_depth> killer_moves;
 };
