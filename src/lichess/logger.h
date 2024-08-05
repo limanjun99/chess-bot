@@ -1,6 +1,5 @@
 #pragma once
 
-#include <fstream>
 #include <iostream>
 
 enum class LogLevel { Info = 0, Warn = 1, Error = 2 };

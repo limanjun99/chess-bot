@@ -2,7 +2,6 @@
 
 #include <cpr/cpr.h>
 
-#include <chrono>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
