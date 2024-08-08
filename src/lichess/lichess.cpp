@@ -2,11 +2,8 @@
 
 #include <cpr/cpr.h>
 
-#include <array>
 #include <chrono>
 #include <optional>
-#include <random>
-#include <sstream>
 #include <thread>
 #include <utility>
 
@@ -112,8 +109,7 @@ json Lichess::get_my_profile() const {
 
 bool Lichess::rate_limit_check(const cpr::Response& response) const {
   if (response.status_code == 429) {
-    Logger::error() << "Rate limited by lichess api: " << response.text << "\n";
-    Logger::flush();
+    Logger::get().format_error("Rate limited by lichess api: {}", response.text);
     std::this_thread::sleep_for(std::chrono::seconds{90});
     return true;
   }

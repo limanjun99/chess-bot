@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdexcept>
 
 #include "bot.h"
 #include "config.h"
@@ -7,12 +8,14 @@
 
 int main() {
   try {
-    Config config{};
-    Lichess lichess{config};
-    Bot bot{config, lichess};
+    auto config_file = std::ifstream{".env"};
+    const auto config = Config::from_stream(config_file);
+    Logger::initialize(config);
+    const auto lichess = Lichess{config};
+    auto bot = Bot{config, lichess};
     bot.listen();
-  } catch (const char* error) {
-    Logger::error() << error << "\n";
-    return 0;
+  } catch (const std::runtime_error& error) {
+    std::cerr << error.what();
+    return 1;
   }
 }

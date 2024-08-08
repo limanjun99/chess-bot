@@ -1,6 +1,5 @@
 #include "challenge_issued_state.h"
 
-#include "game_state.h"
 #include "idle_state.h"
 
 ChallengeIssuedState::ChallengeIssuedState(const Config& config, const Lichess& lichess)
@@ -20,8 +19,7 @@ std::optional<std::unique_ptr<BotState>> ChallengeIssuedState::handle_challenge_
 std::optional<std::unique_ptr<BotState>> ChallengeIssuedState::handle_null_event() {
   // Challenges expire after 20s.
   if (std::chrono::steady_clock::now() - issued_since > std::chrono::seconds{20}) {
-    Logger::info() << "Challenge timed out, back to idling.\n";
-    Logger::flush();
+    Logger::get().info("Challenge timed out, back to idling");
     return std::make_unique<IdleState>(config, lichess);
   }
   return std::nullopt;

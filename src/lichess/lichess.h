@@ -119,8 +119,7 @@ inline void Lichess::handle_incoming_events(T& handler) const {
     } else if (event["type"] == "gameFinish") {
       handler.handle_game_finish(event["game"]);
     } else {
-      Logger::error() << "Unhandled event: " << event << "\n";
-      Logger::flush();
+      Logger::get().format_error("Unhandled event: {}", event.dump());
       throw "Unhandled event";
     }
     return true;
@@ -150,8 +149,7 @@ inline void Lichess::handle_game(const std::string& game_id, T& handler) const {
       return handler.handle_game_update(event);
     }
 
-    Logger::error() << "Game received invalid event " << event << "\n";
-    Logger::flush();
+    Logger::get().format_error("Game received invalid event: {}", event.dump());
     throw "Game received invalid event";
   };
   const std::string url = api::stream_game(game_id);

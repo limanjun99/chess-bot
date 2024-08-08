@@ -1,9 +1,5 @@
 #include "bot.h"
 
-#include <array>
-#include <random>
-#include <string>
-
 #include "bot/bot_state.h"
 #include "bot/idle_state.h"
 #include "game_handler.h"
