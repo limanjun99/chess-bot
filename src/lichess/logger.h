@@ -47,7 +47,7 @@ public:
 
 private:
   std::unique_ptr<std::ostream> out;
-  Level level;
+  Level log_level;
   std::queue<std::string> messages;
   std::condition_variable cond_var;
   std::mutex mutex;
@@ -57,7 +57,7 @@ private:
   explicit Logger(std::unique_ptr<std::ostream> out, Level level);
 
   void listen_and_log();
-  void queue_message(std::string message);
+  void queue_message(Level level, std::string message);
 
   static std::atomic<bool> initialized;
   static std::unique_ptr<Logger> singleton;
@@ -74,17 +74,17 @@ private:
 
 template <typename... Args>
 void Logger::format_debug(std::format_string<Args...> fmt, Args&&... args) {
-  queue_message(std::string{debug_prefix} + std::format(fmt, std::forward<Args>(args)...));
+  queue_message(Level::Debug, std::string{debug_prefix} + std::format(fmt, std::forward<Args>(args)...));
 }
 template <typename... Args>
 void Logger::format_info(std::format_string<Args...> fmt, Args&&... args) {
-  queue_message(std::string{info_prefix} + std::format(fmt, std::forward<Args>(args)...));
+  queue_message(Level::Info, std::string{info_prefix} + std::format(fmt, std::forward<Args>(args)...));
 }
 template <typename... Args>
 void Logger::format_warn(std::format_string<Args...> fmt, Args&&... args) {
-  queue_message(std::string{warn_prefix} + std::format(fmt, std::forward<Args>(args)...));
+  queue_message(Level::Warn, std::string{warn_prefix} + std::format(fmt, std::forward<Args>(args)...));
 }
 template <typename... Args>
 void Logger::format_error(std::format_string<Args...> fmt, Args&&... args) {
-  queue_message(std::string{error_prefix} + std::format(fmt, std::forward<Args>(args)...));
+  queue_message(Level::Error, std::string{error_prefix} + std::format(fmt, std::forward<Args>(args)...));
 }

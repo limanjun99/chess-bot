@@ -1,7 +1,9 @@
 #include "logger.h"
 
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
+#include <utility>
 
 #include "config.h"
 
@@ -22,19 +24,34 @@ void Logger::initialize(const Config& config) {
     throw std::runtime_error{"Logger can only be initialized once."};
   }
 
-  auto output_stream = std::make_unique<std::ofstream>(config.get_log_path());
+  const auto stream_buffer = [&] -> std::streambuf* {
+    if (const auto path = config.get_log_path()) {
+      return std::ofstream{path.value()}.rdbuf();
+    } else {  // Default to stdout if log path not provided.
+      return std::cout.rdbuf();
+    }
+  }();
+  auto output_stream = std::make_unique<std::ostream>(stream_buffer);
   // Using new to access private constructor.
   Logger::singleton = std::unique_ptr<Logger>{new Logger{std::move(output_stream), config.get_log_level()}};
   Logger::initialized.store(true, std::memory_order::release);
 }
 
-void Logger::debug(std::string_view message) { queue_message(std::string{debug_prefix} + std::string{message}); }
+void Logger::debug(std::string_view message) {
+  queue_message(Level::Debug, std::string{debug_prefix} + std::string{message});
+}
 
-void Logger::info(std::string_view message) { queue_message(std::string{info_prefix} + std::string{message}); }
+void Logger::info(std::string_view message) {
+  queue_message(Level::Info, std::string{info_prefix} + std::string{message});
+}
 
-void Logger::warn(std::string_view message) { queue_message(std::string{warn_prefix} + std::string{message}); }
+void Logger::warn(std::string_view message) {
+  queue_message(Level::Warn, std::string{warn_prefix} + std::string{message});
+}
 
-void Logger::error(std::string_view message) { queue_message(std::string{error_prefix} + std::string{message}); }
+void Logger::error(std::string_view message) {
+  queue_message(Level::Error, std::string{error_prefix} + std::string{message});
+}
 
 Logger::Level Logger::parse_level(std::string_view level) {
   if (level == "debug") return Level::Debug;
@@ -54,7 +71,7 @@ Logger::~Logger() {
 }
 
 Logger::Logger(std::unique_ptr<std::ostream> out, Level level)
-    : out{std::move(out)}, level{level}, messages{}, cond_var{}, mutex{}, stop_flag{false}, log_thread{} {
+    : out{std::move(out)}, log_level{level}, messages{}, cond_var{}, mutex{}, stop_flag{false}, log_thread{} {
   log_thread = std::thread([this]() { listen_and_log(); });
 }
 
@@ -73,7 +90,8 @@ void Logger::listen_and_log() {
   }
 }
 
-void Logger::queue_message(std::string message) {
+void Logger::queue_message(Level level, std::string message) {
+  if (std::to_underlying(level) < std::to_underlying(log_level)) return;
   const auto lock = std::lock_guard{mutex};
   messages.push(std::move(message));
   cond_var.notify_one();

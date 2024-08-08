@@ -106,6 +106,11 @@ private:
 template <is_event_handler T>
 inline void Lichess::handle_incoming_events(T& handler) const {
   auto callback = [&](const json& event) {
+    if (!event.is_null()) {
+      // Skip logging for null events.
+      Logger::get().format_debug("Received lichess event: {}", event.dump());
+    }
+
     if (event.is_null()) {
       handler.handle_null_event();
     } else if (event["type"] == "challenge") {
@@ -120,7 +125,7 @@ inline void Lichess::handle_incoming_events(T& handler) const {
       handler.handle_game_finish(event["game"]);
     } else {
       Logger::get().format_error("Unhandled event: {}", event.dump());
-      throw "Unhandled event";
+      throw std::runtime_error{"Unhandled event"};
     }
     return true;
   };
@@ -130,6 +135,10 @@ inline void Lichess::handle_incoming_events(T& handler) const {
 template <is_game_handler T>
 inline void Lichess::handle_game(const std::string& game_id, T& handler) const {
   auto callback = [&](const json& event) {
+    if (!event.is_null()) {
+      Logger::get().format_debug("Received game event: {}", event.dump());
+    }
+
     // Ignore null / chat / opponent gone events.
     //! TODO: Maybe check if opponent is gone for too long and claim win?
     if (event.is_null() || event["type"] == "chatLine" || event["type"] == "opponentGone") {

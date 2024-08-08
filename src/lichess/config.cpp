@@ -11,7 +11,7 @@ const std::string& Config::get_lichess_token() const { return lichess_token; }
 
 const std::string& Config::get_lichess_bot_name() const { return lichess_bot_name; }
 
-const std::filesystem::path& Config::get_log_path() const { return log_path; }
+std::optional<std::filesystem::path> Config::get_log_path() const { return log_path; }
 
 Logger::Level Config::get_log_level() const { return log_level; }
 
@@ -58,7 +58,7 @@ Config Config::from_stream(std::istream& config_stream) {
     } else if (key == "LOG_LEVEL") {
       log_level = Logger::parse_level(value);
     } else if (key == "LOG_PATH") {
-      log_path = value;
+      log_path = std::filesystem::path{value};
     } else {
       const auto error_message = std::format("Unknown key in configuration file: {}", line);
       throw std::runtime_error{error_message};
@@ -71,7 +71,7 @@ Config Config::from_stream(std::istream& config_stream) {
   if (!lichess_bot_name) missing_keys.push_back("LICHESS_BOT_NAME");
   if (!issue_challenges) missing_keys.push_back("ISSUE_CHALLENGES");
   if (!log_level) missing_keys.push_back("LOG_LEVEL");
-  if (!log_path) missing_keys.push_back("LOG_PATH");
+  // log_path is optional.
   if (!missing_keys.empty()) {
     auto missing_keys_string = std::string{};
     missing_keys_string += missing_keys[0];
@@ -84,11 +84,11 @@ Config Config::from_stream(std::istream& config_stream) {
   }
 
   return Config{*std::move(lichess_token), *std::move(lichess_bot_name), *std::move(issue_challenges),
-                *std::move(log_path), *std::move(log_level)};
+                std::move(log_path), *std::move(log_level)};
 }
 
 Config::Config(std::string lichess_token, std::string lichess_bot_name, bool issue_challenges,
-               std::filesystem::path log_path, Logger::Level log_level)
+               std::optional<std::filesystem::path> log_path, Logger::Level log_level)
     : lichess_token{std::move(lichess_token)},
       lichess_bot_name{std::move(lichess_bot_name)},
       issue_challenges{issue_challenges},
