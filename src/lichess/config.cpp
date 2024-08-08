@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <ranges>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -16,6 +17,8 @@ std::optional<std::filesystem::path> Config::get_log_path() const { return log_p
 Logger::Level Config::get_log_level() const { return log_level; }
 
 bool Config::should_issue_challenges() const { return issue_challenges; }
+
+std::chrono::minutes Config::get_challenge_interval() const { return challenge_interval; }
 
 namespace {
 
@@ -39,6 +42,7 @@ Config Config::from_stream(std::istream& config_stream) {
   auto lichess_token = std::optional<std::string>{};
   auto lichess_bot_name = std::optional<std::string>{};
   auto issue_challenges = std::optional<bool>{};
+  auto challenge_interval = std::optional<std::chrono::minutes>{};
   auto log_path = std::optional<std::filesystem::path>{};
   auto log_level = std::optional<Logger::Level>{};
 
@@ -55,6 +59,8 @@ Config Config::from_stream(std::istream& config_stream) {
       if (value == "TRUE") issue_challenges = true;
       else if (value == "FALSE") issue_challenges = false;
       else throw std::runtime_error{"Invalid configuration for ISSUE_CHALLENGES: Must be TRUE or FALSE."};
+    } else if (key == "CHALLENGE_INTERVAL_MINUTES") {
+      challenge_interval = std::chrono::minutes{std::stoi(std::string{value})};
     } else if (key == "LOG_LEVEL") {
       log_level = Logger::parse_level(value);
     } else if (key == "LOG_PATH") {
@@ -70,6 +76,7 @@ Config Config::from_stream(std::istream& config_stream) {
   if (!lichess_token) missing_keys.push_back("LICHESS_TOKEN");
   if (!lichess_bot_name) missing_keys.push_back("LICHESS_BOT_NAME");
   if (!issue_challenges) missing_keys.push_back("ISSUE_CHALLENGES");
+  if (issue_challenges.value() && !challenge_interval) missing_keys.push_back("CHALLENGE_INTERVAL_MINUTES");
   if (!log_level) missing_keys.push_back("LOG_LEVEL");
   // log_path is optional.
   if (!missing_keys.empty()) {
@@ -83,14 +90,17 @@ Config Config::from_stream(std::istream& config_stream) {
     throw std::runtime_error{error_message};
   }
 
-  return Config{*std::move(lichess_token), *std::move(lichess_bot_name), *std::move(issue_challenges),
-                std::move(log_path), *std::move(log_level)};
+  return Config{*std::move(lichess_token),    *std::move(lichess_bot_name),
+                *std::move(issue_challenges), challenge_interval.value_or(std::chrono::minutes{0}),
+                std::move(log_path),          *std::move(log_level)};
 }
 
 Config::Config(std::string lichess_token, std::string lichess_bot_name, bool issue_challenges,
-               std::optional<std::filesystem::path> log_path, Logger::Level log_level)
+               std::chrono::minutes challenge_interval, std::optional<std::filesystem::path> log_path,
+               Logger::Level log_level)
     : lichess_token{std::move(lichess_token)},
       lichess_bot_name{std::move(lichess_bot_name)},
       issue_challenges{issue_challenges},
+      challenge_interval{challenge_interval},
       log_path{std::move(log_path)},
       log_level{log_level} {}

@@ -36,7 +36,8 @@ std::optional<std::unique_ptr<BotState>> IdleState::handle_null_event() {  // to
 }
 
 bool IdleState::is_ready_to_challenge() const {
-  return config.should_issue_challenges() && std::chrono::steady_clock::now() - idle_since > std::chrono::minutes{10};
+  return config.should_issue_challenges() &&
+         std::chrono::steady_clock::now() - idle_since > config.get_challenge_interval();
 }
 
 std::optional<std::unique_ptr<BotState>> IdleState::issue_challenge() {
