@@ -33,7 +33,7 @@ std::pair<chess::Move, engine::Search::DebugInfo> GameHandler::choose_move() {
   search_config.set_binc(binc);
 
   //! TODO: Find a better way to account for network latency.
-  std::chrono::milliseconds latency_compensation{1000};
+  std::chrono::milliseconds latency_compensation{500};
   auto my_time{is_white ? wtime : btime};
   auto my_inc{is_white ? winc : binc};
   std::chrono::milliseconds inc_compensation{std::min(my_inc, latency_compensation)};
