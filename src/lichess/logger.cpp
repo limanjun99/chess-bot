@@ -24,14 +24,13 @@ void Logger::initialize(const Config& config) {
     throw std::runtime_error{"Logger can only be initialized once."};
   }
 
-  const auto stream_buffer = [&] -> std::streambuf* {
-    if (const auto path = config.get_log_path()) {
-      return std::ofstream{path.value()}.rdbuf();
-    } else {  // Default to stdout if log path not provided.
-      return std::cout.rdbuf();
+  auto output_stream = [&] -> std::unique_ptr<std::ostream> {
+    if (const auto& path = config.get_log_path()) {
+      return std::make_unique<std::ofstream>(path.value());
+    } else {
+      return std::make_unique<std::ostream>(std::cout.rdbuf());
     }
   }();
-  auto output_stream = std::make_unique<std::ostream>(stream_buffer);
   // Using new to access private constructor.
   Logger::singleton = std::unique_ptr<Logger>{new Logger{std::move(output_stream), config.get_log_level()}};
   Logger::initialized.store(true, std::memory_order::release);
