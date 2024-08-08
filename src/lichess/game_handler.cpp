@@ -1,7 +1,5 @@
 #include "game_handler.h"
 
-#include <cpr/cpr.h>
-
 #include <algorithm>
 
 #include "chess/uci.h"
@@ -10,7 +8,17 @@
 #include "logger.h"
 
 GameHandler::GameHandler(const Config& config, const Lichess& lichess, const std::string& game_id)
-    : config{config}, lichess{lichess}, game_id{game_id} {}
+    : config{config},
+      lichess{lichess},
+      game_id{game_id},
+      is_white{true},
+      wtime{},
+      winc{},
+      btime{},
+      binc{},
+      ply_count{0},
+      board{chess::Board::initial()},
+      engine{} {}
 
 void GameHandler::listen() {
   Logger::get().format_info("Handling game {}", game_id);
