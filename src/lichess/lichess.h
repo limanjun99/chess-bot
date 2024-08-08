@@ -2,6 +2,7 @@
 
 #include <cpr/cpr.h>
 
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
@@ -129,7 +130,29 @@ inline void Lichess::handle_incoming_events(T& handler) const {
     }
     return true;
   };
-  cpr::Get(cpr::Url{api::stream_incoming_events}, auth, cpr::WriteCallback{NdjsonWriteCallback{callback}});
+
+  // I think this connection sometimes closes (e.g. when Lichess restarts), so we should keep retrying.
+  auto last_disconnection_time = std::chrono::steady_clock::time_point{};
+  while (true) {
+    Logger::get().info("Connecting to lichess api.");
+
+    const auto response =
+        cpr::Get(cpr::Url{api::stream_incoming_events}, auth, cpr::WriteCallback{NdjsonWriteCallback{callback}});
+    const auto current_time = std::chrono::steady_clock::now();
+
+    constexpr auto disconnection_duration = std::chrono::minutes{15};
+    if (current_time - last_disconnection_time < disconnection_duration) {
+      // If the connection repeatedly fails, something is likely wrong with our bot.
+      Logger::get().format_error("Lichess connection closed twice within {}, aborting bot.", disconnection_duration);
+      Logger::get().format_error("Connection error dump (status {}): {}", response.status_code, response.text);
+      throw std::runtime_error{"Unstable connection."};
+    }
+
+    last_disconnection_time = current_time;
+    constexpr auto retry_delay = std::chrono::minutes{2};
+    Logger::get().format_warn("Lichess connection closed, retrying in {}.", retry_delay);
+    std::this_thread::sleep_for(retry_delay);
+  }
 }
 
 template <is_game_handler T>
