@@ -23,14 +23,14 @@ private:
   const Config& config;
   const Lichess& lichess;
   const std::string& game_id;
-  bool is_white;                                // Whether the bot is playing as white.
-  std::chrono::milliseconds wtime;              // Amount of time left for white player.
-  std::chrono::milliseconds winc;               // Amount of increment per move for white player.
-  std::chrono::milliseconds btime;              // Amount of time left for black player.
-  std::chrono::milliseconds binc;               // Amount of increment per move for black player.
-  int ply_count;                                // Number of plys that we received from Lichess API so far.
-  chess::Board board{chess::Board::initial()};  // Current board of the game.
-  Engine engine{};
+  bool is_white;                    // Whether the bot is playing as white.
+  std::chrono::milliseconds wtime;  // Amount of time left for white player.
+  std::chrono::milliseconds winc;   // Amount of increment per move for white player.
+  std::chrono::milliseconds btime;  // Amount of time left for black player.
+  std::chrono::milliseconds binc;   // Amount of increment per move for black player.
+  int ply_count;                    // Number of plys that we received from Lichess API so far.
+  chess::Board board;               // Current board of the game.
+  Engine engine;
 
   // Find the move to make in the given position.
   std::pair<chess::Move, engine::Search::DebugInfo> choose_move();

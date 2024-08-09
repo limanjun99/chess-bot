@@ -1,6 +1,10 @@
 #include "config.h"
 
-#include <fstream>
+#include <optional>
+#include <ranges>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "logger.h"
 
@@ -8,25 +12,44 @@ const std::string& Config::get_lichess_token() const { return lichess_token; }
 
 const std::string& Config::get_lichess_bot_name() const { return lichess_bot_name; }
 
+std::optional<std::filesystem::path> Config::get_log_path() const { return log_path; }
+
+Logger::Level Config::get_log_level() const { return log_level; }
+
 bool Config::should_issue_challenges() const { return issue_challenges; }
 
-Config::Config() {
-  // Default Configuration
-  issue_challenges = false;
+std::chrono::minutes Config::get_challenge_interval() const { return challenge_interval; }
 
-  // Scan .env file for configuration.
-  std::ifstream env_file{".env"};
-  std::string line;
-  while (std::getline(env_file, line)) {
+namespace {
+
+// Parses a line in the configuration stream. Returns pair<key, value>.
+// Throws a `runtime_error` if the line is invalid.
+std::pair<std::string_view, std::string_view> parse_line(std::string_view line) {
+  const auto delimiter_index = line.find('=');
+  if (delimiter_index == line.npos) {
+    const auto error_message = std::format("Line in configuration file missing '=': {}", line);
+    throw std::runtime_error{error_message};
+  }
+
+  const auto key = line.substr(0, delimiter_index);
+  const auto value = line.substr(delimiter_index + 1);
+  return {key, value};
+}
+
+}  // namespace
+
+Config Config::from_stream(std::istream& config_stream) {
+  auto lichess_token = std::optional<std::string>{};
+  auto lichess_bot_name = std::optional<std::string>{};
+  auto issue_challenges = std::optional<bool>{};
+  auto challenge_interval = std::optional<std::chrono::minutes>{};
+  auto log_path = std::optional<std::filesystem::path>{};
+  auto log_level = std::optional<Logger::Level>{};
+
+  auto line = std::string{};
+  while (std::getline(config_stream, line)) {
     if (line.empty()) continue;
-    size_t equal_index = line.find("=");
-    if (equal_index == std::string::npos) {
-      Logger::warn() << "Extraneous line in .env file missing '=': " << line << "\n";
-      continue;
-    }
-
-    std::string_view key = std::string_view{line}.substr(0, equal_index);
-    std::string_view value = std::string_view{line}.substr(equal_index + 1);
+    const auto [key, value] = parse_line(line);
 
     if (key == "LICHESS_TOKEN") {
       lichess_token = value;
@@ -35,19 +58,49 @@ Config::Config() {
     } else if (key == "ISSUE_CHALLENGES") {
       if (value == "TRUE") issue_challenges = true;
       else if (value == "FALSE") issue_challenges = false;
-      else Logger::warn() << "Invalid configuration for ISSUE_CHALLENGES: Use TRUE or FALSE.\n";
+      else throw std::runtime_error{"Invalid configuration for ISSUE_CHALLENGES: Must be TRUE or FALSE."};
+    } else if (key == "CHALLENGE_INTERVAL_MINUTES") {
+      challenge_interval = std::chrono::minutes{std::stoi(std::string{value})};
+    } else if (key == "LOG_LEVEL") {
+      log_level = Logger::parse_level(value);
+    } else if (key == "LOG_PATH") {
+      log_path = std::filesystem::path{value};
     } else {
-      Logger::warn() << "Unknown key in .env file: " << line << "\n";
+      const auto error_message = std::format("Unknown key in configuration file: {}", line);
+      throw std::runtime_error{error_message};
     }
   };
 
   // Check for incomplete configuration.
-  if (lichess_token.empty()) {
-    Logger::error() << "LICHESS_TOKEN not configured in .env\n";
-    throw "LICHESS_TOKEN not configured in .env";
+  auto missing_keys = std::vector<std::string_view>{};
+  if (!lichess_token) missing_keys.push_back("LICHESS_TOKEN");
+  if (!lichess_bot_name) missing_keys.push_back("LICHESS_BOT_NAME");
+  if (!issue_challenges) missing_keys.push_back("ISSUE_CHALLENGES");
+  if (issue_challenges.value() && !challenge_interval) missing_keys.push_back("CHALLENGE_INTERVAL_MINUTES");
+  if (!log_level) missing_keys.push_back("LOG_LEVEL");
+  // log_path is optional.
+  if (!missing_keys.empty()) {
+    auto missing_keys_string = std::string{};
+    missing_keys_string += missing_keys[0];
+    for (const auto& missing_key : missing_keys | std::views::drop(1)) {
+      missing_keys_string += ",";
+      missing_keys_string += missing_key;
+    }
+    const auto error_message = std::format("Missing keys in configuration file: {}", missing_keys_string);
+    throw std::runtime_error{error_message};
   }
-  if (lichess_bot_name.empty()) {
-    Logger::error() << "LICHESS_BOT_NAME not configured in .env\n";
-    throw "LICHESS_BOT_NAME not configured in .env";
-  }
+
+  return Config{*std::move(lichess_token),    *std::move(lichess_bot_name),
+                *std::move(issue_challenges), challenge_interval.value_or(std::chrono::minutes{0}),
+                std::move(log_path),          *std::move(log_level)};
 }
+
+Config::Config(std::string lichess_token, std::string lichess_bot_name, bool issue_challenges,
+               std::chrono::minutes challenge_interval, std::optional<std::filesystem::path> log_path,
+               Logger::Level log_level)
+    : lichess_token{std::move(lichess_token)},
+      lichess_bot_name{std::move(lichess_bot_name)},
+      issue_challenges{issue_challenges},
+      challenge_interval{challenge_interval},
+      log_path{std::move(log_path)},
+      log_level{log_level} {}

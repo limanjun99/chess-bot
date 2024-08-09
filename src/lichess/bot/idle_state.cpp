@@ -36,7 +36,8 @@ std::optional<std::unique_ptr<BotState>> IdleState::handle_null_event() {  // to
 }
 
 bool IdleState::is_ready_to_challenge() const {
-  return config.should_issue_challenges() && std::chrono::steady_clock::now() - idle_since > std::chrono::minutes{10};
+  return config.should_issue_challenges() &&
+         std::chrono::steady_clock::now() - idle_since > config.get_challenge_interval();
 }
 
 std::optional<std::unique_ptr<BotState>> IdleState::issue_challenge() {
@@ -69,21 +70,18 @@ std::optional<std::unique_ptr<BotState>> IdleState::issue_challenge() {
   }
 
   if (valid_bots.empty()) {
-    Logger::warn() << "No valid online bots found to challenge.\n";
-    Logger::flush();
+    Logger::get().warn("No valid online bots found to challenge.");
     return std::nullopt;
   }
   const size_t username_index = (std::uniform_int_distribution<size_t>{1, valid_bots.size()}(rng)) - 1;
   const std::string& username = valid_bots[username_index];
 
   // Issue a challenge to the bot.
-  Logger::info() << "Issuing challenge to " << username << "\n";
-  Logger::flush();
+  Logger::get().format_info("Issuing challenge to {}.", username);
   if (auto challenge_id = lichess.issue_challenge(username, true, clock_time, clock_increment)) {
     return std::make_unique<ChallengeIssuedState>(config, lichess);
   } else {
-    Logger::warn() << "Challenge to " << username << " failed\n";
-    Logger::flush();
+    Logger::get().format_warn("Challenge to {} failed.", username);
     return std::nullopt;
   }
 }

@@ -1,9 +1,5 @@
 #include "bot.h"
 
-#include <array>
-#include <random>
-#include <string>
-
 #include "bot/bot_state.h"
 #include "bot/idle_state.h"
 #include "game_handler.h"
@@ -12,7 +8,10 @@
 Bot::Bot(const Config& config, const Lichess& lichess)
     : config{config}, lichess{lichess}, state{std::make_unique<IdleState>(config, lichess)} {}
 
-void Bot::listen() { lichess.handle_incoming_events(*this); }
+void Bot::listen() {
+  Logger::get().info("Bot started.");
+  lichess.handle_incoming_events(*this);
+}
 
 void Bot::change_state(std::unique_ptr<BotState> new_state) { state = std::move(new_state); }
 

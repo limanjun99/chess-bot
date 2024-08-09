@@ -48,8 +48,6 @@ Then run the bot:
 
 ## Strength Testing
 
-Development is done in the `dev` branch. Once a new version (typically with better strength) is ready, it will be merged into `main`, and tagged with `vx.y.z`.
-
 To build older versions (tagged with some `vx.y.z`) of the engine_cli binary, use the script `./scripts/build_engine_version.sh` (run it for usage info). Remember to set the environment variables `CC` and `CXX` if you need to use a different compiler.
 
 To test different versions of the engine, we use cutechess to perform a SPRT. Create a `engines.json` file (an example `engines.example.json` is provided). The command below tests whether the current version has improved since version 0.0.1.

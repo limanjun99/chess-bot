@@ -1,9 +1,6 @@
 #include "game_handler.h"
 
-#include <cpr/cpr.h>
-
 #include <algorithm>
-#include <ostream>
 
 #include "chess/uci.h"
 #include "chess_engine/uci.h"
@@ -11,10 +8,20 @@
 #include "logger.h"
 
 GameHandler::GameHandler(const Config& config, const Lichess& lichess, const std::string& game_id)
-    : config{config}, lichess{lichess}, game_id{game_id} {}
+    : config{config},
+      lichess{lichess},
+      game_id{game_id},
+      is_white{true},
+      wtime{},
+      winc{},
+      btime{},
+      binc{},
+      ply_count{0},
+      board{chess::Board::initial()},
+      engine{} {}
 
 void GameHandler::listen() {
-  Logger::info() << "Handling game " << game_id << "\n";
+  Logger::get().format_info("Handling game {}", game_id);
   lichess.handle_game(game_id, *this);
 }
 
@@ -26,7 +33,7 @@ std::pair<chess::Move, engine::Search::DebugInfo> GameHandler::choose_move() {
   search_config.set_binc(binc);
 
   //! TODO: Find a better way to account for network latency.
-  std::chrono::milliseconds latency_compensation{1000};
+  std::chrono::milliseconds latency_compensation{500};
   auto my_time{is_white ? wtime : btime};
   auto my_inc{is_white ? winc : binc};
   std::chrono::milliseconds inc_compensation{std::min(my_inc, latency_compensation)};
@@ -71,20 +78,18 @@ bool GameHandler::handle_game_update(const json& state) {
   const auto [move, debug] = choose_move();
   lichess.send_move(game_id, move.to_uci());
 
-  Logger::info() << "Found move " << move.to_algebraic() << " for game " << game_id << " in "
-                 << debug.time_spent.count() << "ms (depth " << debug.search_depth << " reached, "
-                 << debug.normal_node_count / 1000 << "k nodes, " << debug.quiescence_node_count / 1000
-                 << "k quiescent nodes, " << debug.transposition_table_success / 1000 << "/"
-                 << debug.transposition_table_total / 1000 << "k TT, " << debug.null_move_success / 1000 << "/"
-                 << debug.null_move_total / 1000 << "k NM, " << debug.q_delta_pruning_success / 1000 << "/"
-                 << debug.q_delta_pruning_total / 1000 << "k QDP, " << debug.evaluation << " eval)\n";
-  Logger::flush();
+  Logger::get().format_info(
+      "Found move {} for game {} in {}ms (depth {} reached, {}k nodes, {}k quiescent nodes, {}/{}k TT, {}/{}k NM, "
+      "{}/{}k QDP, {} eval)",
+      move.to_algebraic(), game_id, debug.time_spent.count(), debug.search_depth, debug.normal_node_count / 1000,
+      debug.quiescence_node_count / 1000, debug.transposition_table_success / 1000,
+      debug.transposition_table_total / 1000, debug.null_move_success / 1000, debug.null_move_total / 1000,
+      debug.q_delta_pruning_success / 1000, debug.q_delta_pruning_total / 1000, debug.evaluation);
   return true;
 }
 
 void GameHandler::handle_game_end(const json& state) {
-  Logger::info() << "Game ended with status: " << state["status"] << "\n";
-  Logger::flush();
+  Logger::get().format_info("Game ended with status: {}", state["status"].dump());
 }
 
 void GameHandler::update_board(const std::string& moves) {

@@ -107,6 +107,11 @@ private:
 template <is_event_handler T>
 inline void Lichess::handle_incoming_events(T& handler) const {
   auto callback = [&](const json& event) {
+    if (!event.is_null()) {
+      // Skip logging for null events.
+      Logger::get().format_debug("Received lichess event: {}", event.dump());
+    }
+
     if (event.is_null()) {
       handler.handle_null_event();
     } else if (event["type"] == "challenge") {
@@ -120,18 +125,43 @@ inline void Lichess::handle_incoming_events(T& handler) const {
     } else if (event["type"] == "gameFinish") {
       handler.handle_game_finish(event["game"]);
     } else {
-      Logger::error() << "Unhandled event: " << event << "\n";
-      Logger::flush();
-      throw "Unhandled event";
+      Logger::get().format_error("Unhandled event: {}", event.dump());
+      throw std::runtime_error{"Unhandled event"};
     }
     return true;
   };
-  cpr::Get(cpr::Url{api::stream_incoming_events}, auth, cpr::WriteCallback{NdjsonWriteCallback{callback}});
+
+  // I think this connection sometimes closes (e.g. when Lichess restarts), so we should keep retrying.
+  auto last_disconnection_time = std::chrono::steady_clock::time_point{};
+  while (true) {
+    Logger::get().info("Connecting to lichess api.");
+
+    const auto response =
+        cpr::Get(cpr::Url{api::stream_incoming_events}, auth, cpr::WriteCallback{NdjsonWriteCallback{callback}});
+    const auto current_time = std::chrono::steady_clock::now();
+
+    constexpr auto disconnection_duration = std::chrono::minutes{15};
+    if (current_time - last_disconnection_time < disconnection_duration) {
+      // If the connection repeatedly fails, something is likely wrong with our bot.
+      Logger::get().format_error("Lichess connection closed twice within {}, aborting bot.", disconnection_duration);
+      Logger::get().format_error("Connection error dump (status {}): {}", response.status_code, response.text);
+      throw std::runtime_error{"Unstable connection."};
+    }
+
+    last_disconnection_time = current_time;
+    constexpr auto retry_delay = std::chrono::minutes{2};
+    Logger::get().format_warn("Lichess connection closed, retrying in {}.", retry_delay);
+    std::this_thread::sleep_for(retry_delay);
+  }
 }
 
 template <is_game_handler T>
 inline void Lichess::handle_game(const std::string& game_id, T& handler) const {
   auto callback = [&](const json& event) {
+    if (!event.is_null()) {
+      Logger::get().format_debug("Received game event: {}", event.dump());
+    }
+
     // Ignore null / chat / opponent gone events.
     //! TODO: Maybe check if opponent is gone for too long and claim win?
     if (event.is_null() || event["type"] == "chatLine" || event["type"] == "opponentGone") {
@@ -151,8 +181,7 @@ inline void Lichess::handle_game(const std::string& game_id, T& handler) const {
       return handler.handle_game_update(event);
     }
 
-    Logger::error() << "Game received invalid event " << event << "\n";
-    Logger::flush();
+    Logger::get().format_error("Game received invalid event: {}", event.dump());
     throw "Game received invalid event";
   };
   const std::string url = api::stream_game(game_id);

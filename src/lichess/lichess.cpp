@@ -2,11 +2,8 @@
 
 #include <cpr/cpr.h>
 
-#include <array>
 #include <chrono>
 #include <optional>
-#include <random>
-#include <sstream>
 #include <thread>
 #include <utility>
 
@@ -74,11 +71,9 @@ std::optional<std::string> Lichess::issue_challenge(const std::string& username,
                                                  {"variant", "standard"}});
     if (rate_limit_check(response)) continue;
     if (response.status_code != 200) return std::nullopt;
-    //! TODO: I think the API has changed to return what used to be in the "challenge" field directly.
-    //! The lichess documentation is still unchanged though. Double check if the api changed.
-    const auto challenge{json::parse(response.text)};
-    if (challenge.contains("challenge")) return std::optional{challenge["challenge"]["id"]};
-    else return std::optional{challenge["id"]};
+    // Note that json must not use brace initialization (else it gives an array on certain compilers).
+    const auto challenge = json::parse(response.text);
+    return std::optional{challenge["id"]};
   }
   throw "Rate limited.";
 }
@@ -112,8 +107,7 @@ json Lichess::get_my_profile() const {
 
 bool Lichess::rate_limit_check(const cpr::Response& response) const {
   if (response.status_code == 429) {
-    Logger::error() << "Rate limited by lichess api: " << response.text << "\n";
-    Logger::flush();
+    Logger::get().format_error("Rate limited by lichess api: {}", response.text);
     std::this_thread::sleep_for(std::chrono::seconds{90});
     return true;
   }
