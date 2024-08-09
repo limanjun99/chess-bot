@@ -260,6 +260,7 @@ Evaluation engine::Search::Impl::quiescence_search(const chess::Board& board, Ev
   const auto is_quiet_position = [&]() {
     // A quiet position is one that is not in check, and no moves are a capture.
     if (is_in_check) return false;
+    if (depth_left <= -config::quiescence_search_depth) return true;
     return std::ranges::none_of(moves, [](const auto& move) { return move.is_capture(); });
   }();
 
@@ -269,6 +270,8 @@ Evaluation engine::Search::Impl::quiescence_search(const chess::Board& board, Ev
   }
 
   if (!is_in_check) {
+    if (board_evaluation >= beta) return beta;
+
     // Delta pruning. If the evaluation remains below alpha after capturing a queen, then the position's true
     // evaluation is likely below alpha.
     debug_info.q_delta_pruning_total++;
@@ -278,6 +281,8 @@ Evaluation engine::Search::Impl::quiescence_search(const chess::Board& board, Ev
       debug_info.q_delta_pruning_success++;
       return alpha;
     }
+
+    alpha = std::max(alpha, board_evaluation);
   }
 
   std::vector<MovePriority> move_priorities;
