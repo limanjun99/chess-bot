@@ -1,5 +1,6 @@
 #include "search_impl.h"
 
+#include <algorithm>
 #include <chrono>
 #include <mutex>
 
@@ -252,9 +253,22 @@ Evaluation engine::Search::Impl::quiescence_search(const chess::Board& board, Ev
   if (!is_in_check && depth_left <= -config::quiescence_search_depth) return Evaluation::evaluate(board);
 
   const Evaluation board_evaluation{Evaluation::evaluate(board)};
-  if (!is_in_check) {
-    if (board_evaluation >= beta) return beta;
+  auto moves = [&]() {
+    if (is_in_check) return board.generate_moves();
+    return board.generate_quiescence_moves();
+  }();
+  const auto is_quiet_position = [&]() {
+    // A quiet position is one that is not in check, and no moves are a capture.
+    if (is_in_check) return false;
+    return std::ranges::none_of(moves, [](const auto& move) { return move.is_capture(); });
+  }();
 
+  if (is_quiet_position) {
+    // Quiescence search ends once we reach a quiet position
+    return std::clamp(board_evaluation, alpha, beta);
+  }
+
+  if (!is_in_check) {
     // Delta pruning. If the evaluation remains below alpha after capturing a queen, then the position's true
     // evaluation is likely below alpha.
     debug_info.q_delta_pruning_total++;
@@ -264,14 +278,7 @@ Evaluation engine::Search::Impl::quiescence_search(const chess::Board& board, Ev
       debug_info.q_delta_pruning_success++;
       return alpha;
     }
-
-    alpha = std::max(alpha, board_evaluation);
   }
-
-  chess::MoveContainer moves{[&board, is_in_check]() {
-    if (is_in_check) return board.generate_moves();
-    return board.generate_quiescence_moves();
-  }()};
 
   std::vector<MovePriority> move_priorities;
   move_priorities.reserve(moves.size());
